@@ -53,43 +53,36 @@ Executive view with optical signal distribution histogram, global KPIs, and real
 
 ---
 
-### 2. OLT Equipment Showcase & Inventory
-Interactive hardware management with auto-detected chassis, firmware, and communication status.
-![OLT Inventory](olts.png)
+### 2. Multi-Vendor Hardware Showcase & Inventory
+Interactive hardware management with auto-detected chassis, firmware, operational status, and vendor specifications.
+
+| Nokia / Alcatel-Lucent | Huawei SmartAX GPON |
+| :---: | :---: |
+| ![Nokia](nokia.png) | ![Huawei](huawei.png) |
+
+| Datacom DmOS | ZTE Titan Series |
+| :---: | :---: |
+| ![Datacom](datacom.png) | ![ZTE](zte.png) |
+
+| FiberHome AN5516 | Parks Fiberlink |
+| :---: | :---: |
+| ![FiberHome](fiberhome.png) | ![Parks](parks.png) |
 
 ---
 
-### 3. High-Density ONU & Signal Explorer (Split View)
-Paginated inventory combined with immediate lateral inspection of optical physical parameters.
-![ONUs and Signals](onus_sinais.png)
+### 3. High-Density ONU & Signal Explorer with Timeline
+Paginated inventory combined with immediate lateral inspection of optical physical parameters and historical degradation ($\Delta\text{dB}$).
+![ONUs and Signals](sinais.png)
 
 ---
 
-### 4. ONU Detailed Audit & Historical Timeline
-Full audit of optical telemetry history, upstream/downstream attenuation, and signal drift ($\Delta\text{dB}$).
-![ONU Optical Audit](auditando_onu.png)
-
----
-
-### 5. Signal Degradation Analysis ($\Delta\text{dB}$)
-Automated detection of passive optical network attenuation prior to physical disconnection.
-![Signal Degradation](piora_sinal.png)
-
----
-
-### 6. Intelligent Optical Diagnostics (RCA)
+### 4. Intelligent Optical Diagnostics (RCA)
 Predictive root-cause analysis identifying PON port anomalies, macrobends, and trunk issues.
 ![Optical Diagnostics](diagnostico.png)
 
 ---
 
-### 7. RBAC User Management & Security Profiles
-Granular permission management with administrator, operator, and viewer roles.
-![User Management](usuarios.png)
-
----
-
-### 8. Security Audit Trail & Activity Logs
+### 5. Security Audit Trail & Activity Logs
 Immutable chronological log recording all operator and system operations.
 ![Audit Logs](auditoria.png)
 

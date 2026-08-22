@@ -53,44 +53,37 @@ Visão executiva com distribuição óptica, indicadores de qualidade global e a
 
 ---
 
-### 2. Gestão de Equipamentos OLT
-Showcase interativo de hardware com detecção automática de chassi, firmware e status de comunicação.
-![OLTs](olts.png)
+### 2. Showcase e Auditoria de Hardware Multi-Vendor OLT
+Painel interativo com detecção de chassi, firmware, status operacional e especificações por fabricante.
+
+| Nokia / Alcatel-Lucent | Huawei SmartAX GPON |
+| :---: | :---: |
+| ![Nokia](nokia.png) | ![Huawei](huawei.png) |
+
+| Datacom DmOS | ZTE Titan Series |
+| :---: | :---: |
+| ![Datacom](datacom.png) | ![ZTE](zte.png) |
+
+| FiberHome AN5516 | Parks Fiberlink |
+| :---: | :---: |
+| ![FiberHome](fiberhome.png) | ![Parks](parks.png) |
 
 ---
 
-### 3. Monitoramento de ONUs & Sinais (Layout Split Widescreen)
-Listagem paginada de alta densidade integrada à auditoria direta de potência óptica.
-![ONUs e Sinais](onus_sinais.png)
+### 3. Monitoramento de ONUs, Sinais e Linha do Tempo
+Listagem paginada de alta densidade integrada à auditoria detalhada de potência óptica (Rx/Tx, OLT-Rx, atenuação e $\Delta\text{dB}$).
+![ONUs e Sinais](sinais.png)
 
 ---
 
-### 4. Linha do Tempo e Histórico de Sinais por ONU
-Auditoria detalhada da evolução temporal de potência Rx/Tx, atenuação e variação de sinal ($\Delta\text{dB}$).
-![Auditando ONU](auditando_onu.png)
-
----
-
-### 5. Análise de Piora de Sinal ($\Delta\text{dB}$)
-Detecção automatizada de atenuações na rede óptica antes da perda definitiva de conexão.
-![Piora de Sinal](piora_sinal.png)
-
----
-
-### 6. Diagnóstico Óptico Inteligente
-Diagnóstico preventivo de causas de falha na rede passiva de fibra óptica.
+### 4. Diagnóstico Óptico Inteligente e RCA
+Diagnóstico preditivo automatizado de anomalias ópticas por fabricante e porta PON.
 ![Diagnóstico Óptico](diagnostico.png)
 
 ---
 
-### 7. Gestão de Usuários e Perfis RBAC
-Controle granular de permissões com perfis de administrador, operador e visualizador.
-![Gestão de Usuários](usuarios.png)
-
----
-
-### 8. Trilha e Logs de Auditoria de Segurança
-Histórico completo e imutável de todas as ações executadas no sistema.
+### 5. Trilha e Logs de Auditoria de Segurança
+Histórico completo e imutável de todas as ações e eventos executados no sistema.
 ![Logs de Auditoria](auditoria.png)
 
 ---
