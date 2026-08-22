@@ -460,10 +460,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         " Concorrência máxima por OLT: {}",
         config.collector.max_concurrent_requests_per_olt
     );
-    println!(
-        " Delay entre portas PON: {}ms",
-        config.collector.pon_inter_scan_delay_ms
-    );
     println!("============================================================");
 
     if config.server.use_tls {

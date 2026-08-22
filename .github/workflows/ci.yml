@@ -11,6 +11,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: write
+
 jobs:
   # ============================================================================
   # 1. CI: Validação de Código, Linter e Testes em Linux (Ubuntu)

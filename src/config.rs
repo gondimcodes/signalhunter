@@ -59,7 +59,6 @@ pub struct CollectorConfig {
     pub default_collection_interval_mins: u32,
     pub max_concurrent_olt_scans: usize,
     pub max_concurrent_requests_per_olt: usize,
-    pub pon_inter_scan_delay_ms: u64,
     pub request_timeout_sec: u64,
     #[serde(default = "default_protocol_snmp")]
     pub default_protocol: String,

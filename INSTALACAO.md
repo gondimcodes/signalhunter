@@ -219,7 +219,6 @@ jwt_expiration_hours = 24
 default_collection_interval_mins = 60
 max_concurrent_olt_scans = 10
 max_concurrent_requests_per_olt = 2
-pon_inter_scan_delay_ms = 50
 request_timeout_sec = 15
 default_protocol = "snmp"
 

@@ -58,10 +58,6 @@ max_concurrent_olt_scans = 10
 # Protege a CPU da placa de gerência da OLT contra travamento (recomendado: 2)
 max_concurrent_requests_per_olt = 2
 
-# Pausa obrigatória (pacing) entre leitura de blocos de portas PON (em milissegundos)
-# Evita sobrecarregar a fila de mensagens OMCI da OLT
-pon_inter_scan_delay_ms = 50
-
 # Timeout individual para requisições SNMP (em segundos)
 request_timeout_sec = 15
 
