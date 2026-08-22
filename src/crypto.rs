@@ -12,8 +12,12 @@ pub struct CryptoManager {
 
 impl CryptoManager {
     pub fn new(master_hex_key: &str) -> Result<Self, Box<dyn Error + Send + Sync>> {
-        let key_bytes = hex::decode(master_hex_key.trim())
-            .map_err(|e| format!("Chave mestra AES inválida (deve ter 64 caracteres hexadecimais): {}", e))?;
+        let key_bytes = hex::decode(master_hex_key.trim()).map_err(|e| {
+            format!(
+                "Chave mestra AES inválida (deve ter 64 caracteres hexadecimais): {}",
+                e
+            )
+        })?;
 
         if key_bytes.len() != 32 {
             return Err("A chave mestra precisa ter exatamente 32 bytes (256 bits)".into());
@@ -55,10 +59,12 @@ impl CryptoManager {
         let (nonce_slice, ciphertext_slice) = data.split_at(12);
         let nonce = Nonce::from_slice(nonce_slice);
 
-        let decrypted_bytes = self
-            .cipher
-            .decrypt(nonce, ciphertext_slice)
-            .map_err(|e| format!("Falha na decriptação AES-GCM (Chave incorreta ou dado corrompido): {:?}", e))?;
+        let decrypted_bytes = self.cipher.decrypt(nonce, ciphertext_slice).map_err(|e| {
+            format!(
+                "Falha na decriptação AES-GCM (Chave incorreta ou dado corrompido): {:?}",
+                e
+            )
+        })?;
 
         let text = String::from_utf8(decrypted_bytes)
             .map_err(|e| format!("Texto decriptado não é UTF-8 válido: {}", e))?;

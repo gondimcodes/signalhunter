@@ -1,16 +1,16 @@
+use crate::analytics::OpticalEvaluator;
+use crate::collector::driver::OltTarget;
+use crate::handlers::olt_handlers::ApiResponse;
+use crate::AppState;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
     Json,
 };
+use log::{info, warn};
 use std::sync::Arc;
 use std::time::Duration;
-use log::{info, warn};
-use crate::AppState;
-use crate::collector::driver::OltTarget;
-use crate::analytics::OpticalEvaluator;
-use crate::handlers::olt_handlers::ApiResponse;
 
 /// Sincroniza ONUs e grava histórico de telemetria no banco MariaDB em lote transacional
 pub async fn sync_olt_telemetry(
@@ -34,7 +34,11 @@ pub async fn sync_olt_telemetry(
     .ok_or("OLT não encontrada")?;
 
     if !olt_row.is_active {
-        return Err(format!("A OLT '{}' está desativada administrativamente. Ative a OLT para realizar coletas.", olt_row.name).into());
+        return Err(format!(
+            "A OLT '{}' está desativada administrativamente. Ative a OLT para realizar coletas.",
+            olt_row.name
+        )
+        .into());
     }
 
     let decrypted_community = olt_row
@@ -72,13 +76,24 @@ pub async fn sync_olt_telemetry(
 
     // Identifica e atualiza modelo e firmware da OLT automaticamente na base de dados
     let comm = target.snmp_community.as_deref().unwrap_or("public");
-    if let Ok(snmp_client) = crate::collector::snmp::SnmpClient::new(&target.ip_address, target.snmp_port, comm, 1500).await {
+    if let Ok(snmp_client) =
+        crate::collector::snmp::SnmpClient::new(&target.ip_address, target.snmp_port, comm, 1500)
+            .await
+    {
         if let Ok(Some(vb)) = snmp_client.get(".1.3.6.1.2.1.1.1.0").await {
             let sys_desc = vb.value_str.unwrap_or_default();
             if !sys_desc.is_empty() {
-                let fw = sys_desc.split_whitespace().find(|w| w.starts_with('R') || w.starts_with('V')).map(|s| s.to_string());
+                let fw = sys_desc
+                    .split_whitespace()
+                    .find(|w| w.starts_with('R') || w.starts_with('V'))
+                    .map(|s| s.to_string());
                 let vendor_lower = target.vendor.to_lowercase();
-                let model = if vendor_lower.contains("nokia") || sys_desc.contains("ISAM") || sys_desc.contains("7360") || sys_desc.contains("7330") || sys_desc.contains("Lightspan") {
+                let model = if vendor_lower.contains("nokia")
+                    || sys_desc.contains("ISAM")
+                    || sys_desc.contains("7360")
+                    || sys_desc.contains("7330")
+                    || sys_desc.contains("Lightspan")
+                {
                     if sys_desc.contains("7368") {
                         Some("Nokia 7368 ISAM ONT".to_string())
                     } else if sys_desc.contains("7342") {
@@ -100,7 +115,11 @@ pub async fn sync_olt_telemetry(
                     } else {
                         Some("Huawei SmartAX GPON".to_string())
                     }
-                } else if vendor_lower.contains("zte") || sys_desc.contains("ZXA") || sys_desc.contains("C600") || sys_desc.contains("C300") {
+                } else if vendor_lower.contains("zte")
+                    || sys_desc.contains("ZXA")
+                    || sys_desc.contains("C600")
+                    || sys_desc.contains("C300")
+                {
                     if sys_desc.contains("C610") {
                         Some("ZTE ZXA10 C610".to_string())
                     } else if sys_desc.contains("C650") {
@@ -118,7 +137,10 @@ pub async fn sync_olt_telemetry(
                     Some("Datacom DmOS DM4610".to_string())
                 } else if vendor_lower.contains("fiberhome") || sys_desc.contains("AN5516") {
                     Some("FiberHome AN5516".to_string())
-                } else if vendor_lower.contains("parks") || sys_desc.contains("PARKS") || sys_desc.contains("Fiberlink") {
+                } else if vendor_lower.contains("parks")
+                    || sys_desc.contains("PARKS")
+                    || sys_desc.contains("Fiberlink")
+                {
                     if sys_desc.contains("30028") {
                         Some("Parks Fiberlink 30028".to_string())
                     } else if sys_desc.contains("21016") {
@@ -153,7 +175,7 @@ pub async fn sync_olt_telemetry(
 
     for mut data in onus_data {
         OpticalEvaluator::calculate_attenuation(&mut data);
-        
+
         let quality = OpticalEvaluator::classify_rx_power(
             data.rx_power_dbm,
             data.is_online,
@@ -185,7 +207,7 @@ pub async fn sync_olt_telemetry(
                 customer_identifier = COALESCE(VALUES(customer_identifier), customer_identifier),
                 distance_meters = VALUES(distance_meters),
                 status = VALUES(status),
-                last_seen_at = UTC_TIMESTAMP()"
+                last_seen_at = UTC_TIMESTAMP()",
         )
         .bind(olt_id)
         .bind(data.slot)
@@ -196,33 +218,44 @@ pub async fn sync_olt_telemetry(
         .bind(data.distance_meters)
         .bind(status_str)
         .execute(&mut *tx)
-        .await {
-            log::warn!("Falha ao inserir/atualizar ONU serial '{}' (OLT {}): {}", data.serial_number, olt_id, e);
+        .await
+        {
+            log::warn!(
+                "Falha ao inserir/atualizar ONU serial '{}' (OLT {}): {}",
+                data.serial_number,
+                olt_id,
+                e
+            );
         }
 
-        let onu_id_opt: Option<(u64,)> = match sqlx::query_as(
-            "SELECT id FROM onus WHERE olt_id = ? AND serial_number = ?"
-        )
-        .bind(olt_id)
-        .bind(&data.serial_number)
-        .fetch_optional(&mut *tx)
-        .await {
-            Ok(opt) => opt,
-            Err(e) => {
-                log::warn!("Falha ao consultar id da ONU serial '{}': {}", data.serial_number, e);
-                None
-            }
-        };
+        let onu_id_opt: Option<(u64,)> =
+            match sqlx::query_as("SELECT id FROM onus WHERE olt_id = ? AND serial_number = ?")
+                .bind(olt_id)
+                .bind(&data.serial_number)
+                .fetch_optional(&mut *tx)
+                .await
+            {
+                Ok(opt) => opt,
+                Err(e) => {
+                    log::warn!(
+                        "Falha ao consultar id da ONU serial '{}': {}",
+                        data.serial_number,
+                        e
+                    );
+                    None
+                }
+            };
 
         if let Some((onu_id,)) = onu_id_opt {
             let prev_rx_opt: Option<(Option<f64>,)> = sqlx::query_as(
                 "SELECT CAST(rx_power_dbm AS DOUBLE) FROM onu_signal_history 
-                 WHERE onu_id = ? ORDER BY id DESC LIMIT 1"
+                 WHERE onu_id = ? ORDER BY id DESC LIMIT 1",
             )
             .bind(onu_id)
             .fetch_optional(&mut *tx)
             .await
-            .ok().flatten();
+            .ok()
+            .flatten();
 
             let prev_rx = prev_rx_opt.and_then(|r| r.0);
             let (delta_db, is_degraded) = OpticalEvaluator::evaluate_degradation(
@@ -279,7 +312,10 @@ pub async fn sync_olt_telemetry(
     // Efetiva todas as 2.048 inserções atomicamente
     tx.commit().await?;
 
-    info!("Coleta de {} ONUs finalizada e comitada com sucesso para OLT ID {}", count, olt_id);
+    info!(
+        "Coleta de {} ONUs finalizada e comitada com sucesso para OLT ID {}",
+        count, olt_id
+    );
     Ok(count)
 }
 
@@ -320,20 +356,22 @@ pub async fn trigger_olt_collection_handler(
             StatusCode::FORBIDDEN,
             Json(ApiResponse {
                 success: false,
-                message: "Acesso negado: apenas administradores podem disparar coletas manuais.".to_string(),
+                message: "Acesso negado: apenas administradores podem disparar coletas manuais."
+                    .to_string(),
                 data: None,
             }),
         ));
     }
 
     match sync_olt_telemetry(&state, olt_id).await {
-        Ok(count) => {
-            Ok(Json(ApiResponse {
-                success: true,
-                message: format!("Coleta finalizada com sucesso. {} ONUs sincronizadas.", count),
-                data: Some(format!("Sucesso: {} ONUs", count)),
-            }))
-        }
+        Ok(count) => Ok(Json(ApiResponse {
+            success: true,
+            message: format!(
+                "Coleta finalizada com sucesso. {} ONUs sincronizadas.",
+                count
+            ),
+            data: Some(format!("Sucesso: {} ONUs", count)),
+        })),
         Err(e) => {
             let err_msg = format!("Falha na coleta da OLT: {}", e);
             warn!("{}", err_msg);

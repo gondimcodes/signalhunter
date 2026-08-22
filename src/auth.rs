@@ -1,15 +1,15 @@
+use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use chrono::{Duration, Utc};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
-    pub sub: u64,           // ID do usuário
+    pub sub: u64, // ID do usuário
     pub username: String,
-    pub role: String,       // 'admin', 'operator', 'viewer'
-    pub exp: usize,         // Timestamp de expiração
-    pub iat: usize,         // Timestamp de emissão
+    pub role: String, // 'admin', 'operator', 'viewer'
+    pub exp: usize,   // Timestamp de expiração
+    pub iat: usize,   // Timestamp de emissão
 }
 
 pub struct AuthManager {

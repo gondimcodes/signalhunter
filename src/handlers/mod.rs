@@ -1,9 +1,9 @@
+pub mod audit_handlers;
 pub mod auth_handlers;
-pub mod olt_handlers;
+pub mod collection_handlers;
 pub mod dashboard_handlers;
+pub mod diagnostic_handlers;
+pub mod olt_handlers;
 pub mod onu_handlers;
 pub mod report_handlers;
-pub mod collection_handlers;
 pub mod user_handlers;
-pub mod diagnostic_handlers;
-pub mod audit_handlers;

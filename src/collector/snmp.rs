@@ -1,7 +1,7 @@
-use tokio::net::UdpSocket;
-use tokio::time::{timeout, Duration};
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU32, Ordering};
+use tokio::net::UdpSocket;
+use tokio::time::{timeout, Duration};
 
 #[derive(Debug, Clone)]
 pub struct SnmpVariableBinding {
@@ -49,7 +49,10 @@ impl SnmpClient {
     /// (drain_socket removido — descartar respostas pendentes quebra OLTs lentas)
 
     /// Envia uma requisição SNMP Get direta
-    pub async fn get(&self, oid: &str) -> Result<Option<SnmpVariableBinding>, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn get(
+        &self,
+        oid: &str,
+    ) -> Result<Option<SnmpVariableBinding>, Box<dyn std::error::Error + Send + Sync>> {
         let req_id = self.request_id_counter.fetch_add(1, Ordering::SeqCst) as i32;
         let pdu = Self::encode_snmp_pdu(&self.community, oid, 0xA0, 0, 0, req_id);
         self.socket.send_to(&pdu, self.target_addr).await?;
@@ -59,7 +62,11 @@ impl SnmpClient {
         loop {
             let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
             if remaining.is_zero() {
-                log::warn!("SNMP GET {} -> Timeout aguardando resposta de {}", oid, self.target_addr);
+                log::warn!(
+                    "SNMP GET {} -> Timeout aguardando resposta de {}",
+                    oid,
+                    self.target_addr
+                );
                 return Err(format!("Timeout SNMP com {}", self.target_addr).into());
             }
             match timeout(remaining, self.socket.recv_from(&mut buf)).await {
@@ -77,7 +84,10 @@ impl SnmpClient {
     }
 
     /// Envia uma requisição SNMP GetNext para varredura de tabela (Walk)
-    pub async fn get_next(&self, oid: &str) -> Result<Option<SnmpVariableBinding>, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn get_next(
+        &self,
+        oid: &str,
+    ) -> Result<Option<SnmpVariableBinding>, Box<dyn std::error::Error + Send + Sync>> {
         let req_id = self.request_id_counter.fetch_add(1, Ordering::SeqCst) as i32;
         let pdu = Self::encode_snmp_pdu(&self.community, oid, 0xA1, 0, 0, req_id);
         self.socket.send_to(&pdu, self.target_addr).await?;
@@ -87,8 +97,18 @@ impl SnmpClient {
         loop {
             let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
             if remaining.is_zero() {
-                log::debug!("SNMP GETNEXT {} -> Timeout ({}ms) aguardando resposta de {}", oid, self.timeout_duration.as_millis(), self.target_addr);
-                return Err(format!("Timeout SNMP ({}ms) com {}", self.timeout_duration.as_millis(), self.target_addr).into());
+                log::debug!(
+                    "SNMP GETNEXT {} -> Timeout ({}ms) aguardando resposta de {}",
+                    oid,
+                    self.timeout_duration.as_millis(),
+                    self.target_addr
+                );
+                return Err(format!(
+                    "Timeout SNMP ({}ms) com {}",
+                    self.timeout_duration.as_millis(),
+                    self.target_addr
+                )
+                .into());
             }
             match timeout(remaining, self.socket.recv_from(&mut buf)).await {
                 Ok(Ok((len, _src))) => {
@@ -99,12 +119,27 @@ impl SnmpClient {
                     return Ok(Self::parse_snmp_response(&buf[..len], oid));
                 }
                 Ok(Err(e)) => {
-                    log::warn!("SNMP GETNEXT {} -> Erro no socket UDP com {}: {:?}", oid, self.target_addr, e);
+                    log::warn!(
+                        "SNMP GETNEXT {} -> Erro no socket UDP com {}: {:?}",
+                        oid,
+                        self.target_addr,
+                        e
+                    );
                     return Err(Box::new(e));
                 }
                 Err(_) => {
-                    log::debug!("SNMP GETNEXT {} -> Timeout ({}ms) aguardando resposta de {}", oid, self.timeout_duration.as_millis(), self.target_addr);
-                    return Err(format!("Timeout SNMP ({}ms) com {}", self.timeout_duration.as_millis(), self.target_addr).into());
+                    log::debug!(
+                        "SNMP GETNEXT {} -> Timeout ({}ms) aguardando resposta de {}",
+                        oid,
+                        self.timeout_duration.as_millis(),
+                        self.target_addr
+                    );
+                    return Err(format!(
+                        "Timeout SNMP ({}ms) com {}",
+                        self.timeout_duration.as_millis(),
+                        self.target_addr
+                    )
+                    .into());
                 }
             }
         }
@@ -145,9 +180,12 @@ impl SnmpClient {
             match binding_opt {
                 Some(binding) => {
                     // Verifica se ainda pertence à sub-árvore comparando os componentes numéricos
-                    let curr_parts: Vec<&str> = binding.oid.trim_start_matches('.').split('.').collect();
+                    let curr_parts: Vec<&str> =
+                        binding.oid.trim_start_matches('.').split('.').collect();
 
-                    if curr_parts.len() < root_parts.len() || !curr_parts.starts_with(&root_parts[..]) {
+                    if curr_parts.len() < root_parts.len()
+                        || !curr_parts.starts_with(&root_parts[..])
+                    {
                         break;
                     }
 
@@ -183,7 +221,12 @@ impl SnmpClient {
         } else if len <= 0xFFFF {
             vec![0x82, (len >> 8) as u8, (len & 0xFF) as u8]
         } else {
-            vec![0x83, (len >> 16) as u8, ((len >> 8) & 0xFF) as u8, (len & 0xFF) as u8]
+            vec![
+                0x83,
+                (len >> 16) as u8,
+                ((len >> 8) & 0xFF) as u8,
+                (len & 0xFF) as u8,
+            ]
         }
     }
 
@@ -193,16 +236,24 @@ impl SnmpClient {
         // SEQUENCE outer
         let (_, _, mut pos) = Self::read_ber_tl(packet, 0)?;
         // Version INTEGER
-        let (0x02, ver_len, ver_start) = Self::read_ber_tl(packet, pos)? else { return None; };
+        let (0x02, ver_len, ver_start) = Self::read_ber_tl(packet, pos)? else {
+            return None;
+        };
         pos = ver_start + ver_len;
         // Community OCTET STRING
-        let (0x04, comm_len, comm_start) = Self::read_ber_tl(packet, pos)? else { return None; };
+        let (0x04, comm_len, comm_start) = Self::read_ber_tl(packet, pos)? else {
+            return None;
+        };
         pos = comm_start + comm_len;
         // PDU (GetResponse = 0xA2, etc.)
         let (tag, _, pdu_start) = Self::read_ber_tl(packet, pos)?;
-        if !matches!(tag, 0xA0 | 0xA1 | 0xA2 | 0xA5) { return None; }
+        if !matches!(tag, 0xA0 | 0xA1 | 0xA2 | 0xA5) {
+            return None;
+        }
         // Request ID INTEGER
-        let (0x02, rid_len, rid_start) = Self::read_ber_tl(packet, pdu_start)? else { return None; };
+        let (0x02, rid_len, rid_start) = Self::read_ber_tl(packet, pdu_start)? else {
+            return None;
+        };
         let rid_bytes = packet.get(rid_start..rid_start + rid_len)?;
         // Decode big-endian i32 (sign-extended)
         let mut num = 0i32;
@@ -273,7 +324,7 @@ impl SnmpClient {
         pdu_content.push(0x02);
         pdu_content.push(4);
         pdu_content.extend_from_slice(&req_bytes);
-        
+
         if pdu_type == 0xA5 {
             // GetBulkRequest: non-repeaters e max-repetitions
             pdu_content.extend_from_slice(&[0x02, 0x01, non_repeaters as u8]);
@@ -282,7 +333,7 @@ impl SnmpClient {
             pdu_content.extend_from_slice(&[0x02, 0x01, 0x00]); // Error status
             pdu_content.extend_from_slice(&[0x02, 0x01, 0x00]); // Error index
         }
-        
+
         pdu_content.push(0x30);
         pdu_content.extend(Self::ber_len(varbind_list.len()));
         pdu_content.extend_from_slice(&varbind_list);
@@ -324,7 +375,9 @@ impl SnmpClient {
         loop {
             let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
             if remaining.is_zero() {
-                return Err(format!("Timeout SNMP GetBulk ({}) com {}", oid, self.target_addr).into());
+                return Err(
+                    format!("Timeout SNMP GetBulk ({}) com {}", oid, self.target_addr).into(),
+                );
             }
             match timeout(remaining, self.socket.recv_from(&mut buf)).await {
                 Ok(Ok((len, _src))) => {
@@ -335,7 +388,11 @@ impl SnmpClient {
                     return Ok(Self::parse_snmp_multi_response(&buf[..len], oid));
                 }
                 Ok(Err(e)) => return Err(Box::new(e)),
-                Err(_) => return Err(format!("Timeout SNMP GetBulk ({}) com {}", oid, self.target_addr).into()),
+                Err(_) => {
+                    return Err(
+                        format!("Timeout SNMP GetBulk ({}) com {}", oid, self.target_addr).into(),
+                    )
+                }
             }
         }
     }
@@ -364,7 +421,11 @@ impl SnmpClient {
                         if attempt < 4 {
                             tokio::time::sleep(Duration::from_millis(150 * attempt)).await;
                         } else {
-                            log::debug!("SNMP GetBulk walk finalizado no OID {}: {:?}", current_oid, e);
+                            log::debug!(
+                                "SNMP GetBulk walk finalizado no OID {}: {:?}",
+                                current_oid,
+                                e
+                            );
                         }
                     }
                 }
@@ -380,8 +441,11 @@ impl SnmpClient {
                             break;
                         }
 
-                        let curr_parts: Vec<&str> = binding.oid.trim_start_matches('.').split('.').collect();
-                        if curr_parts.len() < root_parts.len() || !curr_parts.starts_with(&root_parts[..]) {
+                        let curr_parts: Vec<&str> =
+                            binding.oid.trim_start_matches('.').split('.').collect();
+                        if curr_parts.len() < root_parts.len()
+                            || !curr_parts.starts_with(&root_parts[..])
+                        {
                             reached_end = true;
                             break;
                         }
@@ -407,7 +471,9 @@ impl SnmpClient {
                 None => {
                     if results.is_empty() {
                         // Fallback para GetNext walk desde o início se GetBulk não funcionar
-                        return self.walk(root_oid, max_entries, Duration::from_micros(20)).await;
+                        return self
+                            .walk(root_oid, max_entries, Duration::from_micros(20))
+                            .await;
                     }
                     // GetBulk falhou no meio do walk (ex: OLT ZTE demora ao cruzar limite de placa PON)
                     // Continua via GetNext a partir do último OID obtido com sucesso
@@ -424,8 +490,11 @@ impl SnmpClient {
                                     if vb.oid.starts_with("endOfMib:") {
                                         break 'gn_fallback;
                                     }
-                                    let curr_parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
-                                    if curr_parts.len() < root_parts.len() || !curr_parts.starts_with(&root_parts[..]) {
+                                    let curr_parts: Vec<&str> =
+                                        vb.oid.trim_start_matches('.').split('.').collect();
+                                    if curr_parts.len() < root_parts.len()
+                                        || !curr_parts.starts_with(&root_parts[..])
+                                    {
                                         break 'gn_fallback;
                                     }
                                     if vb.oid == get_next_oid {
@@ -441,7 +510,8 @@ impl SnmpClient {
                                 }
                                 Ok(None) | Err(_) => {
                                     if attempt < 6 {
-                                        tokio::time::sleep(Duration::from_millis(100 * attempt)).await;
+                                        tokio::time::sleep(Duration::from_millis(100 * attempt))
+                                            .await;
                                     } else {
                                         break 'gn_fallback;
                                     }
@@ -595,8 +665,12 @@ impl SnmpClient {
 
                     // Valor que segue o OID
                     let val_offset = oid_start + oid_len;
-                    if let Some((val_tag, val_len, val_bytes_start)) = Self::read_ber_tl(packet, val_offset) {
-                        let val_bytes = packet.get(val_bytes_start..val_bytes_start + val_len).unwrap_or(&[]);
+                    if let Some((val_tag, val_len, val_bytes_start)) =
+                        Self::read_ber_tl(packet, val_offset)
+                    {
+                        let val_bytes = packet
+                            .get(val_bytes_start..val_bytes_start + val_len)
+                            .unwrap_or(&[]);
 
                         match val_tag {
                             // INTEGER, Counter32, Gauge32, TimeTicks

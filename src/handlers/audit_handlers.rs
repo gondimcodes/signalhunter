@@ -1,13 +1,13 @@
+use crate::db::queries::{log_audit_event, AuditLogRecord};
+use crate::handlers::olt_handlers::ApiResponse;
+use crate::AppState;
 use axum::{
-    extract::{State, Query},
+    extract::{Query, State},
     http::StatusCode,
     Json,
 };
-use std::sync::Arc;
 use serde::Deserialize;
-use crate::AppState;
-use crate::db::queries::{AuditLogRecord, log_audit_event};
-use crate::handlers::olt_handlers::ApiResponse;
+use std::sync::Arc;
 
 #[derive(Debug, Deserialize)]
 pub struct AuditParams {
@@ -31,7 +31,11 @@ pub async fn list_audit_logs_handler(
     })?;
 
     let limit = params.limit.unwrap_or(500).min(5000);
-    let search_term = params.q.as_deref().map(|s| s.trim()).filter(|s| !s.is_empty());
+    let search_term = params
+        .q
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty());
     let search_like = search_term.map(|s| format!("%{}%", s));
 
     let query_str = format!(

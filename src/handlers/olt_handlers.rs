@@ -1,3 +1,5 @@
+use crate::db::queries::{list_olts, OltRecord};
+use crate::AppState;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -6,8 +8,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use crate::AppState;
-use crate::db::queries::{list_olts, OltRecord};
 
 #[derive(Debug, Deserialize)]
 pub struct CreateOltPayload {
@@ -69,8 +69,14 @@ pub async fn list_olts_handler(
 }
 
 /// Helper para validar se o usuário logado é Admin
-fn require_admin_permission(state: &AppState, headers: &axum::http::HeaderMap) -> Result<crate::auth::Claims, (StatusCode, Json<ApiResponse<()>>)> {
-    let cookie_hdr = headers.get(axum::http::header::COOKIE).and_then(|v| v.to_str().ok()).unwrap_or("");
+fn require_admin_permission(
+    state: &AppState,
+    headers: &axum::http::HeaderMap,
+) -> Result<crate::auth::Claims, (StatusCode, Json<ApiResponse<()>>)> {
+    let cookie_hdr = headers
+        .get(axum::http::header::COOKIE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
     let mut auth_token = "";
     for part in cookie_hdr.split(';') {
         let trimmed = part.trim();
@@ -132,7 +138,10 @@ fn validate_olt_fields(
             return Err("O nome do equipamento deve ter no máximo 64 caracteres.".to_string());
         }
         // Permite letras, números, espaços, hífen, underline e ponto
-        if !trimmed.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '.' || c == ' ') {
+        if !trimmed
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '.' || c == ' ')
+        {
             return Err("O nome do equipamento não pode conter caracteres especiais. Utilize apenas letras, números, hífens, sublinhados e pontos.".to_string());
         }
     }
@@ -152,7 +161,9 @@ fn validate_olt_fields(
 
     if let Some(port) = snmp_port {
         if port == 0 || port > 65535 {
-            return Err("A porta SNMP deve ser um número inteiro válido entre 1 e 65535.".to_string());
+            return Err(
+                "A porta SNMP deve ser um número inteiro válido entre 1 e 65535.".to_string(),
+            );
         }
     }
 
@@ -201,14 +212,12 @@ pub async fn create_olt_handler(
     })?;
 
     // Validação de unicidade (impedir duplicatas por IP ou Nome)
-    let existing = sqlx::query(
-        "SELECT id FROM olts WHERE ip_address = ? OR name = ? LIMIT 1"
-    )
-    .bind(payload.ip_address.trim())
-    .bind(payload.name.trim())
-    .fetch_optional(pool)
-    .await
-    .unwrap_or(None);
+    let existing = sqlx::query("SELECT id FROM olts WHERE ip_address = ? OR name = ? LIMIT 1")
+        .bind(payload.ip_address.trim())
+        .bind(payload.name.trim())
+        .fetch_optional(pool)
+        .await
+        .unwrap_or(None);
 
     if existing.is_some() {
         return Err((
@@ -260,7 +269,7 @@ pub async fn create_olt_handler(
             snmp_version, snmp_port, snmp_community_encrypted, netconf_port, ssh_port,
             mgmt_username, mgmt_password_encrypted, collection_interval_mins,
             max_concurrent_requests, pon_delay_ms
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(payload.name.trim())
     .bind(payload.ip_address.trim())
@@ -301,9 +310,15 @@ pub async fn create_olt_handler(
         "CREATE",
         "OLT",
         Some(&inserted_id.to_string()),
-        Some(&format!("Cadastro da OLT '{}' (IP: {}, Marca: {})", payload.name.trim(), payload.ip_address.trim(), payload.vendor.trim())),
+        Some(&format!(
+            "Cadastro da OLT '{}' (IP: {}, Marca: {})",
+            payload.name.trim(),
+            payload.ip_address.trim(),
+            payload.vendor.trim()
+        )),
         None,
-    ).await;
+    )
+    .await;
 
     Ok(Json(serde_json::json!({
         "success": true,
@@ -395,22 +410,43 @@ pub async fn update_olt_handler(
     let mut sets = Vec::new();
     let mut query_builder = String::from("UPDATE olts SET ");
 
-    if payload.name.is_some() { sets.push("name = ?"); }
-    if payload.ip_address.is_some() { sets.push("ip_address = ?"); }
-    if payload.vendor.is_some() { sets.push("vendor = ?"); }
-    if payload.snmp_port.is_some() { sets.push("snmp_port = ?"); }
-    if snmp_community_encrypted.is_some() { sets.push("snmp_community_encrypted = ?"); }
-    if payload.ssh_port.is_some() { sets.push("ssh_port = ?"); }
-    if payload.mgmt_username.is_some() { sets.push("mgmt_username = ?"); }
-    if mgmt_password_encrypted.is_some() { sets.push("mgmt_password_encrypted = ?"); }
-    if payload.is_active.is_some() { sets.push("is_active = ?"); }
+    if payload.name.is_some() {
+        sets.push("name = ?");
+    }
+    if payload.ip_address.is_some() {
+        sets.push("ip_address = ?");
+    }
+    if payload.vendor.is_some() {
+        sets.push("vendor = ?");
+    }
+    if payload.snmp_port.is_some() {
+        sets.push("snmp_port = ?");
+    }
+    if snmp_community_encrypted.is_some() {
+        sets.push("snmp_community_encrypted = ?");
+    }
+    if payload.ssh_port.is_some() {
+        sets.push("ssh_port = ?");
+    }
+    if payload.mgmt_username.is_some() {
+        sets.push("mgmt_username = ?");
+    }
+    if mgmt_password_encrypted.is_some() {
+        sets.push("mgmt_password_encrypted = ?");
+    }
+    if payload.is_active.is_some() {
+        sets.push("is_active = ?");
+    }
 
     if sets.is_empty() {
-        return Err((StatusCode::BAD_REQUEST, Json(ApiResponse {
-            success: false,
-            message: "Nenhuma alteração informada".to_string(),
-            data: None,
-        })));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                message: "Nenhuma alteração informada".to_string(),
+                data: None,
+            }),
+        ));
     }
 
     query_builder.push_str(&sets.join(", "));
@@ -418,15 +454,33 @@ pub async fn update_olt_handler(
 
     let mut query = sqlx::query(&query_builder);
 
-    if let Some(ref name) = payload.name { query = query.bind(name); }
-    if let Some(ref ip) = payload.ip_address { query = query.bind(ip); }
-    if let Some(ref vendor) = payload.vendor { query = query.bind(vendor); }
-    if let Some(port) = payload.snmp_port { query = query.bind(port); }
-    if let Some(ref comm) = snmp_community_encrypted { query = query.bind(comm); }
-    if let Some(sport) = payload.ssh_port { query = query.bind(sport); }
-    if let Some(ref suser) = payload.mgmt_username { query = query.bind(suser); }
-    if let Some(ref spass) = mgmt_password_encrypted { query = query.bind(spass); }
-    if let Some(active) = payload.is_active { query = query.bind(active); }
+    if let Some(ref name) = payload.name {
+        query = query.bind(name);
+    }
+    if let Some(ref ip) = payload.ip_address {
+        query = query.bind(ip);
+    }
+    if let Some(ref vendor) = payload.vendor {
+        query = query.bind(vendor);
+    }
+    if let Some(port) = payload.snmp_port {
+        query = query.bind(port);
+    }
+    if let Some(ref comm) = snmp_community_encrypted {
+        query = query.bind(comm);
+    }
+    if let Some(sport) = payload.ssh_port {
+        query = query.bind(sport);
+    }
+    if let Some(ref suser) = payload.mgmt_username {
+        query = query.bind(suser);
+    }
+    if let Some(ref spass) = mgmt_password_encrypted {
+        query = query.bind(spass);
+    }
+    if let Some(active) = payload.is_active {
+        query = query.bind(active);
+    }
 
     query = query.bind(id);
 
@@ -441,14 +495,15 @@ pub async fn update_olt_handler(
                 Some(&id.to_string()),
                 Some(&format!("Atualização cadastral da OLT #{}", id)),
                 None,
-            ).await;
+            )
+            .await;
 
             Ok(Json(ApiResponse::<()> {
                 success: true,
                 message: "OLT atualizada com sucesso".to_string(),
                 data: None,
             }))
-        },
+        }
         Err(e) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ApiResponse {
@@ -488,7 +543,7 @@ pub async fn delete_olt_handler(
     let _ = sqlx::query(
         "DELETE h FROM onu_signal_history h
          JOIN onus o ON h.onu_id = o.id
-         WHERE o.olt_id = ?"
+         WHERE o.olt_id = ?",
     )
     .bind(id)
     .execute(pool)
@@ -526,7 +581,8 @@ pub async fn delete_olt_handler(
         Some(&id.to_string()),
         Some(&format!("Exclusão da OLT '{}' (ID: {})", name_str, id)),
         None,
-    ).await;
+    )
+    .await;
 
     Ok(Json(ApiResponse::<()> {
         success: true,
@@ -574,7 +630,7 @@ pub async fn clear_olt_telemetry_handler(
     let _ = sqlx::query(
         "DELETE h FROM onu_signal_history h
          JOIN onus o ON h.onu_id = o.id
-         WHERE o.olt_id = ?"
+         WHERE o.olt_id = ?",
     )
     .bind(id)
     .execute(pool)
@@ -592,7 +648,7 @@ pub async fn clear_olt_telemetry_handler(
          SET last_collected_at = NULL, 
              last_collection_status = 'never', 
              last_error_message = NULL 
-         WHERE id = ?"
+         WHERE id = ?",
     )
     .bind(id)
     .execute(pool)
@@ -606,13 +662,20 @@ pub async fn clear_olt_telemetry_handler(
         "PURGE",
         "OLT_TELEMETRY",
         Some(&id.to_string()),
-        Some(&format!("Limpeza total das coletas e ONUs da OLT '{}' (ID: {})", name_str, id)),
+        Some(&format!(
+            "Limpeza total das coletas e ONUs da OLT '{}' (ID: {})",
+            name_str, id
+        )),
         None,
-    ).await;
+    )
+    .await;
 
     Ok(Json(ApiResponse::<()> {
         success: true,
-        message: format!("Todas as coletas e dados de telemetria da OLT '{}' foram excluídos com sucesso", name_str),
+        message: format!(
+            "Todas as coletas e dados de telemetria da OLT '{}' foram excluídos com sucesso",
+            name_str
+        ),
         data: None,
     }))
 }

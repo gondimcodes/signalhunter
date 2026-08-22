@@ -1,7 +1,7 @@
 use async_trait::async_trait;
+use log::{debug, info, warn};
 use std::sync::Arc;
 use tokio::sync::Semaphore;
-use log::{info, warn, debug};
 
 use crate::collector::driver::{OltDriver, OltTarget, OnuOpticalData};
 use crate::collector::snmp::SnmpClient;
@@ -34,9 +34,18 @@ impl FiberHomeDriver {
         }
 
         if parts.len() >= 3 {
-            let onu_id = parts.last().and_then(|s| s.parse::<i32>().ok()).unwrap_or(1);
-            let port = parts.get(parts.len() - 2).and_then(|s| s.parse::<i32>().ok()).unwrap_or(1);
-            let slot = parts.get(parts.len() - 3).and_then(|s| s.parse::<i32>().ok()).unwrap_or(1);
+            let onu_id = parts
+                .last()
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(1);
+            let port = parts
+                .get(parts.len() - 2)
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(1);
+            let slot = parts
+                .get(parts.len() - 3)
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(1);
             return (slot, port, onu_id);
         }
 
@@ -68,15 +77,24 @@ impl OltDriver for FiberHomeDriver {
         &self,
         target: &OltTarget,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        info!("Testando conectividade SNMP com OLT FiberHome '{}' ({})", target.name, target.ip_address);
+        info!(
+            "Testando conectividade SNMP com OLT FiberHome '{}' ({})",
+            target.name, target.ip_address
+        );
         let comm = target.snmp_community.as_deref().unwrap_or("public");
         let client = SnmpClient::new(&target.ip_address, target.snmp_port, comm, 2000).await?;
         match client.get(".1.3.6.1.2.1.1.1.0").await {
             Ok(Some(vb)) => {
-                let desc = vb.value_str.unwrap_or_else(|| "FiberHome AN5516".to_string());
+                let desc = vb
+                    .value_str
+                    .unwrap_or_else(|| "FiberHome AN5516".to_string());
                 Ok(format!("FiberHome OLT Online: {}", desc))
             }
-            _ => Err(format!("OLT FiberHome '{}' ({}) inacessível via SNMP", target.name, target.ip_address).into()),
+            _ => Err(format!(
+                "OLT FiberHome '{}' ({}) inacessível via SNMP",
+                target.name, target.ip_address
+            )
+            .into()),
         }
     }
 
@@ -86,7 +104,7 @@ impl OltDriver for FiberHomeDriver {
         semaphore: Arc<Semaphore>,
     ) -> Result<Vec<OnuOpticalData>, Box<dyn std::error::Error + Send + Sync>> {
         let _permit = semaphore.acquire().await?;
-        
+
         info!(
             "Iniciando coleta SNMP de Alta Velocidade com OLT FiberHome '{}' [{}]",
             target.name, target.ip_address
@@ -95,15 +113,22 @@ impl OltDriver for FiberHomeDriver {
         let mut results = Vec::new();
         let comm = target.snmp_community.as_deref().unwrap_or("public");
         let snmp = SnmpClient::new(&target.ip_address, target.snmp_port, comm, 4000).await?;
-        
+
         // 1. Checagem prévia rápida
         match snmp.get(".1.3.6.1.2.1.1.1.0").await {
             Ok(Some(_)) => {
                 debug!("Conexão SNMP estabelecida com FiberHome '{}'", target.name);
             }
             _ => {
-                warn!("OLT FiberHome '{}' ({}) não respondeu à solicitação SNMP.", target.name, target.ip_address);
-                return Err(format!("OLT FiberHome '{}' ({}) inacessível via SNMP (Timeout)", target.name, target.ip_address).into());
+                warn!(
+                    "OLT FiberHome '{}' ({}) não respondeu à solicitação SNMP.",
+                    target.name, target.ip_address
+                );
+                return Err(format!(
+                    "OLT FiberHome '{}' ({}) inacessível via SNMP (Timeout)",
+                    target.name, target.ip_address
+                )
+                .into());
             }
         }
 
@@ -120,7 +145,10 @@ impl OltDriver for FiberHomeDriver {
         let mut volt_map = std::collections::HashMap::new();
         let mut bias_map = std::collections::HashMap::new();
 
-        let diag_rx_walk = snmp.bulk_walk(".1.3.6.1.4.1.5875.800.3.9.3.3.1.6", 65535).await.unwrap_or_default();
+        let diag_rx_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.5875.800.3.9.3.3.1.6", 65535)
+            .await
+            .unwrap_or_default();
         for vb in diag_rx_walk {
             let key = Self::get_oid_suffix(&vb.oid);
             if let Some(raw) = vb.value_int {
@@ -133,7 +161,10 @@ impl OltDriver for FiberHomeDriver {
             }
         }
 
-        let diag_tx_walk = snmp.bulk_walk(".1.3.6.1.4.1.5875.800.3.9.3.3.1.7", 65535).await.unwrap_or_default();
+        let diag_tx_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.5875.800.3.9.3.3.1.7", 65535)
+            .await
+            .unwrap_or_default();
         for vb in diag_tx_walk {
             let key = Self::get_oid_suffix(&vb.oid);
             if let Some(raw) = vb.value_int {
@@ -146,7 +177,10 @@ impl OltDriver for FiberHomeDriver {
             }
         }
 
-        let diag_temp_walk = snmp.bulk_walk(".1.3.6.1.4.1.5875.800.3.9.3.3.1.8", 65535).await.unwrap_or_default();
+        let diag_temp_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.5875.800.3.9.3.3.1.8", 65535)
+            .await
+            .unwrap_or_default();
         for vb in diag_temp_walk {
             let key = Self::get_oid_suffix(&vb.oid);
             if let Some(raw) = vb.value_int {
@@ -156,7 +190,10 @@ impl OltDriver for FiberHomeDriver {
             }
         }
 
-        let diag_volt_walk = snmp.bulk_walk(".1.3.6.1.4.1.5875.800.3.9.3.3.1.9", 65535).await.unwrap_or_default();
+        let diag_volt_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.5875.800.3.9.3.3.1.9", 65535)
+            .await
+            .unwrap_or_default();
         for vb in diag_volt_walk {
             let key = Self::get_oid_suffix(&vb.oid);
             if let Some(raw) = vb.value_int {
@@ -166,7 +203,10 @@ impl OltDriver for FiberHomeDriver {
             }
         }
 
-        let diag_bias_walk = snmp.bulk_walk(".1.3.6.1.4.1.5875.800.3.9.3.3.1.10", 65535).await.unwrap_or_default();
+        let diag_bias_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.5875.800.3.9.3.3.1.10", 65535)
+            .await
+            .unwrap_or_default();
         for vb in diag_bias_walk {
             let key = Self::get_oid_suffix(&vb.oid);
             if let Some(raw) = vb.value_int {
@@ -178,7 +218,10 @@ impl OltDriver for FiberHomeDriver {
 
         // 3. Mapeamento de Distância Física em Metros (.1.3.6.1.4.1.5875.800.3.10.1.1.5)
         let mut dist_map = std::collections::HashMap::new();
-        let dist_walk = snmp.bulk_walk(".1.3.6.1.4.1.5875.800.3.10.1.1.5", 65535).await.unwrap_or_default();
+        let dist_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.5875.800.3.10.1.1.5", 65535)
+            .await
+            .unwrap_or_default();
         for vb in dist_walk {
             let key = Self::get_oid_suffix(&vb.oid);
             if let Some(raw) = vb.value_int {
@@ -190,7 +233,10 @@ impl OltDriver for FiberHomeDriver {
 
         // 4. Mapeamento de Nomes / Descrições de Clientes (.1.3.6.1.4.1.5875.800.3.10.1.1.21 e .20)
         let mut name_map = std::collections::HashMap::new();
-        let name_walk = snmp.bulk_walk(".1.3.6.1.4.1.5875.800.3.10.1.1.21", 65535).await.unwrap_or_default();
+        let name_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.5875.800.3.10.1.1.21", 65535)
+            .await
+            .unwrap_or_default();
         for vb in name_walk {
             let key = Self::get_oid_suffix(&vb.oid);
             if let Some(ref name) = vb.value_str {
@@ -204,7 +250,10 @@ impl OltDriver for FiberHomeDriver {
         // 5. Mapeamento de Status de Operação (.1.3.6.1.4.1.5875.800.3.10.1.1.25)
         // 1: Online / Authenticated, 0: Offline
         let mut status_map = std::collections::HashMap::new();
-        let status_walk = snmp.bulk_walk(".1.3.6.1.4.1.5875.800.3.10.1.1.25", 65535).await.unwrap_or_default();
+        let status_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.5875.800.3.10.1.1.25", 65535)
+            .await
+            .unwrap_or_default();
         for vb in status_walk {
             let key = Self::get_oid_suffix(&vb.oid);
             if let Some(raw) = vb.value_int {
@@ -215,7 +264,10 @@ impl OltDriver for FiberHomeDriver {
         // 6. Mapeamento de Potência Tx dos SFPs PON da OLT (.1.3.6.1.4.1.5875.800.3.9.3.4.1.8)
         // Ex: 517 -> +5.17 dBm por porta PON (Index: (slot * 2) << 24 | (port * 8) << 16)
         let mut olt_pon_tx_map = std::collections::HashMap::new();
-        let olt_tx_walk = snmp.bulk_walk(".1.3.6.1.4.1.5875.800.3.9.3.4.1.8", 65535).await.unwrap_or_default();
+        let olt_tx_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.5875.800.3.9.3.4.1.8", 65535)
+            .await
+            .unwrap_or_default();
         for vb in olt_tx_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if let Some(last) = parts.last() {
@@ -232,13 +284,18 @@ impl OltDriver for FiberHomeDriver {
         }
 
         // 7. Seriais das ONUs FiberHome (.1.3.6.1.4.1.5875.800.3.10.1.1.10)
-        let onu_table_primary = snmp.bulk_walk(".1.3.6.1.4.1.5875.800.3.10.1.1.10", 65535).await.unwrap_or_default();
+        let onu_table_primary = snmp
+            .bulk_walk(".1.3.6.1.4.1.5875.800.3.10.1.1.10", 65535)
+            .await
+            .unwrap_or_default();
         let onu_table = if !onu_table_primary.is_empty() {
             onu_table_primary
         } else {
-            snmp.bulk_walk(".1.3.6.1.4.1.5875.800.3.10.1.1.3", 65535).await.unwrap_or_default()
+            snmp.bulk_walk(".1.3.6.1.4.1.5875.800.3.10.1.1.3", 65535)
+                .await
+                .unwrap_or_default()
         };
-        
+
         if !onu_table.is_empty() {
             for (idx, vb) in onu_table.iter().enumerate() {
                 let key = Self::get_oid_suffix(&vb.oid);
@@ -266,14 +323,24 @@ impl OltDriver for FiberHomeDriver {
                 let distance_m = dist_map.get(&key).copied();
                 let cust_name = name_map.get(&key).cloned();
 
-                let is_online = status_map.get(&key).copied().unwrap_or(rx_dbm.is_some() && rx_dbm.unwrap() > -45.0);
+                let is_online = status_map
+                    .get(&key)
+                    .copied()
+                    .unwrap_or(rx_dbm.is_some() && rx_dbm.unwrap() > -45.0);
 
-                let olt_tx = olt_pon_tx_map.get(&(slot, pon_port)).copied().unwrap_or(5.00);
+                let olt_tx = olt_pon_tx_map
+                    .get(&(slot, pon_port))
+                    .copied()
+                    .unwrap_or(5.00);
 
                 let attenuation_db = if is_online {
                     if let Some(rx) = rx_dbm {
                         let att = olt_tx - rx;
-                        if att >= 0.0 && att <= 45.0 { Some(att) } else { None }
+                        if att >= 0.0 && att <= 45.0 {
+                            Some(att)
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
@@ -314,16 +381,28 @@ impl OltDriver for FiberHomeDriver {
                     bias_current_ma: bias_ma,
                     distance_meters: distance_m,
                     is_online,
-                    offline_reason: if !is_online { Some("los".to_string()) } else { None },
+                    offline_reason: if !is_online {
+                        Some("los".to_string())
+                    } else {
+                        None
+                    },
                 });
             }
         } else {
-            warn!("FiberHome OLT '{}' ({}) não retornou registros na MIB de ONUs.", target.name, target.ip_address);
-            return Err(format!("OLT '{}' ({}) inacessível ou sem resposta na MIB de ONUs", target.name, target.ip_address).into());
+            warn!(
+                "FiberHome OLT '{}' ({}) não retornou registros na MIB de ONUs.",
+                target.name, target.ip_address
+            );
+            return Err(format!(
+                "OLT '{}' ({}) inacessível ou sem resposta na MIB de ONUs",
+                target.name, target.ip_address
+            )
+            .into());
         }
 
         // Deduplica entradas por Serial único ou (slot, pon_port, onu_id)
-        let mut unique_map: std::collections::HashMap<String, OnuOpticalData> = std::collections::HashMap::new();
+        let mut unique_map: std::collections::HashMap<String, OnuOpticalData> =
+            std::collections::HashMap::new();
         for item in results {
             let key = if !item.serial_number.is_empty() {
                 item.serial_number.clone()
@@ -340,8 +419,11 @@ impl OltDriver for FiberHomeDriver {
         }
 
         let final_results: Vec<OnuOpticalData> = unique_map.into_values().collect();
-        info!("Coleta SNMP da OLT FiberHome '{}' finalizada com {} ONUs lidas do equipamento.", target.name, final_results.len());
+        info!(
+            "Coleta SNMP da OLT FiberHome '{}' finalizada com {} ONUs lidas do equipamento.",
+            target.name,
+            final_results.len()
+        );
         Ok(final_results)
     }
 }
-

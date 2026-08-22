@@ -1,3 +1,6 @@
+use crate::db::queries::OnuRecord;
+use crate::handlers::olt_handlers::ApiResponse;
+use crate::AppState;
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -5,9 +8,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use crate::AppState;
-use crate::db::queries::OnuRecord;
-use crate::handlers::olt_handlers::ApiResponse;
 
 #[derive(Debug, Deserialize)]
 pub struct OnuHistoryParams {
@@ -85,7 +85,7 @@ pub async fn list_onus_handler(
                 ELSE 3 
             END ASC,
             h.rx_power_dbm ASC
-         LIMIT ? OFFSET ?"
+         LIMIT ? OFFSET ?",
     )
     .bind(limit)
     .bind(offset)
@@ -105,7 +105,7 @@ pub async fn list_onus_handler(
     let total: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM onus o 
          JOIN olts ol ON o.olt_id = ol.id 
-         WHERE ol.is_active = TRUE"
+         WHERE ol.is_active = TRUE",
     )
     .fetch_one(pool)
     .await
@@ -142,13 +142,11 @@ pub async fn get_onu_history_handler(
     let offset = (page - 1) * limit;
 
     // Total de registros para paginação no frontend
-    let total: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM onu_signal_history WHERE onu_id = ?"
-    )
-    .bind(onu_id)
-    .fetch_one(pool)
-    .await
-    .unwrap_or((0,));
+    let total: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM onu_signal_history WHERE onu_id = ?")
+        .bind(onu_id)
+        .fetch_one(pool)
+        .await
+        .unwrap_or((0,));
 
     let history = sqlx::query_as::<_, crate::db::queries::OnuSignalHistoryRecord>(
         "SELECT id, onu_id, collected_at,
@@ -168,7 +166,7 @@ pub async fn get_onu_history_handler(
          FROM onu_signal_history
          WHERE onu_id = ?
          ORDER BY id DESC
-         LIMIT ? OFFSET ?"
+         LIMIT ? OFFSET ?",
     )
     .bind(onu_id)
     .bind(limit)

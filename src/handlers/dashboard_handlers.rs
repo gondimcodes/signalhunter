@@ -1,12 +1,8 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    Json,
-};
-use std::sync::Arc;
-use crate::AppState;
 use crate::db::queries::{get_dashboard_metrics, DashboardMetrics};
 use crate::handlers::olt_handlers::ApiResponse;
+use crate::AppState;
+use axum::{extract::State, http::StatusCode, Json};
+use std::sync::Arc;
 
 pub async fn get_dashboard_handler(
     State(state): State<Arc<AppState>>,

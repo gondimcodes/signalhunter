@@ -1,16 +1,16 @@
+use crate::auth::AuthManager;
+use crate::AppState;
 use axum::{
     extract::State,
     http::{header, HeaderMap, StatusCode},
     response::IntoResponse,
     Json,
 };
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use rand::Rng;
 use chrono::Utc;
-use sha2::{Sha256, Digest};
-use crate::AppState;
-use crate::auth::AuthManager;
+use rand::Rng;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::sync::Arc;
 
 #[derive(Debug, Deserialize)]
 pub struct LoginPayload {
@@ -50,7 +50,7 @@ pub async fn get_captcha_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let mut rng = rand::thread_rng();
-    
+
     // Alfabeto legível (sem caracteres confusos como 0/O, 1/I/l)
     const CHARS: &[u8] = b"23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
     let code: String = (0..5)
@@ -62,9 +62,22 @@ pub async fn get_captcha_handler(
 
     let timestamp = Utc::now().timestamp();
     // Gera token assinado com a chave secreta do app: token = base64(code|timestamp|hmac)
-    let raw_payload = format!("{}:{}:{}", code.to_uppercase(), timestamp, &state.config.security.jwt_secret);
+    let raw_payload = format!(
+        "{}:{}:{}",
+        code.to_uppercase(),
+        timestamp,
+        &state.config.security.jwt_secret
+    );
     let signature = hex::encode(crypto_hash_sha256(raw_payload.as_bytes()));
-    let captcha_id = format!("{}:{}:{}", base64::Engine::encode(&base64::engine::general_purpose::STANDARD, code.to_uppercase()), timestamp, signature);
+    let captcha_id = format!(
+        "{}:{}:{}",
+        base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            code.to_uppercase()
+        ),
+        timestamp,
+        signature
+    );
 
     // Renderiza SVG com estilo NOC Neon Dark (distorções, ondas e ruído visual)
     let mut letters_svg = String::new();
@@ -153,10 +166,11 @@ fn verify_captcha(expected_token: &str, user_code: &str, secret: &str) -> bool {
         return false;
     }
 
-    let decoded_code_bytes = match base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encoded_code) {
-        Ok(b) => b,
-        Err(_) => return false,
-    };
+    let decoded_code_bytes =
+        match base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encoded_code) {
+            Ok(b) => b,
+            Err(_) => return false,
+        };
     let real_code = match String::from_utf8(decoded_code_bytes) {
         Ok(s) => s,
         Err(_) => return false,
@@ -177,12 +191,17 @@ pub async fn login_handler(
     Json(payload): Json<LoginPayload>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<LoginResponse>)> {
     // 1. Validação do Desafio CAPTCHA Visual
-    if !verify_captcha(&payload.captcha_id, &payload.captcha_code, &state.config.security.jwt_secret) {
+    if !verify_captcha(
+        &payload.captcha_id,
+        &payload.captcha_code,
+        &state.config.security.jwt_secret,
+    ) {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(LoginResponse {
                 success: false,
-                message: "Código do Desafio de Segurança incorreto ou expirado. Tente novamente.".to_string(),
+                message: "Código do Desafio de Segurança incorreto ou expirado. Tente novamente."
+                    .to_string(),
                 token: None,
                 user: None,
             }),
@@ -290,7 +309,11 @@ pub async fn login_handler(
 
     let mut headers = HeaderMap::new();
     // Adiciona flag Secure quando TLS está habilitado (CWE-614 fix)
-    let secure_flag = if state.config.server.use_tls { "; Secure" } else { "" };
+    let secure_flag = if state.config.server.use_tls {
+        "; Secure"
+    } else {
+        ""
+    };
     let cookie_val = format!(
         "sh_auth={}; Path=/; HttpOnly; SameSite=Strict; Max-Age={}{}",
         token,
@@ -379,7 +402,7 @@ pub async fn me_handler(
     }
 
     let user = sqlx::query_as::<_, DbUserBasic>(
-        "SELECT id, username, full_name, role, is_active FROM users WHERE id = ?"
+        "SELECT id, username, full_name, role, is_active FROM users WHERE id = ?",
     )
     .bind(claims.sub)
     .fetch_optional(pool)
@@ -433,12 +456,17 @@ pub async fn me_handler(
     }))
 }
 
-pub async fn logout_handler(
-    State(state): State<Arc<AppState>>,
-) -> impl IntoResponse {
+pub async fn logout_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let mut headers = HeaderMap::new();
-    let secure_flag = if state.config.server.use_tls { "; Secure" } else { "" };
-    let cookie_clear = format!("sh_auth=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0{}", secure_flag);
+    let secure_flag = if state.config.server.use_tls {
+        "; Secure"
+    } else {
+        ""
+    };
+    let cookie_clear = format!(
+        "sh_auth=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0{}",
+        secure_flag
+    );
     if let Ok(hv) = cookie_clear.parse() {
         headers.insert(header::SET_COOKIE, hv);
     }

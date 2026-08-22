@@ -1,13 +1,9 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    Json,
-};
-use std::sync::Arc;
-use crate::AppState;
-use crate::analytics::{OpticalEvaluator, DiagnosticSummary};
+use crate::analytics::{DiagnosticSummary, OpticalEvaluator};
 use crate::db::queries::OnuRecord;
 use crate::handlers::olt_handlers::ApiResponse;
+use crate::AppState;
+use axum::{extract::State, http::StatusCode, Json};
+use std::sync::Arc;
 
 pub async fn get_diagnostics_handler(
     State(state): State<Arc<AppState>>,
@@ -44,7 +40,7 @@ pub async fn get_diagnostics_handler(
              ORDER BY id DESC LIMIT 1
          )
          WHERE ol.is_active = TRUE
-         ORDER BY ol.name ASC, o.slot ASC, o.pon_port ASC"
+         ORDER BY ol.name ASC, o.slot ASC, o.pon_port ASC",
     )
     .fetch_all(pool)
     .await

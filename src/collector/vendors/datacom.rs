@@ -1,9 +1,9 @@
 use async_trait::async_trait;
-use std::sync::Arc;
-use tokio::sync::Semaphore;
 use log::{info, warn};
 use std::process::Stdio;
+use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
+use tokio::sync::Semaphore;
 use tokio::time::{sleep, Duration};
 
 use crate::collector::driver::{OltDriver, OltTarget, OnuOpticalData};
@@ -51,7 +51,10 @@ impl DatacomDriver {
             stdin.flush().await?;
         }
 
-        let stdout = child.stdout.take().ok_or("Falha ao abrir stdout do SSH Datacom")?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or("Falha ao abrir stdout do SSH Datacom")?;
         use tokio::io::{AsyncBufReadExt, BufReader};
         let mut reader = BufReader::new(stdout).lines();
 
@@ -134,10 +137,10 @@ impl DatacomDriver {
                         if let Ok(port) = port_str.trim().parse::<i32>() {
                             let temp_str = parts[1].trim().replace('C', "");
                             let temp_c = temp_str.trim().parse::<f64>().unwrap_or(35.0);
-                            
+
                             let tx_str = parts[4].trim().replace("dBm", "");
                             let tx_dbm = tx_str.trim().parse::<f64>().unwrap_or(5.0);
-                            
+
                             map.insert(port, (tx_dbm, temp_c));
                         }
                     }
@@ -148,7 +151,9 @@ impl DatacomDriver {
     }
 
     /// Faz o parse do histórico de alarmes OMCI no DmOS para identificar causa da queda
-    fn parse_alarm_reasons(alarm_log_output: &str) -> std::collections::HashMap<(i32, i32), String> {
+    fn parse_alarm_reasons(
+        alarm_log_output: &str,
+    ) -> std::collections::HashMap<(i32, i32), String> {
         let mut reasons_map = std::collections::HashMap::new();
 
         for line in alarm_log_output.lines() {
@@ -158,11 +163,18 @@ impl DatacomDriver {
                     let src_part = &trimmed[idx + "on source gpon-1/1/".len()..];
                     let port_onu: Vec<&str> = src_part.trim().split('/').collect();
                     if port_onu.len() >= 2 {
-                        if let (Ok(port), Ok(onu_id)) = (port_onu[0].parse::<i32>(), port_onu[1].parse::<i32>()) {
+                        if let (Ok(port), Ok(onu_id)) =
+                            (port_onu[0].parse::<i32>(), port_onu[1].parse::<i32>())
+                        {
                             if trimmed.contains("GPON_DGi") {
                                 reasons_map.insert((port, onu_id), "dying_gasp".to_string());
-                            } else if trimmed.contains("GPON_LOSi") || trimmed.contains("GPON_DOWi") || trimmed.contains("GPON_LOFi") {
-                                reasons_map.entry((port, onu_id)).or_insert_with(|| "los".to_string());
+                            } else if trimmed.contains("GPON_LOSi")
+                                || trimmed.contains("GPON_DOWi")
+                                || trimmed.contains("GPON_LOFi")
+                            {
+                                reasons_map
+                                    .entry((port, onu_id))
+                                    .or_insert_with(|| "los".to_string());
                             }
                         }
                     }
@@ -193,7 +205,14 @@ impl DatacomDriver {
 
         // 1. Coleta os nomes das interfaces L2 mapeadas (.1.3.6.1.4.1.3709.3.6.2.1.1.3)
         // Exemplo: ifIndex -> "gpon-1/1/12-onu-0"
-        let if_names = client.walk(".1.3.6.1.4.1.3709.3.6.2.1.1.3", 500, Duration::from_millis(5)).await.unwrap_or_default();
+        let if_names = client
+            .walk(
+                ".1.3.6.1.4.1.3709.3.6.2.1.1.3",
+                500,
+                Duration::from_millis(5),
+            )
+            .await
+            .unwrap_or_default();
         let mut ifindex_to_port_onu = std::collections::HashMap::new();
 
         for vb in if_names {
@@ -202,7 +221,9 @@ impl DatacomDriver {
                     let parts: Vec<&str> = name_str.split("-onu-").collect();
                     if parts.len() == 2 {
                         let port_part = parts[0].trim_start_matches("gpon-1/1/");
-                        if let (Ok(port), Ok(onu_id)) = (port_part.parse::<i32>(), parts[1].parse::<i32>()) {
+                        if let (Ok(port), Ok(onu_id)) =
+                            (port_part.parse::<i32>(), parts[1].parse::<i32>())
+                        {
                             ifindex_to_port_onu.insert(ifindex_str.to_string(), (port, onu_id));
                         }
                     }
@@ -211,7 +232,14 @@ impl DatacomDriver {
         }
 
         // 2. Coleta a tabela de Rx óptico das ONUs (.1.3.6.1.4.1.3709.3.6.2.1.1.22)
-        let rx_vbs = client.walk(".1.3.6.1.4.1.3709.3.6.2.1.1.22", 500, Duration::from_millis(5)).await.unwrap_or_default();
+        let rx_vbs = client
+            .walk(
+                ".1.3.6.1.4.1.3709.3.6.2.1.1.22",
+                500,
+                Duration::from_millis(5),
+            )
+            .await
+            .unwrap_or_default();
         for vb in rx_vbs {
             if let (Some(ifindex_str), Some(rx_str)) = (vb.oid.split('.').last(), vb.value_str) {
                 if let Some(&(port, onu_id)) = ifindex_to_port_onu.get(ifindex_str) {
@@ -227,7 +255,14 @@ impl DatacomDriver {
         // 3. Coleta a tabela de Distâncias precisas das ONUs (.1.3.6.1.4.1.3709.3.6.2.1.1.21)
         // O DmOS expõe via SNMP o valor decimal exato da distância em km (ex: "2.35" km = 2350 metros, "0.48" km = 480 metros)
         let mut snmp_dist_map = std::collections::HashMap::new();
-        let dist_vbs = client.walk(".1.3.6.1.4.1.3709.3.6.2.1.1.21", 500, Duration::from_millis(5)).await.unwrap_or_default();
+        let dist_vbs = client
+            .walk(
+                ".1.3.6.1.4.1.3709.3.6.2.1.1.21",
+                500,
+                Duration::from_millis(5),
+            )
+            .await
+            .unwrap_or_default();
         for vb in dist_vbs {
             if let (Some(ifindex_str), Some(dist_str)) = (vb.oid.split('.').last(), vb.value_str) {
                 if let Some(&(port, onu_id)) = ifindex_to_port_onu.get(ifindex_str) {
@@ -243,7 +278,14 @@ impl DatacomDriver {
 
         // 4. Coleta a tabela de Nomes / Descrições dos Clientes (.1.3.6.1.4.1.3709.3.6.2.1.1.5)
         let mut snmp_name_map = std::collections::HashMap::new();
-        let name_vbs = client.walk(".1.3.6.1.4.1.3709.3.6.2.1.1.5", 500, Duration::from_millis(5)).await.unwrap_or_default();
+        let name_vbs = client
+            .walk(
+                ".1.3.6.1.4.1.3709.3.6.2.1.1.5",
+                500,
+                Duration::from_millis(5),
+            )
+            .await
+            .unwrap_or_default();
         for vb in name_vbs {
             if let (Some(ifindex_str), Some(name_val)) = (vb.oid.split('.').last(), vb.value_str) {
                 if let Some(&(port, onu_id)) = ifindex_to_port_onu.get(ifindex_str) {
@@ -256,7 +298,14 @@ impl DatacomDriver {
         }
 
         // 5. Coleta potências Tx dos módulos SFP PON da OLT (.1.3.6.1.4.1.3709.3.6.8.2.1.1.3)
-        let sfp_vbs = client.walk(".1.3.6.1.4.1.3709.3.6.8.2.1.1.3", 50, Duration::from_millis(5)).await.unwrap_or_default();
+        let sfp_vbs = client
+            .walk(
+                ".1.3.6.1.4.1.3709.3.6.8.2.1.1.3",
+                50,
+                Duration::from_millis(5),
+            )
+            .await
+            .unwrap_or_default();
         for vb in sfp_vbs {
             let parts: Vec<&str> = vb.oid.split('.').collect();
             if parts.len() >= 2 {
@@ -287,11 +336,22 @@ impl OltDriver for DatacomDriver {
         &self,
         target: &OltTarget,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        info!("Testando conectividade Híbrida (SNMP/SSH) com OLT Datacom '{}' ({}:{})", target.name, target.ip_address, target.ssh_port);
+        info!(
+            "Testando conectividade Híbrida (SNMP/SSH) com OLT Datacom '{}' ({}:{})",
+            target.name, target.ip_address, target.ssh_port
+        );
         match Self::execute_ssh_commands(target, &["show interface gpon onu"]).await {
             Ok(output) => {
-                let lines_count = output.lines().filter(|l| !l.trim().is_empty() && !l.starts_with("Itf") && !l.starts_with("---")).count();
-                Ok(format!("Datacom DmOS Híbrido Online ({} ONUs no chassi)", lines_count))
+                let lines_count = output
+                    .lines()
+                    .filter(|l| {
+                        !l.trim().is_empty() && !l.starts_with("Itf") && !l.starts_with("---")
+                    })
+                    .count();
+                Ok(format!(
+                    "Datacom DmOS Híbrido Online ({} ONUs no chassi)",
+                    lines_count
+                ))
             }
             Err(e) => Err(format!("Falha de conexão com Datacom '{}': {}", target.name, e).into()),
         }
@@ -307,23 +367,33 @@ impl OltDriver for DatacomDriver {
         info!("Datacom '{}' [{}]: Iniciando Coleta Híbrida (SNMP primário + SSH cirúrgico de calibração)...", target.name, target.ip_address);
 
         // 1. Coleta ultra-rápida via SNMP de Rx, Distâncias precisas, Nomes de Clientes e Tx dos SFPs PON
-        let (snmp_rx_map, snmp_dist_map, snmp_name_map, snmp_sfp_tx_map) = match Self::collect_via_snmp(target).await {
-            Ok(data) => {
-                info!("Datacom '{}': SNMP coletou {} níveis de sinal Rx, {} distâncias precisas, {} nomes de clientes e {} transceivers PON instantaneamente.", target.name, data.0.len(), data.1.len(), data.2.len(), data.3.len());
-                data
-            }
-            Err(e) => {
-                warn!("Datacom '{}': SNMP falhou ou indisponível ({}), utilizando fallback 100% SSH.", target.name, e);
-                (std::collections::HashMap::new(), std::collections::HashMap::new(), std::collections::HashMap::new(), std::collections::HashMap::new())
-            }
-        };
+        let (snmp_rx_map, snmp_dist_map, snmp_name_map, snmp_sfp_tx_map) =
+            match Self::collect_via_snmp(target).await {
+                Ok(data) => {
+                    info!("Datacom '{}': SNMP coletou {} níveis de sinal Rx, {} distâncias precisas, {} nomes de clientes e {} transceivers PON instantaneamente.", target.name, data.0.len(), data.1.len(), data.2.len(), data.3.len());
+                    data
+                }
+                Err(e) => {
+                    warn!("Datacom '{}': SNMP falhou ou indisponível ({}), utilizando fallback 100% SSH.", target.name, e);
+                    (
+                        std::collections::HashMap::new(),
+                        std::collections::HashMap::new(),
+                        std::collections::HashMap::new(),
+                        std::collections::HashMap::new(),
+                    )
+                }
+            };
 
         // 2. Coleta SSH do inventário geral de ONUs, transceivers e histórico de alarmes OMCI
-        let main_output = Self::execute_ssh_commands(target, &[
-            "show interface gpon onu",
-            "show interface transceivers gpon",
-            "show log | include \"Alarm GPON_\"",
-        ]).await?;
+        let main_output = Self::execute_ssh_commands(
+            target,
+            &[
+                "show interface gpon onu",
+                "show interface transceivers gpon",
+                "show log | include \"Alarm GPON_\"",
+            ],
+        )
+        .await?;
 
         let onus = Self::parse_onu_status_table(&main_output);
         let sfp_telemetry_map = Self::parse_transceivers_table(&main_output);
@@ -334,7 +404,8 @@ impl OltDriver for DatacomDriver {
         let mut results = Vec::new();
 
         // 3. Agrupa ONUs ativas por porta PON para consulta cadenciada suave
-        let mut port_onus_map: std::collections::HashMap<i32, Vec<i32>> = std::collections::HashMap::new();
+        let mut port_onus_map: std::collections::HashMap<i32, Vec<i32>> =
+            std::collections::HashMap::new();
         for (_slot, port, onu_id, _, is_online, _) in &onus {
             if *is_online {
                 port_onus_map.entry(*port).or_default().push(*onu_id);
@@ -342,12 +413,18 @@ impl OltDriver for DatacomDriver {
         }
 
         // Mapa de telemetria SSH: (port, onu_id) -> (Option<rx>, Option<tx>, Option<olt_rx>, Option<distance_meters>)
-        let mut optical_data_map: std::collections::HashMap<String, (Option<f64>, Option<f64>, Option<f64>, Option<i32>)> = std::collections::HashMap::new();
+        let mut optical_data_map: std::collections::HashMap<
+            String,
+            (Option<f64>, Option<f64>, Option<f64>, Option<i32>),
+        > = std::collections::HashMap::new();
 
         for (port, onu_ids) in port_onus_map {
             let mut port_commands = Vec::new();
             for onu_id in &onu_ids {
-                port_commands.push(format!("show interface gpon 1/1/{} onu {} | display curly-braces", port, onu_id));
+                port_commands.push(format!(
+                    "show interface gpon 1/1/{} onu {} | display curly-braces",
+                    port, onu_id
+                ));
             }
 
             let cmd_refs: Vec<&str> = port_commands.iter().map(|s| s.as_str()).collect();
@@ -398,7 +475,11 @@ impl OltDriver for DatacomDriver {
                             if clean != "N/A" {
                                 if let Ok(val) = clean.parse::<f64>() {
                                     // Se DmOS reportar em km (ex: 2.3 ou 2), converte para metros; se já vier em metros (ex: 2340), preserva
-                                    let meters = if val < 100.0 { (val * 1000.0) as i32 } else { val as i32 };
+                                    let meters = if val < 100.0 {
+                                        (val * 1000.0) as i32
+                                    } else {
+                                        val as i32
+                                    };
                                     current_dist = Some(meters);
                                 }
                             }
@@ -412,7 +493,8 @@ impl OltDriver for DatacomDriver {
                         }
                     } else if trimmed.starts_with("name") {
                         if let Some(sn) = current_serial.take() {
-                            optical_data_map.insert(sn, (current_rx, current_tx, current_olt_rx, current_dist));
+                            optical_data_map
+                                .insert(sn, (current_rx, current_tx, current_olt_rx, current_dist));
                             current_rx = None;
                             current_tx = None;
                             current_olt_rx = None;
@@ -422,7 +504,8 @@ impl OltDriver for DatacomDriver {
                 }
 
                 if let Some(sn) = current_serial.take() {
-                    optical_data_map.insert(sn, (current_rx, current_tx, current_olt_rx, current_dist));
+                    optical_data_map
+                        .insert(sn, (current_rx, current_tx, current_olt_rx, current_dist));
                 }
             }
 
@@ -433,7 +516,10 @@ impl OltDriver for DatacomDriver {
         // 4. Monta a lista final e realiza a calibração / validação cruzada entre SNMP e SSH
         for (slot, port, onu_id, serial, is_online, customer_name) in onus {
             let (ssh_rx, tx_power_dbm, olt_rx_power_dbm, ssh_dist) = if is_online {
-                optical_data_map.get(&serial).copied().unwrap_or((None, None, None, None))
+                optical_data_map
+                    .get(&serial)
+                    .copied()
+                    .unwrap_or((None, None, None, None))
             } else {
                 (None, None, None, None)
             };
@@ -463,7 +549,11 @@ impl OltDriver for DatacomDriver {
             let attenuation_db = match (Some(olt_tx_val), rx_dbm) {
                 (Some(tx), Some(rx)) if is_online => {
                     let att = tx - rx;
-                    if att >= 0.0 && att <= 45.0 { Some(att) } else { None }
+                    if att >= 0.0 && att <= 45.0 {
+                        Some(att)
+                    } else {
+                        None
+                    }
                 }
                 _ => None,
             };
@@ -505,7 +595,11 @@ impl OltDriver for DatacomDriver {
             });
         }
 
-        info!("Coleta Híbrida Datacom '{}' finalizada com sucesso! Total: {} ONUs sincronizadas.", target.name, results.len());
+        info!(
+            "Coleta Híbrida Datacom '{}' finalizada com sucesso! Total: {} ONUs sincronizadas.",
+            target.name,
+            results.len()
+        );
         Ok(results)
     }
 }

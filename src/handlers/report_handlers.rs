@@ -1,3 +1,7 @@
+use crate::db::queries::OnuRecord;
+use crate::handlers::olt_handlers::ApiResponse;
+use crate::pdf::PdfReportGenerator;
+use crate::AppState;
 use axum::{
     extract::{Query, State},
     http::{header, HeaderMap, StatusCode},
@@ -6,10 +10,6 @@ use axum::{
 };
 use serde::Deserialize;
 use std::sync::Arc;
-use crate::AppState;
-use crate::pdf::PdfReportGenerator;
-use crate::db::queries::OnuRecord;
-use crate::handlers::olt_handlers::ApiResponse;
 
 #[derive(Debug, Deserialize)]
 pub struct GenerateReportParams {
@@ -34,7 +34,11 @@ pub async fn generate_report_pdf_handler(
         )
     })?;
 
-    let search_term = params.q.as_deref().map(|s| s.trim()).filter(|s| !s.is_empty());
+    let search_term = params
+        .q
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty());
     let is_diagnostics = params.report_type.as_deref() == Some("diagnostics");
 
     if is_diagnostics {
@@ -58,13 +62,14 @@ pub async fn generate_report_pdf_handler(
                  WHERE onu_id = o.id 
                  ORDER BY id DESC LIMIT 1
              )
-             ORDER BY ol.name ASC, o.slot ASC, o.pon_port ASC"
+             ORDER BY ol.name ASC, o.slot ASC, o.pon_port ASC",
         )
         .fetch_all(pool)
         .await
         .unwrap_or_default();
 
-        let mut diag_summary = crate::analytics::OpticalEvaluator::run_intelligent_diagnostics(&onus);
+        let mut diag_summary =
+            crate::analytics::OpticalEvaluator::run_intelligent_diagnostics(&onus);
 
         // Se houver busca ativa, filtra os incidentes correspondentes
         if let Some(ref q) = search_term {
@@ -79,7 +84,10 @@ pub async fn generate_report_pdf_handler(
             diag_summary.total_incidents = diag_summary.incidents.len();
         }
 
-        let tmp_path = format!("/tmp/signalhunter_diag_{}.pdf", chrono::Utc::now().timestamp());
+        let tmp_path = format!(
+            "/tmp/signalhunter_diag_{}.pdf",
+            chrono::Utc::now().timestamp()
+        );
         PdfReportGenerator::generate_diagnostics_report(&tmp_path, "Engenharia NOC", &diag_summary)
             .map_err(|e| {
                 (
@@ -102,15 +110,21 @@ pub async fn generate_report_pdf_handler(
             "EXPORT_PDF",
             "DIAGNOSTICS",
             None,
-            Some(&format!("Exportação do Laudo de Diagnóstico Óptico & RCA ({} incidentes)", diag_summary.total_incidents)),
+            Some(&format!(
+                "Exportação do Laudo de Diagnóstico Óptico & RCA ({} incidentes)",
+                diag_summary.total_incidents
+            )),
             None,
-        ).await;
+        )
+        .await;
 
         let mut headers = HeaderMap::new();
         headers.insert(header::CONTENT_TYPE, "application/pdf".parse().unwrap());
         headers.insert(
             header::CONTENT_DISPOSITION,
-            "attachment; filename=\"laudo_diagnostico_optico_rca.pdf\"".parse().unwrap(),
+            "attachment; filename=\"laudo_diagnostico_optico_rca.pdf\""
+                .parse()
+                .unwrap(),
         );
 
         return Ok((headers, pdf_bytes));
@@ -118,7 +132,11 @@ pub async fn generate_report_pdf_handler(
 
     let is_degradation_only = params.report_type.as_deref() == Some("degradation");
     let is_all_onus = params.report_type.as_deref() == Some("all");
-    let search_term = params.q.as_deref().map(|s| s.trim()).filter(|s| !s.is_empty());
+    let search_term = params
+        .q
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty());
     let search_like = search_term.map(|s| format!("%{}%", s));
 
     let critical_onus = if is_degradation_only {
@@ -248,7 +266,7 @@ pub async fn generate_report_pdf_handler(
 
         let mut q_builder = sqlx::query_as::<_, OnuRecord>(&query_str);
         if let Some(ref s) = search_like {
-                    q_builder = q_builder.bind(s).bind(s).bind(s).bind(s);
+            q_builder = q_builder.bind(s).bind(s).bind(s).bind(s);
         }
         q_builder.fetch_all(pool).await.unwrap_or_default()
     };
@@ -286,7 +304,8 @@ pub async fn generate_report_pdf_handler(
     }
 
     // Busca as últimas 5 leituras de cada ONU para inclusão no PDF
-    let mut history_map: std::collections::HashMap<u64, Vec<f64>> = std::collections::HashMap::new();
+    let mut history_map: std::collections::HashMap<u64, Vec<f64>> =
+        std::collections::HashMap::new();
     if !critical_onus.is_empty() {
         let onu_ids: Vec<u64> = critical_onus.iter().map(|o| o.id).collect();
         // Agrupa e busca as 5 últimas leituras por lote
@@ -315,8 +334,11 @@ pub async fn generate_report_pdf_handler(
         }
     }
 
-    let tmp_path = format!("/tmp/signalhunter_report_{}.pdf", chrono::Utc::now().timestamp());
-    
+    let tmp_path = format!(
+        "/tmp/signalhunter_report_{}.pdf",
+        chrono::Utc::now().timestamp()
+    );
+
     let report_title = if is_degradation_only {
         "Relatorio de Piora de Sinal Optico (Delta-dB - Ultimos 30 Dias)"
     } else {
@@ -360,15 +382,22 @@ pub async fn generate_report_pdf_handler(
         "EXPORT_PDF",
         "REPORTS",
         None,
-        Some(&format!("Exportação do relatório em PDF a partir do módulo '{}' ({} ONUs listadas)", module_name, critical_onus.len())),
+        Some(&format!(
+            "Exportação do relatório em PDF a partir do módulo '{}' ({} ONUs listadas)",
+            module_name,
+            critical_onus.len()
+        )),
         None,
-    ).await;
+    )
+    .await;
 
     let mut headers = HeaderMap::new();
     headers.insert(header::CONTENT_TYPE, "application/pdf".parse().unwrap());
     headers.insert(
         header::CONTENT_DISPOSITION,
-        format!("attachment; filename=\"{}\"", filename).parse().unwrap(),
+        format!("attachment; filename=\"{}\"", filename)
+            .parse()
+            .unwrap(),
     );
 
     Ok((headers, pdf_bytes))

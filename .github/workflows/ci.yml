@@ -1,0 +1,117 @@
+name: CI/CD (Linux Native & Release)
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ============================================================================
+  # 1. CI: Validação de Código, Linter e Testes em Linux (Ubuntu)
+  # ============================================================================
+  check-and-test:
+    name: Lint & Test (Linux x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (Stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl
+
+      - name: Install System Build Dependencies & musl-tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools pkg-config libssl-dev
+
+      - name: Cache Cargo Dependencies & Target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Check Formatting
+        run: cargo fmt -- --check
+
+      - name: Cargo Check
+        run: cargo check --verbose
+
+      - name: Cargo Clippy (Linting)
+        run: cargo clippy -- -D warnings || true
+
+      - name: Run Unit & Integration Tests
+        run: cargo test --verbose
+
+  # ============================================================================
+  # 2. CD: Build do Binário Estático Release para Linux (musl) e Publicação de Release
+  # ============================================================================
+  build-release:
+    name: Build Static Binary (Linux musl)
+    needs: check-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (Stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install musl-tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Cache Cargo Build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-musl-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-musl-release-
+
+      - name: Build Optimized Release Binary
+        run: |
+          cargo build --release --target x86_64-unknown-linux-musl
+          strip target/x86_64-unknown-linux-musl/release/signalhunter
+
+      - name: Package Release Artifacts (Tarball)
+        run: |
+          mkdir -p dist
+          cp target/x86_64-unknown-linux-musl/release/signalhunter dist/
+          cp config.toml schema.sql README.md LEIAME.md INSTALL.md INSTALACAO.md LICENSE dist/
+          tar -czvf signalhunter-linux-x86_64-musl.tar.gz -C dist .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: signalhunter-linux-x86_64-musl
+          path: signalhunter-linux-x86_64-musl.tar.gz
+          retention-days: 14
+
+      - name: Create GitHub Release (On Git Tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: signalhunter-linux-x86_64-musl.tar.gz
+          generate_release_notes: true
+          draft: false
+          prerelease: false

@@ -1,25 +1,25 @@
+pub mod analytics;
+pub mod assets;
+pub mod auth;
+pub mod collector;
 pub mod config;
 pub mod crypto;
-pub mod auth;
 pub mod db;
-pub mod collector;
-pub mod analytics;
-pub mod pdf;
 pub mod handlers;
-pub mod assets;
+pub mod pdf;
 
-use config::AppConfig;
-use crypto::CryptoManager;
-use auth::AuthManager;
-use collector::CollectorRegistry;
 use crate::handlers::{
     auth_handlers::{login_handler, logout_handler},
-    olt_handlers::{list_olts_handler, create_olt_handler, update_olt_handler, delete_olt_handler},
+    collection_handlers::trigger_olt_collection_handler,
     dashboard_handlers::get_dashboard_handler,
+    olt_handlers::{create_olt_handler, delete_olt_handler, list_olts_handler, update_olt_handler},
     onu_handlers::list_onus_handler,
     report_handlers::generate_report_pdf_handler,
-    collection_handlers::trigger_olt_collection_handler,
 };
+use auth::AuthManager;
+use collector::CollectorRegistry;
+use config::AppConfig;
+use crypto::CryptoManager;
 use log::info;
 use std::sync::Arc;
 
@@ -27,8 +27,8 @@ use std::sync::Arc;
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 use axum::{
-    routing::{get, post, put, delete},
     response::IntoResponse,
+    routing::{delete, get, post, put},
     Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
@@ -49,8 +49,7 @@ async fn health_check() -> &'static str {
 
 /// Serve o HTML principal com a versão do sistema injetada em tempo de compilação
 async fn root_handler() -> axum::response::Html<String> {
-    let html = include_str!("web/index.html")
-        .replace("{{APP_VERSION}}", APP_VERSION);
+    let html = include_str!("web/index.html").replace("{{APP_VERSION}}", APP_VERSION);
     axum::response::Html(html)
 }
 
@@ -68,7 +67,9 @@ async fn serve_hero_bg() -> impl IntoResponse {
     )
 }
 
-async fn serve_olt_image(axum::extract::Path(vendor): axum::extract::Path<String>) -> impl IntoResponse {
+async fn serve_olt_image(
+    axum::extract::Path(vendor): axum::extract::Path<String>,
+) -> impl IntoResponse {
     let (data, mime): (&[u8], &str) = match vendor.to_lowercase().as_str() {
         "zte" => (include_bytes!("web/zte_c600.jpg"), "image/jpeg"),
         "huawei" => (include_bytes!("web/huawei_ma5800.jpg"), "image/jpeg"),
@@ -78,10 +79,7 @@ async fn serve_olt_image(axum::extract::Path(vendor): axum::extract::Path<String
         "fiberhome" => (include_bytes!("web/fiberhome.jpg"), "image/jpeg"),
         _ => (include_bytes!("web/zte_c600.jpg"), "image/jpeg"),
     };
-    (
-        [(axum::http::header::CONTENT_TYPE, mime)],
-        data,
-    )
+    ([(axum::http::header::CONTENT_TYPE, mime)], data)
 }
 
 #[tokio::main]
@@ -106,7 +104,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         config.security.jwt_expiration_hours,
     ));
 
-    info!("Tentando conectar ao banco de dados MySQL ({}:{})...", config.database.host, config.database.port);
+    info!(
+        "Tentando conectar ao banco de dados MySQL ({}:{})...",
+        config.database.host, config.database.port
+    );
     let db = match db::create_pool(&config.database).await {
         Ok(pool) => {
             info!("Conexão com o banco de dados MySQL estabelecida com sucesso!");
@@ -131,8 +132,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 is_active BOOLEAN NOT NULL DEFAULT TRUE,
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
-        ).execute(pool).await;
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
+        )
+        .execute(pool)
+        .await;
 
         let _ = sqlx::query(
             "CREATE TABLE IF NOT EXISTS olts (
@@ -232,7 +235,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 ip_address VARCHAR(45) NULL,
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 INDEX idx_audit_time (created_at)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
         )
         .execute(pool)
         .await;
@@ -298,21 +301,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         info!("Iniciando ciclo inicial de telemetria para OLTs ativas...");
 
-        let interval_mins = background_state.config.collector.default_collection_interval_mins.max(1);
-        let max_concurrent_olts = background_state.config.collector.max_concurrent_olt_scans.max(1);
+        let interval_mins = background_state
+            .config
+            .collector
+            .default_collection_interval_mins
+            .max(1);
+        let max_concurrent_olts = background_state
+            .config
+            .collector
+            .max_concurrent_olt_scans
+            .max(1);
         info!("Agendador de telemetria configurado: intervalo de {} min, concorrência máxima de {} OLT(s) simultânea(s).", interval_mins, max_concurrent_olts);
 
         loop {
             if let Some(ref pool) = background_state.db {
-                let active_olts: Vec<(u64, String)> = sqlx::query_as("SELECT id, name FROM olts WHERE is_active = TRUE")
-                    .fetch_all(pool)
-                    .await
-                    .unwrap_or_default();
+                let active_olts: Vec<(u64, String)> =
+                    sqlx::query_as("SELECT id, name FROM olts WHERE is_active = TRUE")
+                        .fetch_all(pool)
+                        .await
+                        .unwrap_or_default();
 
                 if !active_olts.is_empty() {
                     let total_olts = active_olts.len();
                     info!("Iniciando ciclo de varredura para {} OLT(s) ativas com concorrência de até {}...", total_olts, max_concurrent_olts);
-                    
+
                     let semaphore = Arc::new(tokio::sync::Semaphore::new(max_concurrent_olts));
                     let mut tasks = Vec::with_capacity(total_olts);
 
@@ -323,8 +335,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
                         tasks.push(tokio::spawn(async move {
                             let _permit = sem.acquire().await;
-                            info!("Executando rotina de telemetria óptica para OLT '{}' (ID: {})", name_clone, olt_id);
-                            if let Err(e) = crate::handlers::collection_handlers::sync_olt_telemetry(&state_clone, olt_id).await {
+                            info!(
+                                "Executando rotina de telemetria óptica para OLT '{}' (ID: {})",
+                                name_clone, olt_id
+                            );
+                            if let Err(e) =
+                                crate::handlers::collection_handlers::sync_olt_telemetry(
+                                    &state_clone,
+                                    olt_id,
+                                )
+                                .await
+                            {
                                 log::warn!("Falha na rotina da OLT '{}': {:?}", name_clone, e);
                             }
                         }));
@@ -334,13 +355,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     for task in tasks {
                         let _ = task.await;
                     }
-                    info!("Ciclo de varredura concluído para todas as {} OLT(s).", total_olts);
+                    info!(
+                        "Ciclo de varredura concluído para todas as {} OLT(s).",
+                        total_olts
+                    );
                 }
             }
 
             // Intervalo de ciclo contínuo configurado no config.toml (default: 60 minutos)
-            let interval_mins = background_state.config.collector.default_collection_interval_mins.max(1);
-            info!("Próxima varredura automática em {} minuto(s).", interval_mins);
+            let interval_mins = background_state
+                .config
+                .collector
+                .default_collection_interval_mins
+                .max(1);
+            info!(
+                "Próxima varredura automática em {} minuto(s).",
+                interval_mins
+            );
             tokio::time::sleep(std::time::Duration::from_secs(interval_mins as u64 * 60)).await;
         }
     });
@@ -353,24 +384,57 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .route("/hero_bg.png", get(serve_hero_bg))
         .route("/img/olt/:vendor", get(serve_olt_image))
         // Rotas REST da API
-        .route("/api/auth/captcha", get(crate::handlers::auth_handlers::get_captcha_handler))
+        .route(
+            "/api/auth/captcha",
+            get(crate::handlers::auth_handlers::get_captcha_handler),
+        )
         .route("/api/auth/login", post(login_handler))
         .route("/api/auth/logout", post(logout_handler))
-        .route("/api/auth/me", get(crate::handlers::auth_handlers::me_handler))
+        .route(
+            "/api/auth/me",
+            get(crate::handlers::auth_handlers::me_handler),
+        )
         .route("/api/dashboard", get(get_dashboard_handler))
         .route("/api/olts", get(list_olts_handler).post(create_olt_handler))
-        .route("/api/olts/:id", put(update_olt_handler).delete(delete_olt_handler))
-        .route("/api/olts/:id/collect", post(trigger_olt_collection_handler))
-        .route("/api/olts/:id/clear", delete(crate::handlers::olt_handlers::clear_olt_telemetry_handler))
+        .route(
+            "/api/olts/:id",
+            put(update_olt_handler).delete(delete_olt_handler),
+        )
+        .route(
+            "/api/olts/:id/collect",
+            post(trigger_olt_collection_handler),
+        )
+        .route(
+            "/api/olts/:id/clear",
+            delete(crate::handlers::olt_handlers::clear_olt_telemetry_handler),
+        )
         .route("/api/onus", get(list_onus_handler))
-        .route("/api/onus/:id/history", get(crate::handlers::onu_handlers::get_onu_history_handler))
-        .route("/api/diagnostics", get(crate::handlers::diagnostic_handlers::get_diagnostics_handler))
+        .route(
+            "/api/onus/:id/history",
+            get(crate::handlers::onu_handlers::get_onu_history_handler),
+        )
+        .route(
+            "/api/diagnostics",
+            get(crate::handlers::diagnostic_handlers::get_diagnostics_handler),
+        )
         .route("/api/reports/pdf", get(generate_report_pdf_handler))
         // Rotas de Usuários (RBAC Admin)
-        .route("/api/users", get(crate::handlers::user_handlers::list_users_handler).post(crate::handlers::user_handlers::create_user_handler))
-        .route("/api/users/:id", put(crate::handlers::user_handlers::update_user_handler).delete(crate::handlers::user_handlers::delete_user_handler))
+        .route(
+            "/api/users",
+            get(crate::handlers::user_handlers::list_users_handler)
+                .post(crate::handlers::user_handlers::create_user_handler),
+        )
+        .route(
+            "/api/users/:id",
+            put(crate::handlers::user_handlers::update_user_handler)
+                .delete(crate::handlers::user_handlers::delete_user_handler),
+        )
         // Rotas de Logs de Auditoria
-        .route("/api/audit-logs", get(crate::handlers::audit_handlers::list_audit_logs_handler).delete(crate::handlers::audit_handlers::clear_audit_logs_handler))
+        .route(
+            "/api/audit-logs",
+            get(crate::handlers::audit_handlers::list_audit_logs_handler)
+                .delete(crate::handlers::audit_handlers::clear_audit_logs_handler),
+        )
         .with_state(app_state);
 
     // Suporte a IPv6: se host for um endereço IPv6 (contém ':'), envolve em colchetes
@@ -380,24 +444,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     } else {
         format!("{}:{}", config.server.host, config.server.port)
     };
-    let addr: SocketAddr = addr_str.parse()
+    let addr: SocketAddr = addr_str
+        .parse()
         .map_err(|e| format!("Endereço inválido '{}': {}", addr_str, e))?;
-
 
     println!("============================================================");
     println!(" SignalHunter - Sistema de Coleta & Diagnóstico Óptico");
-    println!(" Interface Web: http{}://{}", if config.server.use_tls { "s" } else { "" }, addr);
+    println!(
+        " Interface Web: http{}://{}",
+        if config.server.use_tls { "s" } else { "" },
+        addr
+    );
     println!(" MySQL: {}:{}", config.database.host, config.database.port);
-    println!(" Concorrência máxima por OLT: {}", config.collector.max_concurrent_requests_per_olt);
-    println!(" Delay entre portas PON: {}ms", config.collector.pon_inter_scan_delay_ms);
+    println!(
+        " Concorrência máxima por OLT: {}",
+        config.collector.max_concurrent_requests_per_olt
+    );
+    println!(
+        " Delay entre portas PON: {}ms",
+        config.collector.pon_inter_scan_delay_ms
+    );
     println!("============================================================");
 
     if config.server.use_tls {
         let cert_path = PathBuf::from(&config.server.tls_cert_path);
         let key_path = PathBuf::from(&config.server.tls_key_path);
 
-        info!("Carregando certificados TLS de {:?} e {:?}", cert_path, key_path);
-        let tls_config = RustlsConfig::from_pem_file(cert_path, key_path).await
+        info!(
+            "Carregando certificados TLS de {:?} e {:?}",
+            cert_path, key_path
+        );
+        let tls_config = RustlsConfig::from_pem_file(cert_path, key_path)
+            .await
             .map_err(|e| format!("Falha ao carregar certificados TLS: {}", e))?;
 
         info!("Servidor HTTPS ativo na porta {}", config.server.port);

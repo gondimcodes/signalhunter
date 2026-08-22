@@ -28,17 +28,17 @@ impl SignalClassification {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiagnosticIncident {
     pub id: String,
-    pub severity: String,          // "critical", "warning", "info"
-    pub category: String,          // "slot_failure", "pon_sfp_issue", "trunk_degradation", "saturation", "drop_isolated"
+    pub severity: String, // "critical", "warning", "info"
+    pub category: String, // "slot_failure", "pon_sfp_issue", "trunk_degradation", "saturation", "drop_isolated"
     pub title: String,
     pub olt_name: String,
-    pub location: String,          // "Slot 1", "Slot 1 / PON 6", "ONU ZTEG...", etc.
+    pub location: String, // "Slot 1", "Slot 1 / PON 6", "ONU ZTEG...", etc.
     pub total_affected_onus: usize,
     pub total_pon_onus: usize,
     pub avg_rx_dbm: f64,
     pub root_cause: String,
     pub recommended_action: String,
-    pub confidence_score: u8,      // 0 a 100%
+    pub confidence_score: u8, // 0 a 100%
     pub sample_onus: Vec<DiagnosticOnuSample>,
 }
 
@@ -68,7 +68,11 @@ pub struct OpticalEvaluator;
 
 impl OpticalEvaluator {
     /// Classifica a qualidade do sinal óptico (Rx ONU)
-    pub fn classify_rx_power(rx_dbm: Option<f64>, is_online: bool, _cfg: &ThresholdsConfig) -> SignalClassification {
+    pub fn classify_rx_power(
+        rx_dbm: Option<f64>,
+        is_online: bool,
+        _cfg: &ThresholdsConfig,
+    ) -> SignalClassification {
         if !is_online {
             return SignalClassification::Offline;
         }
@@ -124,10 +128,14 @@ impl OpticalEvaluator {
         }
 
         // 1. Agrupa ONUs por OLT -> Slot -> PON Port
-        let mut olt_tree: HashMap<String, HashMap<i32, HashMap<i32, Vec<&OnuRecord>>>> = HashMap::new();
+        let mut olt_tree: HashMap<String, HashMap<i32, HashMap<i32, Vec<&OnuRecord>>>> =
+            HashMap::new();
 
         for onu in onus {
-            let olt_name = onu.olt_name.clone().unwrap_or_else(|| "OLT Principal".to_string());
+            let olt_name = onu
+                .olt_name
+                .clone()
+                .unwrap_or_else(|| "OLT Principal".to_string());
             olt_tree
                 .entry(olt_name)
                 .or_default()
@@ -175,7 +183,9 @@ impl OpticalEvaluator {
                                 bad_onus_in_pon.push(*onu);
                             }
 
-                            if onu.is_degraded == Some(true) || (onu.latest_delta_prev_rx_db.unwrap_or(0.0) <= -2.0) {
+                            if onu.is_degraded == Some(true)
+                                || (onu.latest_delta_prev_rx_db.unwrap_or(0.0) <= -2.0)
+                            {
                                 degraded_onus_in_pon.push(*onu);
                             }
                         } else if onu.status == "offline" {
@@ -184,14 +194,29 @@ impl OpticalEvaluator {
                         }
                     }
 
-                    let avg_rx = if valid_rx_count > 0 { sum_rx / (valid_rx_count as f64) } else { -99.0 };
+                    let avg_rx = if valid_rx_count > 0 {
+                        sum_rx / (valid_rx_count as f64)
+                    } else {
+                        -99.0
+                    };
                     slot_bad_onus += bad_onus_in_pon.len();
 
-                    let bad_ratio = if total_in_pon > 0 { (bad_onus_in_pon.len() as f64) / (total_in_pon as f64) } else { 0.0 };
-                    let deg_ratio = if total_in_pon > 0 { (degraded_onus_in_pon.len() as f64) / (total_in_pon as f64) } else { 0.0 };
+                    let bad_ratio = if total_in_pon > 0 {
+                        (bad_onus_in_pon.len() as f64) / (total_in_pon as f64)
+                    } else {
+                        0.0
+                    };
+                    let deg_ratio = if total_in_pon > 0 {
+                        (degraded_onus_in_pon.len() as f64) / (total_in_pon as f64)
+                    } else {
+                        0.0
+                    };
 
-                    let is_pon_collective_issue = (bad_ratio >= 0.30 && bad_onus_in_pon.len() >= 3) || (bad_onus_in_pon.len() >= 10);
-                    let is_trunk_collective_issue = (deg_ratio >= 0.15 && degraded_onus_in_pon.len() >= 2) || (degraded_onus_in_pon.len() >= 5);
+                    let is_pon_collective_issue = (bad_ratio >= 0.30 && bad_onus_in_pon.len() >= 3)
+                        || (bad_onus_in_pon.len() >= 10);
+                    let is_trunk_collective_issue = (deg_ratio >= 0.15
+                        && degraded_onus_in_pon.len() >= 2)
+                        || (degraded_onus_in_pon.len() >= 5);
 
                     if is_pon_collective_issue {
                         slot_bad_pons += 1;
@@ -199,24 +224,34 @@ impl OpticalEvaluator {
 
                     // A) Diagnóstico: Falha de SFP PON / Transceiver / Conector Sujo no DIO / Splitter Primário
                     if is_pon_collective_issue {
-                        let sample_onus = bad_onus_in_pon.iter().take(8).map(|o| DiagnosticOnuSample {
-                            serial_number: o.serial_number.clone(),
-                            customer: o.customer_identifier.clone().or(o.custom_name.clone()).unwrap_or_else(|| "--".to_string()),
-                            slot: o.slot,
-                            pon_port: o.pon_port,
-                            rx_power_dbm: o.latest_rx_power_dbm,
-                            delta_db: o.latest_delta_prev_rx_db,
-                            status: o.status.clone(),
-                        }).collect();
+                        let sample_onus = bad_onus_in_pon
+                            .iter()
+                            .take(8)
+                            .map(|o| DiagnosticOnuSample {
+                                serial_number: o.serial_number.clone(),
+                                customer: o
+                                    .customer_identifier
+                                    .clone()
+                                    .or(o.custom_name.clone())
+                                    .unwrap_or_else(|| "--".to_string()),
+                                slot: o.slot,
+                                pon_port: o.pon_port,
+                                rx_power_dbm: o.latest_rx_power_dbm,
+                                delta_db: o.latest_delta_prev_rx_db,
+                                status: o.status.clone(),
+                            })
+                            .collect();
 
                         let confidence = (bad_ratio * 100.0).clamp(75.0, 99.0) as u8;
 
                         let mut breakdown_parts = Vec::new();
                         if !critical_onus_in_pon.is_empty() {
-                            breakdown_parts.push(format!("{} Crítica(s)/LOS", critical_onus_in_pon.len()));
+                            breakdown_parts
+                                .push(format!("{} Crítica(s)/LOS", critical_onus_in_pon.len()));
                         }
                         if !warning_onus_in_pon.is_empty() {
-                            breakdown_parts.push(format!("{} em Atenção", warning_onus_in_pon.len()));
+                            breakdown_parts
+                                .push(format!("{} em Atenção", warning_onus_in_pon.len()));
                         }
                         let breakdown_str = if !breakdown_parts.is_empty() {
                             format!(" ({})", breakdown_parts.join(" e "))
@@ -247,18 +282,26 @@ impl OpticalEvaluator {
                             confidence_score: confidence,
                             sample_onus,
                         });
-                    } 
+                    }
                     // B) Diagnóstico: Degradação Coletiva de Rota / Microcurvatura no Tronco (Feeder)
                     else if is_trunk_collective_issue {
-                        let sample_onus = degraded_onus_in_pon.iter().take(8).map(|o| DiagnosticOnuSample {
-                            serial_number: o.serial_number.clone(),
-                            customer: o.customer_identifier.clone().or(o.custom_name.clone()).unwrap_or_else(|| "--".to_string()),
-                            slot: o.slot,
-                            pon_port: o.pon_port,
-                            rx_power_dbm: o.latest_rx_power_dbm,
-                            delta_db: o.latest_delta_prev_rx_db,
-                            status: o.status.clone(),
-                        }).collect();
+                        let sample_onus = degraded_onus_in_pon
+                            .iter()
+                            .take(8)
+                            .map(|o| DiagnosticOnuSample {
+                                serial_number: o.serial_number.clone(),
+                                customer: o
+                                    .customer_identifier
+                                    .clone()
+                                    .or(o.custom_name.clone())
+                                    .unwrap_or_else(|| "--".to_string()),
+                                slot: o.slot,
+                                pon_port: o.pon_port,
+                                rx_power_dbm: o.latest_rx_power_dbm,
+                                delta_db: o.latest_delta_prev_rx_db,
+                                status: o.status.clone(),
+                            })
+                            .collect();
 
                         incidents.push(DiagnosticIncident {
                             id: format!("DIAG-TRUNK-{}-{}-{}", olt_name, slot_id, pon_id),
@@ -282,7 +325,11 @@ impl OpticalEvaluator {
                         for co in &critical_onus_in_pon {
                             let sample = vec![DiagnosticOnuSample {
                                 serial_number: co.serial_number.clone(),
-                                customer: co.customer_identifier.clone().or(co.custom_name.clone()).unwrap_or_else(|| "--".to_string()),
+                                customer: co
+                                    .customer_identifier
+                                    .clone()
+                                    .or(co.custom_name.clone())
+                                    .unwrap_or_else(|| "--".to_string()),
                                 slot: co.slot,
                                 pon_port: co.pon_port,
                                 rx_power_dbm: co.latest_rx_power_dbm,
@@ -290,7 +337,8 @@ impl OpticalEvaluator {
                                 status: co.status.clone(),
                             }];
 
-                            let rx_desc = co.latest_rx_power_dbm
+                            let rx_desc = co
+                                .latest_rx_power_dbm
                                 .map(|rx| format!("{:.2} dBm (Crítico)", rx))
                                 .unwrap_or_else(|| "Sem Sinal / LOS".to_string());
 
@@ -313,19 +361,29 @@ impl OpticalEvaluator {
 
                         // C.2) Se houver grupo de ONUs em Atenção preventiva (-23 a -27 dBm):
                         if !warning_onus_in_pon.is_empty() {
-                            let sample_onus = warning_onus_in_pon.iter().take(6).map(|o| DiagnosticOnuSample {
-                                serial_number: o.serial_number.clone(),
-                                customer: o.customer_identifier.clone().or(o.custom_name.clone()).unwrap_or_else(|| "--".to_string()),
-                                slot: o.slot,
-                                pon_port: o.pon_port,
-                                rx_power_dbm: o.latest_rx_power_dbm,
-                                delta_db: o.latest_delta_prev_rx_db,
-                                status: o.status.clone(),
-                            }).collect();
+                            let sample_onus = warning_onus_in_pon
+                                .iter()
+                                .take(6)
+                                .map(|o| DiagnosticOnuSample {
+                                    serial_number: o.serial_number.clone(),
+                                    customer: o
+                                        .customer_identifier
+                                        .clone()
+                                        .or(o.custom_name.clone())
+                                        .unwrap_or_else(|| "--".to_string()),
+                                    slot: o.slot,
+                                    pon_port: o.pon_port,
+                                    rx_power_dbm: o.latest_rx_power_dbm,
+                                    delta_db: o.latest_delta_prev_rx_db,
+                                    status: o.status.clone(),
+                                })
+                                .collect();
 
-                            let warn_avg = warning_onus_in_pon.iter()
+                            let warn_avg = warning_onus_in_pon
+                                .iter()
                                 .filter_map(|o| o.latest_rx_power_dbm)
-                                .sum::<f64>() / (warning_onus_in_pon.len() as f64);
+                                .sum::<f64>()
+                                / (warning_onus_in_pon.len() as f64);
 
                             incidents.push(DiagnosticIncident {
                                 id: format!("DIAG-WARN-{}-{}-{}", olt_name, slot_id, pon_id),
@@ -347,15 +405,23 @@ impl OpticalEvaluator {
 
                     // D) Diagnóstico: Saturação Óptica de Enlace Curto (> -14.00 dBm)
                     if !saturated_onus_in_pon.is_empty() {
-                        let sample_onus = saturated_onus_in_pon.iter().take(5).map(|o| DiagnosticOnuSample {
-                            serial_number: o.serial_number.clone(),
-                            customer: o.customer_identifier.clone().or(o.custom_name.clone()).unwrap_or_else(|| "--".to_string()),
-                            slot: o.slot,
-                            pon_port: o.pon_port,
-                            rx_power_dbm: o.latest_rx_power_dbm,
-                            delta_db: o.latest_delta_prev_rx_db,
-                            status: o.status.clone(),
-                        }).collect();
+                        let sample_onus = saturated_onus_in_pon
+                            .iter()
+                            .take(5)
+                            .map(|o| DiagnosticOnuSample {
+                                serial_number: o.serial_number.clone(),
+                                customer: o
+                                    .customer_identifier
+                                    .clone()
+                                    .or(o.custom_name.clone())
+                                    .unwrap_or_else(|| "--".to_string()),
+                                slot: o.slot,
+                                pon_port: o.pon_port,
+                                rx_power_dbm: o.latest_rx_power_dbm,
+                                delta_db: o.latest_delta_prev_rx_db,
+                                status: o.status.clone(),
+                            })
+                            .collect();
 
                         incidents.push(DiagnosticIncident {
                             id: format!("DIAG-SAT-{}-{}-{}", olt_name, slot_id, pon_id),
@@ -376,7 +442,9 @@ impl OpticalEvaluator {
                 }
 
                 // E) Diagnóstico: Falha Geral da Placa / Slot GPON Inteiro
-                if total_pons_in_slot >= 3 && (slot_bad_pons as f64) / (total_pons_in_slot as f64) >= 0.60 {
+                if total_pons_in_slot >= 3
+                    && (slot_bad_pons as f64) / (total_pons_in_slot as f64) >= 0.60
+                {
                     incidents.push(DiagnosticIncident {
                         id: format!("DIAG-SLOT-{}-{}", olt_name, slot_id),
                         severity: "critical".to_string(),
@@ -410,31 +478,70 @@ impl OpticalEvaluator {
         for ((olt_name, serial), instances) in serial_location_map {
             if instances.len() > 1 {
                 // Separa entre instância ativa (Online com leitura) e inativa (Offline / Standby)
-                let active_opt = instances.iter().find(|i| i.status == "online" || i.latest_rx_power_dbm.is_some());
-                let inactive_list: Vec<_> = instances.iter().filter(|i| i.status != "online" && i.latest_rx_power_dbm.is_none()).copied().collect();
+                let active_opt = instances
+                    .iter()
+                    .find(|i| i.status == "online" || i.latest_rx_power_dbm.is_some());
+                let inactive_list: Vec<_> = instances
+                    .iter()
+                    .filter(|i| i.status != "online" && i.latest_rx_power_dbm.is_none())
+                    .copied()
+                    .collect();
 
                 let active_loc = if let Some(a) = active_opt {
-                    format!("Slot {} / Porta PON {} (ONU #{}) [Online: {:.2} dBm]", a.slot, a.pon_port, a.onu_id, a.latest_rx_power_dbm.unwrap_or(-20.0))
+                    format!(
+                        "Slot {} / Porta PON {} (ONU #{}) [Online: {:.2} dBm]",
+                        a.slot,
+                        a.pon_port,
+                        a.onu_id,
+                        a.latest_rx_power_dbm.unwrap_or(-20.0)
+                    )
                 } else {
                     let first = instances[0];
-                    format!("Slot {} / Porta PON {} (ONU #{})", first.slot, first.pon_port, first.onu_id)
+                    format!(
+                        "Slot {} / Porta PON {} (ONU #{})",
+                        first.slot, first.pon_port, first.onu_id
+                    )
                 };
 
                 let inactive_locs: Vec<String> = if !inactive_list.is_empty() {
-                    inactive_list.iter().map(|i| format!("Slot {} / Porta PON {} (ONU #{})", i.slot, i.pon_port, i.onu_id)).collect()
+                    inactive_list
+                        .iter()
+                        .map(|i| {
+                            format!(
+                                "Slot {} / Porta PON {} (ONU #{})",
+                                i.slot, i.pon_port, i.onu_id
+                            )
+                        })
+                        .collect()
                 } else {
-                    instances.iter().skip(1).map(|i| format!("Slot {} / Porta PON {} (ONU #{})", i.slot, i.pon_port, i.onu_id)).collect()
+                    instances
+                        .iter()
+                        .skip(1)
+                        .map(|i| {
+                            format!(
+                                "Slot {} / Porta PON {} (ONU #{})",
+                                i.slot, i.pon_port, i.onu_id
+                            )
+                        })
+                        .collect()
                 };
 
-                let sample_onus = instances.iter().map(|o| DiagnosticOnuSample {
-                    serial_number: o.serial_number.clone(),
-                    customer: o.customer_identifier.clone().or(o.custom_name.clone()).unwrap_or_else(|| "--".to_string()),
-                    slot: o.slot,
-                    pon_port: o.pon_port,
-                    rx_power_dbm: o.latest_rx_power_dbm,
-                    delta_db: o.latest_delta_prev_rx_db,
-                    status: o.status.clone(),
-                }).collect();
+                let sample_onus = instances
+                    .iter()
+                    .map(|o| DiagnosticOnuSample {
+                        serial_number: o.serial_number.clone(),
+                        customer: o
+                            .customer_identifier
+                            .clone()
+                            .or(o.custom_name.clone())
+                            .unwrap_or_else(|| "--".to_string()),
+                        slot: o.slot,
+                        pon_port: o.pon_port,
+                        rx_power_dbm: o.latest_rx_power_dbm,
+                        delta_db: o.latest_delta_prev_rx_db,
+                        status: o.status.clone(),
+                    })
+                    .collect();
 
                 incidents.push(DiagnosticIncident {
                     id: format!("DIAG-DUP-{}-{}", olt_name, serial),
@@ -471,11 +578,23 @@ impl OpticalEvaluator {
         });
 
         summary.total_incidents = incidents.len();
-        summary.critical_incidents = incidents.iter().filter(|i| i.severity == "critical").count();
+        summary.critical_incidents = incidents
+            .iter()
+            .filter(|i| i.severity == "critical")
+            .count();
         summary.warning_incidents = incidents.iter().filter(|i| i.severity == "warning").count();
-        summary.slot_incidents = incidents.iter().filter(|i| i.category == "slot_failure").count();
-        summary.pon_incidents = incidents.iter().filter(|i| i.category == "pon_sfp_issue").count();
-        summary.trunk_incidents = incidents.iter().filter(|i| i.category == "trunk_degradation").count();
+        summary.slot_incidents = incidents
+            .iter()
+            .filter(|i| i.category == "slot_failure")
+            .count();
+        summary.pon_incidents = incidents
+            .iter()
+            .filter(|i| i.category == "pon_sfp_issue")
+            .count();
+        summary.trunk_incidents = incidents
+            .iter()
+            .filter(|i| i.category == "trunk_degradation")
+            .count();
         summary.incidents = incidents;
 
         summary

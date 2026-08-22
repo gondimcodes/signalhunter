@@ -1,8 +1,8 @@
 use async_trait::async_trait;
+use log::{debug, info, warn};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
-use log::{info, warn, debug};
-use std::collections::HashMap;
 
 use crate::collector::driver::{OltDriver, OltTarget, OnuOpticalData};
 use crate::collector::snmp::SnmpClient;
@@ -52,7 +52,10 @@ impl ParksDriver {
             return None;
         }
         if let Ok(bytes) = hex::decode(&clean) {
-            let s = String::from_utf8_lossy(&bytes).trim_matches('\0').trim().to_string();
+            let s = String::from_utf8_lossy(&bytes)
+                .trim_matches('\0')
+                .trim()
+                .to_string();
             if !s.is_empty() {
                 return Some(s);
             }
@@ -71,15 +74,24 @@ impl OltDriver for ParksDriver {
         &self,
         target: &OltTarget,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        info!("Testando conectividade SNMP com OLT Parks '{}' ({})", target.name, target.ip_address);
+        info!(
+            "Testando conectividade SNMP com OLT Parks '{}' ({})",
+            target.name, target.ip_address
+        );
         let comm = target.snmp_community.as_deref().unwrap_or("public");
         let client = SnmpClient::new(&target.ip_address, target.snmp_port, comm, 2000).await?;
         match client.get(".1.3.6.1.2.1.1.1.0").await {
             Ok(Some(vb)) => {
-                let desc = vb.value_str.unwrap_or_else(|| "Parks Fiberlink OLT".to_string());
+                let desc = vb
+                    .value_str
+                    .unwrap_or_else(|| "Parks Fiberlink OLT".to_string());
                 Ok(format!("Parks OLT Online: {}", desc))
             }
-            _ => Err(format!("OLT Parks '{}' ({}) inacessível via SNMP", target.name, target.ip_address).into()),
+            _ => Err(format!(
+                "OLT Parks '{}' ({}) inacessível via SNMP",
+                target.name, target.ip_address
+            )
+            .into()),
         }
     }
 
@@ -89,7 +101,7 @@ impl OltDriver for ParksDriver {
         semaphore: Arc<Semaphore>,
     ) -> Result<Vec<OnuOpticalData>, Box<dyn std::error::Error + Send + Sync>> {
         let _permit = semaphore.acquire().await?;
-        
+
         info!(
             "Iniciando coleta SNMP com OLT Parks '{}' [{}]",
             target.name, target.ip_address
@@ -97,22 +109,31 @@ impl OltDriver for ParksDriver {
 
         let comm = target.snmp_community.as_deref().unwrap_or("public");
         let snmp = SnmpClient::new(&target.ip_address, target.snmp_port, comm, 4000).await?;
-        
+
         // 1. Checagem prévia rápida
         match snmp.get(".1.3.6.1.2.1.1.1.0").await {
             Ok(Some(_)) => {
                 debug!("Conexão SNMP estabelecida com Parks '{}'", target.name);
             }
             _ => {
-                warn!("OLT Parks '{}' ({}) não respondeu à solicitação SNMP.", target.name, target.ip_address);
+                warn!(
+                    "OLT Parks '{}' ({}) não respondeu à solicitação SNMP.",
+                    target.name, target.ip_address
+                );
                 return Ok(Vec::new());
             }
         }
 
         // 2. Coleta de Seriais das ONUs (.1.3.6.1.4.1.6771.10.1.5.1.18)
-        let serial_entries = snmp.bulk_walk(".1.3.6.1.4.1.6771.10.1.5.1.18", 65535).await.unwrap_or_default();
+        let serial_entries = snmp
+            .bulk_walk(".1.3.6.1.4.1.6771.10.1.5.1.18", 65535)
+            .await
+            .unwrap_or_default();
         if serial_entries.is_empty() {
-            warn!("Nenhum serial de ONU retornado via SNMP na OLT Parks '{}'.", target.name);
+            warn!(
+                "Nenhum serial de ONU retornado via SNMP na OLT Parks '{}'.",
+                target.name
+            );
             return Ok(Vec::new());
         }
 
@@ -173,7 +194,8 @@ impl OltDriver for ParksDriver {
                 if let Some((slot, port, onu_id)) = Self::parse_parks_index(&entry.oid) {
                     if let Some(code) = entry.value_int {
                         if code == 1 {
-                            offline_reason_map.insert((slot, port, onu_id), "dying_gasp".to_string());
+                            offline_reason_map
+                                .insert((slot, port, onu_id), "dying_gasp".to_string());
                         } else {
                             offline_reason_map.insert((slot, port, onu_id), "los".to_string());
                         }
@@ -186,8 +208,11 @@ impl OltDriver for ParksDriver {
                 if let Some((slot, port, onu_id)) = Self::parse_parks_index(&entry.oid) {
                     if let Some(status_code) = entry.value_int {
                         if status_code == 1 {
-                            offline_reason_map.insert((slot, port, onu_id), "dying_gasp".to_string());
-                        } else if status_code == 0 && !offline_reason_map.contains_key(&(slot, port, onu_id)) {
+                            offline_reason_map
+                                .insert((slot, port, onu_id), "dying_gasp".to_string());
+                        } else if status_code == 0
+                            && !offline_reason_map.contains_key(&(slot, port, onu_id))
+                        {
                             offline_reason_map.insert((slot, port, onu_id), "los".to_string());
                         }
                     }
@@ -230,7 +255,10 @@ impl OltDriver for ParksDriver {
                 let is_online = rx_dbm.is_some() && rx_dbm.unwrap() > -45.0;
 
                 let offline_reason = if !is_online {
-                    offline_reason_map.get(&(slot, port, onu_id)).cloned().or(Some("los".to_string()))
+                    offline_reason_map
+                        .get(&(slot, port, onu_id))
+                        .cloned()
+                        .or(Some("los".to_string()))
                 } else {
                     None
                 };
@@ -240,7 +268,11 @@ impl OltDriver for ParksDriver {
                 let attenuation = match (olt_tx, rx_dbm) {
                     (Some(tx), Some(rx)) => {
                         let att = tx - rx;
-                        if att >= 0.0 && att <= 45.0 { Some(att) } else { None }
+                        if att >= 0.0 && att <= 45.0 {
+                            Some(att)
+                        } else {
+                            None
+                        }
                     }
                     _ => None,
                 };

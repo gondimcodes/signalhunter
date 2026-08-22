@@ -1,6 +1,6 @@
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, MySqlPool};
-use chrono::NaiveDateTime;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct OltRecord {
@@ -80,7 +80,7 @@ pub struct OnuRecord {
     pub status: String,
     pub first_seen_at: NaiveDateTime,
     pub last_seen_at: NaiveDateTime,
-    
+
     // Última leitura
     pub latest_rx_power_dbm: Option<f64>,
     pub latest_tx_power_dbm: Option<f64>,
@@ -130,7 +130,10 @@ pub struct DashboardMetrics {
 }
 
 // Queries de OLTs
-pub async fn list_olts(pool: &MySqlPool, crypto: &crate::crypto::CryptoManager) -> Result<Vec<OltRecord>, sqlx::Error> {
+pub async fn list_olts(
+    pool: &MySqlPool,
+    crypto: &crate::crypto::CryptoManager,
+) -> Result<Vec<OltRecord>, sqlx::Error> {
     let rows = sqlx::query_as::<_, OltWithCredentials>(
         "SELECT id, name, ip_address, vendor, model, firmware_version, primary_protocol, fallback_protocol,
                 snmp_version, snmp_port, snmp_community_encrypted, snmp_v3_user, snmp_v3_auth_proto,
@@ -145,8 +148,14 @@ pub async fn list_olts(pool: &MySqlPool, crypto: &crate::crypto::CryptoManager) 
 
     let mut records = Vec::with_capacity(rows.len());
     for r in rows {
-        let snmp_community = r.snmp_community_encrypted.as_deref().and_then(|enc| crypto.decrypt(enc).ok());
-        let mgmt_password = r.mgmt_password_encrypted.as_deref().and_then(|enc| crypto.decrypt(enc).ok());
+        let snmp_community = r
+            .snmp_community_encrypted
+            .as_deref()
+            .and_then(|enc| crypto.decrypt(enc).ok());
+        let mgmt_password = r
+            .mgmt_password_encrypted
+            .as_deref()
+            .and_then(|enc| crypto.decrypt(enc).ok());
 
         records.push(OltRecord {
             id: r.id,
@@ -188,7 +197,7 @@ pub async fn get_dashboard_metrics(pool: &MySqlPool) -> Result<DashboardMetrics,
     let total_onus: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM onus o 
          JOIN olts ol ON o.olt_id = ol.id 
-         WHERE ol.is_active = TRUE"
+         WHERE ol.is_active = TRUE",
     )
     .fetch_one(pool)
     .await
@@ -201,7 +210,7 @@ pub async fn get_dashboard_metrics(pool: &MySqlPool) -> Result<DashboardMetrics,
             SELECT onu_id, rx_power_dbm FROM onu_signal_history 
             WHERE id IN (SELECT MAX(id) FROM onu_signal_history GROUP BY onu_id)
          ) h ON o.id = h.onu_id 
-         WHERE ol.is_active = TRUE AND h.rx_power_dbm > -14.00"
+         WHERE ol.is_active = TRUE AND h.rx_power_dbm > -14.00",
     )
     .fetch_one(pool)
     .await
@@ -214,7 +223,7 @@ pub async fn get_dashboard_metrics(pool: &MySqlPool) -> Result<DashboardMetrics,
             SELECT onu_id, signal_quality FROM onu_signal_history 
             WHERE id IN (SELECT MAX(id) FROM onu_signal_history GROUP BY onu_id)
          ) h ON o.id = h.onu_id 
-         WHERE ol.is_active = TRUE AND h.signal_quality = 'excellent'"
+         WHERE ol.is_active = TRUE AND h.signal_quality = 'excellent'",
     )
     .fetch_one(pool)
     .await
@@ -227,7 +236,7 @@ pub async fn get_dashboard_metrics(pool: &MySqlPool) -> Result<DashboardMetrics,
             SELECT onu_id, signal_quality FROM onu_signal_history 
             WHERE id IN (SELECT MAX(id) FROM onu_signal_history GROUP BY onu_id)
          ) h ON o.id = h.onu_id 
-         WHERE ol.is_active = TRUE AND h.signal_quality = 'good'"
+         WHERE ol.is_active = TRUE AND h.signal_quality = 'good'",
     )
     .fetch_one(pool)
     .await
@@ -240,7 +249,7 @@ pub async fn get_dashboard_metrics(pool: &MySqlPool) -> Result<DashboardMetrics,
             SELECT onu_id, signal_quality FROM onu_signal_history 
             WHERE id IN (SELECT MAX(id) FROM onu_signal_history GROUP BY onu_id)
          ) h ON o.id = h.onu_id 
-         WHERE ol.is_active = TRUE AND h.signal_quality = 'warning'"
+         WHERE ol.is_active = TRUE AND h.signal_quality = 'warning'",
     )
     .fetch_one(pool)
     .await
@@ -253,7 +262,7 @@ pub async fn get_dashboard_metrics(pool: &MySqlPool) -> Result<DashboardMetrics,
             SELECT onu_id, signal_quality FROM onu_signal_history 
             WHERE id IN (SELECT MAX(id) FROM onu_signal_history GROUP BY onu_id)
          ) h ON o.id = h.onu_id 
-         WHERE ol.is_active = TRUE AND h.signal_quality = 'critical'"
+         WHERE ol.is_active = TRUE AND h.signal_quality = 'critical'",
     )
     .fetch_one(pool)
     .await
@@ -262,7 +271,7 @@ pub async fn get_dashboard_metrics(pool: &MySqlPool) -> Result<DashboardMetrics,
     let los_onus: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM onus o 
          JOIN olts ol ON o.olt_id = ol.id 
-         WHERE ol.is_active = TRUE AND o.status = 'los'"
+         WHERE ol.is_active = TRUE AND o.status = 'los'",
     )
     .fetch_one(pool)
     .await
@@ -271,7 +280,7 @@ pub async fn get_dashboard_metrics(pool: &MySqlPool) -> Result<DashboardMetrics,
     let dying_gasp_onus: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM onus o 
          JOIN olts ol ON o.olt_id = ol.id 
-         WHERE ol.is_active = TRUE AND o.status = 'dying_gasp'"
+         WHERE ol.is_active = TRUE AND o.status = 'dying_gasp'",
     )
     .fetch_one(pool)
     .await
@@ -280,7 +289,7 @@ pub async fn get_dashboard_metrics(pool: &MySqlPool) -> Result<DashboardMetrics,
     let offline_onus: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM onus o 
          JOIN olts ol ON o.olt_id = ol.id 
-         WHERE ol.is_active = TRUE AND o.status IN ('offline', 'los', 'dying_gasp', 'unknown')"
+         WHERE ol.is_active = TRUE AND o.status IN ('offline', 'los', 'dying_gasp', 'unknown')",
     )
     .fetch_one(pool)
     .await
@@ -293,7 +302,7 @@ pub async fn get_dashboard_metrics(pool: &MySqlPool) -> Result<DashboardMetrics,
             SELECT onu_id, is_degraded FROM onu_signal_history 
             WHERE id IN (SELECT MAX(id) FROM onu_signal_history GROUP BY onu_id)
          ) h ON o.id = h.onu_id 
-         WHERE ol.is_active = TRUE AND h.is_degraded = TRUE"
+         WHERE ol.is_active = TRUE AND h.is_degraded = TRUE",
     )
     .fetch_one(pool)
     .await
@@ -363,4 +372,3 @@ pub async fn log_audit_event(
         log::error!("Falha ao gravar log de auditoria: {}", e);
     }
 }
-

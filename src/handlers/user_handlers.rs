@@ -1,3 +1,6 @@
+use crate::auth::AuthManager;
+use crate::handlers::olt_handlers::ApiResponse;
+use crate::AppState;
 use axum::{
     extract::{Path, State},
     http::{header, HeaderMap, StatusCode},
@@ -6,9 +9,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use crate::AppState;
-use crate::auth::AuthManager;
-use crate::handlers::olt_handlers::ApiResponse;
 
 #[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct UserDto {
@@ -40,8 +40,14 @@ pub struct UpdateUserPayload {
 }
 
 /// Helper seguro para extrair e validar sessão de admin a partir dos cookies HttpOnly
-fn extract_admin_session(state: &AppState, headers: &HeaderMap) -> Result<crate::auth::Claims, (StatusCode, Json<ApiResponse<()>>)> {
-    let cookie_hdr = headers.get(header::COOKIE).and_then(|v| v.to_str().ok()).unwrap_or("");
+fn extract_admin_session(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Result<crate::auth::Claims, (StatusCode, Json<ApiResponse<()>>)> {
+    let cookie_hdr = headers
+        .get(header::COOKIE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
     let mut auth_token = "";
     for part in cookie_hdr.split(';') {
         let trimmed = part.trim();
@@ -78,7 +84,8 @@ fn extract_admin_session(state: &AppState, headers: &HeaderMap) -> Result<crate:
             StatusCode::FORBIDDEN,
             Json(ApiResponse {
                 success: false,
-                message: "Acesso negado: apenas administradores podem gerenciar usuários.".to_string(),
+                message: "Acesso negado: apenas administradores podem gerenciar usuários."
+                    .to_string(),
                 data: None,
             }),
         ));
@@ -225,9 +232,13 @@ pub async fn create_user_handler(
         "CREATE",
         "USER",
         Some(&new_user_id.to_string()),
-        Some(&format!("Cadastro do usuário '{}' ({}) com perfil '{}'", username, full_name, role)),
+        Some(&format!(
+            "Cadastro do usuário '{}' ({}) com perfil '{}'",
+            username, full_name, role
+        )),
         None,
-    ).await;
+    )
+    .await;
 
     Ok((
         StatusCode::CREATED,
@@ -258,7 +269,10 @@ pub async fn update_user_handler(
     })?;
 
     // Extrai sessão de qualquer usuário autenticado (admin ou operador)
-    let cookie_hdr = headers.get(header::COOKIE).and_then(|v| v.to_str().ok()).unwrap_or("");
+    let cookie_hdr = headers
+        .get(header::COOKIE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
     let mut auth_token = "";
     for part in cookie_hdr.split(';') {
         let trimmed = part.trim();
@@ -330,7 +344,8 @@ pub async fn update_user_handler(
                         StatusCode::BAD_REQUEST,
                         Json(ApiResponse {
                             success: false,
-                            message: "Você não pode remover o seu próprio perfil de administrador.".to_string(),
+                            message: "Você não pode remover o seu próprio perfil de administrador."
+                                .to_string(),
                             data: None,
                         }),
                     ));
@@ -350,7 +365,8 @@ pub async fn update_user_handler(
                     StatusCode::BAD_REQUEST,
                     Json(ApiResponse {
                         success: false,
-                        message: "Você não pode desativar sua própria conta de usuário.".to_string(),
+                        message: "Você não pode desativar sua própria conta de usuário."
+                            .to_string(),
                         data: None,
                     }),
                 ));
@@ -404,9 +420,13 @@ pub async fn update_user_handler(
         "UPDATE",
         "USER",
         Some(&user_id.to_string()),
-        Some(&format!("Alteração de dados cadastrais/senha do usuário #{}", user_id)),
+        Some(&format!(
+            "Alteração de dados cadastrais/senha do usuário #{}",
+            user_id
+        )),
         None,
-    ).await;
+    )
+    .await;
 
     Ok(Json(ApiResponse::<()> {
         success: true,
@@ -468,16 +488,22 @@ pub async fn delete_user_handler(
         })?;
 
     // Registra Log de Auditoria
-    let username_str = target_user.map(|u| u.0).unwrap_or_else(|| format!("#{}", user_id));
+    let username_str = target_user
+        .map(|u| u.0)
+        .unwrap_or_else(|| format!("#{}", user_id));
     crate::db::queries::log_audit_event(
         pool,
         Some(admin.sub),
         "DELETE",
         "USER",
         Some(&user_id.to_string()),
-        Some(&format!("Exclusão da conta do usuário '{}' (ID: {})", username_str, user_id)),
+        Some(&format!(
+            "Exclusão da conta do usuário '{}' (ID: {})",
+            username_str, user_id
+        )),
         None,
-    ).await;
+    )
+    .await;
 
     Ok(Json(ApiResponse::<()> {
         success: true,

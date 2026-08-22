@@ -1,7 +1,7 @@
 use async_trait::async_trait;
+use log::{debug, info, warn};
 use std::sync::Arc;
 use tokio::sync::Semaphore;
-use log::{info, warn, debug};
 
 use crate::collector::driver::{OltDriver, OltTarget, OnuOpticalData};
 use crate::collector::snmp::SnmpClient;
@@ -23,9 +23,15 @@ impl HuaweiDriver {
     fn parse_huawei_index(oid: &str, default_idx: usize) -> (i32, i32, i32) {
         let parts: Vec<&str> = oid.trim_start_matches('.').split('.').collect();
         if parts.len() >= 2 {
-            let onu_id = parts.last().and_then(|s| s.parse::<i32>().ok()).unwrap_or(1);
-            let if_index = parts.get(parts.len() - 2).and_then(|s| s.parse::<u32>().ok()).unwrap_or(0);
-            
+            let onu_id = parts
+                .last()
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(1);
+            let if_index = parts
+                .get(parts.len() - 2)
+                .and_then(|s| s.parse::<u32>().ok())
+                .unwrap_or(0);
+
             if if_index > 0 {
                 let slot = ((if_index >> 13) & 0x3F) as i32;
                 let port = ((if_index >> 8) & 0x1F) as i32;
@@ -50,15 +56,24 @@ impl OltDriver for HuaweiDriver {
         &self,
         target: &OltTarget,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        info!("Testando conectividade Híbrida (SNMP/SSH) com OLT Huawei '{}' ({})", target.name, target.ip_address);
+        info!(
+            "Testando conectividade Híbrida (SNMP/SSH) com OLT Huawei '{}' ({})",
+            target.name, target.ip_address
+        );
         let comm = target.snmp_community.as_deref().unwrap_or("public");
         let client = SnmpClient::new(&target.ip_address, target.snmp_port, comm, 2500).await?;
         match client.get(".1.3.6.1.2.1.1.1.0").await {
             Ok(Some(vb)) => {
-                let desc = vb.value_str.unwrap_or_else(|| "Huawei SmartAX MA5800/MA5600 Series".to_string());
+                let desc = vb
+                    .value_str
+                    .unwrap_or_else(|| "Huawei SmartAX MA5800/MA5600 Series".to_string());
                 Ok(format!("Huawei OLT Híbrido Online: {}", desc))
             }
-            _ => Err(format!("OLT Huawei '{}' ({}) inacessível via SNMP", target.name, target.ip_address).into()),
+            _ => Err(format!(
+                "OLT Huawei '{}' ({}) inacessível via SNMP",
+                target.name, target.ip_address
+            )
+            .into()),
         }
     }
 
@@ -68,7 +83,7 @@ impl OltDriver for HuaweiDriver {
         semaphore: Arc<Semaphore>,
     ) -> Result<Vec<OnuOpticalData>, Box<dyn std::error::Error + Send + Sync>> {
         let _permit = semaphore.acquire().await?;
-        
+
         info!(
             "Huawei '{}' [{}]: Iniciando Coleta Híbrida (SNMPv2c de alta velocidade + SSH de validação e distância)...",
             target.name, target.ip_address
@@ -77,14 +92,17 @@ impl OltDriver for HuaweiDriver {
         let mut results = Vec::new();
         let comm = target.snmp_community.as_deref().unwrap_or("public");
         let snmp = SnmpClient::new(&target.ip_address, target.snmp_port, comm, 3500).await?;
-        
+
         // 1. Checagem prévia e identificação de Modelo e Firmware
         let (_detected_model, _detected_fw) = match snmp.get(".1.3.6.1.2.1.1.1.0").await {
             Ok(Some(vb)) => {
                 debug!("Conexão SNMP estabelecida com Huawei '{}'", target.name);
                 let sys_desc = vb.value_str.unwrap_or_default();
                 let fw = if sys_desc.contains("SmartAX") || sys_desc.contains("MA5") {
-                    sys_desc.split_whitespace().find(|w| w.starts_with('V') || w.starts_with('R')).map(|s| s.to_string())
+                    sys_desc
+                        .split_whitespace()
+                        .find(|w| w.starts_with('V') || w.starts_with('R'))
+                        .map(|s| s.to_string())
                 } else {
                     None
                 };
@@ -100,16 +118,29 @@ impl OltDriver for HuaweiDriver {
                 (model, fw)
             }
             _ => {
-                warn!("OLT Huawei '{}' ({}) não respondeu à solicitação SNMP.", target.name, target.ip_address);
-                return Err(format!("OLT Huawei '{}' ({}) inacessível via SNMP (Timeout)", target.name, target.ip_address).into());
+                warn!(
+                    "OLT Huawei '{}' ({}) não respondeu à solicitação SNMP.",
+                    target.name, target.ip_address
+                );
+                return Err(format!(
+                    "OLT Huawei '{}' ({}) inacessível via SNMP (Timeout)",
+                    target.name, target.ip_address
+                )
+                .into());
             }
         };
 
-        info!("Huawei '{}': Coletando telemetrias ópticas via SNMP...", target.name);
+        info!(
+            "Huawei '{}': Coletando telemetrias ópticas via SNMP...",
+            target.name
+        );
 
         // 2. Mapeamento de Potência Tx do SFP PON da OLT (.1.3.6.1.4.1.2011.6.128.1.1.2.23.1.2)
         let mut olt_tx_map = std::collections::HashMap::new();
-        let olt_tx_walk = snmp.bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.23.1.2", 65535).await.unwrap_or_default();
+        let olt_tx_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.23.1.2", 65535)
+            .await
+            .unwrap_or_default();
         for vb in olt_tx_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if let Some(last) = parts.last() {
@@ -126,16 +157,33 @@ impl OltDriver for HuaweiDriver {
         }
 
         // 3. Mapeamento de Seriais das ONUs (.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.3)
-        let onu_table = snmp.bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.43.1.3", 65535).await.unwrap_or_default();
+        let onu_table = snmp
+            .bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.43.1.3", 65535)
+            .await
+            .unwrap_or_default();
         if onu_table.is_empty() {
-            warn!("Huawei OLT '{}' ({}) não retornou registros na MIB de ONUs.", target.name, target.ip_address);
-            return Err(format!("OLT '{}' ({}) inacessível ou sem resposta na MIB de ONUs", target.name, target.ip_address).into());
+            warn!(
+                "Huawei OLT '{}' ({}) não retornou registros na MIB de ONUs.",
+                target.name, target.ip_address
+            );
+            return Err(format!(
+                "OLT '{}' ({}) inacessível ou sem resposta na MIB de ONUs",
+                target.name, target.ip_address
+            )
+            .into());
         }
-        info!("Huawei '{}': {} ONUs localizadas na MIB SNMP. Processando tabelas ópticas...", target.name, onu_table.len());
+        info!(
+            "Huawei '{}': {} ONUs localizadas na MIB SNMP. Processando tabelas ópticas...",
+            target.name,
+            onu_table.len()
+        );
 
         // 4. Mapeamento de Nomes de Clientes / Descrição (.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.9)
         let mut name_map = std::collections::HashMap::new();
-        let name_walk = snmp.bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.43.1.9", 65535).await.unwrap_or_default();
+        let name_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.43.1.9", 65535)
+            .await
+            .unwrap_or_default();
         for vb in name_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
@@ -151,7 +199,10 @@ impl OltDriver for HuaweiDriver {
 
         // 5. Mapeamento de Modelo de Equipamento (.1.3.6.1.4.1.2011.6.128.1.1.2.45.1.4)
         let mut model_map = std::collections::HashMap::new();
-        let model_walk = snmp.bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.45.1.4", 65535).await.unwrap_or_default();
+        let model_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.45.1.4", 65535)
+            .await
+            .unwrap_or_default();
         for vb in model_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
@@ -167,7 +218,10 @@ impl OltDriver for HuaweiDriver {
 
         // 6. Mapeamento de Rx ONU (.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.4)
         let mut rx_map = std::collections::HashMap::new();
-        let rx_walk = snmp.bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.51.1.4", 65535).await.unwrap_or_default();
+        let rx_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.51.1.4", 65535)
+            .await
+            .unwrap_or_default();
         for vb in rx_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
@@ -184,7 +238,10 @@ impl OltDriver for HuaweiDriver {
 
         // 7. Mapeamento de Tx ONU (.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.3)
         let mut tx_map = std::collections::HashMap::new();
-        let tx_walk = snmp.bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.51.1.3", 65535).await.unwrap_or_default();
+        let tx_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.51.1.3", 65535)
+            .await
+            .unwrap_or_default();
         for vb in tx_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
@@ -201,7 +258,10 @@ impl OltDriver for HuaweiDriver {
 
         // 8. Mapeamento de OLT Rx Upstream (.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.6)
         let mut olt_rx_map = std::collections::HashMap::new();
-        let olt_rx_walk = snmp.bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.51.1.6", 65535).await.unwrap_or_default();
+        let olt_rx_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.51.1.6", 65535)
+            .await
+            .unwrap_or_default();
         for vb in olt_rx_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
@@ -218,7 +278,10 @@ impl OltDriver for HuaweiDriver {
 
         // 9. Mapeamento de Temperatura ONU (.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.1)
         let mut temp_map = std::collections::HashMap::new();
-        let temp_walk = snmp.bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.51.1.1", 65535).await.unwrap_or_default();
+        let temp_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.51.1.1", 65535)
+            .await
+            .unwrap_or_default();
         for vb in temp_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
@@ -232,7 +295,10 @@ impl OltDriver for HuaweiDriver {
 
         // 10. Mapeamento de Tensão / Voltagem (.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.2)
         let mut volt_map = std::collections::HashMap::new();
-        let volt_walk = snmp.bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.51.1.2", 65535).await.unwrap_or_default();
+        let volt_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.51.1.2", 65535)
+            .await
+            .unwrap_or_default();
         for vb in volt_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
@@ -247,7 +313,10 @@ impl OltDriver for HuaweiDriver {
         // 11. Mapeamento de Causa da Última Queda (.1.3.6.1.4.1.2011.6.128.1.1.2.47.1.3)
         // 1: Dying Gasp, 2 ou 3: LOS, 13: manual_deactivate, 254: normal_down/los
         let mut down_cause_map = std::collections::HashMap::new();
-        let down_walk = snmp.bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.47.1.3", 65535).await.unwrap_or_default();
+        let down_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.47.1.3", 65535)
+            .await
+            .unwrap_or_default();
         for vb in down_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
@@ -265,7 +334,10 @@ impl OltDriver for HuaweiDriver {
 
         // 12. Mapeamento de Distância Física da Fibra em Metros (.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.20)
         let mut dist_map = std::collections::HashMap::new();
-        let dist_walk = snmp.bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.46.1.20", 65535).await.unwrap_or_default();
+        let dist_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.2011.6.128.1.1.2.46.1.20", 65535)
+            .await
+            .unwrap_or_default();
         for vb in dist_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
@@ -277,7 +349,11 @@ impl OltDriver for HuaweiDriver {
             }
         }
         if !dist_map.is_empty() {
-            info!("Huawei '{}': Distâncias físicas da fibra mapeadas via SNMP puro para {} ONUs.", target.name, dist_map.len());
+            info!(
+                "Huawei '{}': Distâncias físicas da fibra mapeadas via SNMP puro para {} ONUs.",
+                target.name,
+                dist_map.len()
+            );
         }
 
         for (idx, vb) in onu_table.iter().enumerate() {
@@ -291,11 +367,18 @@ impl OltDriver for HuaweiDriver {
 
             let serial = if raw_bytes.len() >= 8 {
                 let vendor_part = String::from_utf8_lossy(&raw_bytes[0..4]).to_string();
-                let id_hex: String = raw_bytes[4..8].iter().map(|b| format!("{:02X}", b)).collect();
+                let id_hex: String = raw_bytes[4..8]
+                    .iter()
+                    .map(|b| format!("{:02X}", b))
+                    .collect();
                 if vendor_part.chars().all(|c| c.is_alphanumeric()) {
                     format!("{}{}", vendor_part, id_hex)
                 } else {
-                    let full_hex: String = raw_bytes.iter().take(8).map(|b| format!("{:02X}", b)).collect();
+                    let full_hex: String = raw_bytes
+                        .iter()
+                        .take(8)
+                        .map(|b| format!("{:02X}", b))
+                        .collect();
                     format!("HWTC{}", &full_hex[full_hex.len().saturating_sub(8)..])
                 }
             } else {
@@ -304,7 +387,10 @@ impl OltDriver for HuaweiDriver {
 
             let (slot, pon_port, onu_id) = Self::parse_huawei_index(&vb.oid, idx);
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
-            let if_index_u32 = parts.get(parts.len().saturating_sub(2)).and_then(|s| s.parse::<u32>().ok()).unwrap_or(0);
+            let if_index_u32 = parts
+                .get(parts.len().saturating_sub(2))
+                .and_then(|s| s.parse::<u32>().ok())
+                .unwrap_or(0);
             let suffix = if parts.len() >= 2 {
                 format!("{}.{}", parts[parts.len() - 2], parts[parts.len() - 1])
             } else {
@@ -322,7 +408,12 @@ impl OltDriver for HuaweiDriver {
 
             let is_online = rx_dbm.is_some() && rx_dbm.unwrap() > -45.0;
             let offline_reason = if !is_online {
-                Some(down_cause_map.get(&suffix).cloned().unwrap_or_else(|| "los".to_string()))
+                Some(
+                    down_cause_map
+                        .get(&suffix)
+                        .cloned()
+                        .unwrap_or_else(|| "los".to_string()),
+                )
             } else {
                 None
             };
@@ -331,15 +422,23 @@ impl OltDriver for HuaweiDriver {
             let attenuation_db = match (olt_tx_dbm, rx_dbm) {
                 (Some(tx_olt), Some(rx_onu)) if rx_onu > -45.0 => {
                     let att = tx_olt - rx_onu;
-                    if att >= 0.0 && att <= 45.0 { Some(att) } else { None }
+                    if att >= 0.0 && att <= 45.0 {
+                        Some(att)
+                    } else {
+                        None
+                    }
                 }
                 _ => match (tx_dbm, olt_rx_dbm) {
                     (Some(tx_onu), Some(rx_olt)) if rx_olt > -45.0 => {
                         let att = tx_onu - rx_olt;
-                        if att >= 0.0 && att <= 45.0 { Some(att) } else { None }
+                        if att >= 0.0 && att <= 45.0 {
+                            Some(att)
+                        } else {
+                            None
+                        }
                     }
                     _ => None,
-                }
+                },
             };
 
             results.push(OnuOpticalData {
@@ -363,7 +462,8 @@ impl OltDriver for HuaweiDriver {
         }
 
         // Deduplica entradas por interface física única (slot, pon_port, onu_id)
-        let mut unique_map: std::collections::HashMap<(i32, i32, i32), OnuOpticalData> = std::collections::HashMap::new();
+        let mut unique_map: std::collections::HashMap<(i32, i32, i32), OnuOpticalData> =
+            std::collections::HashMap::new();
         for item in results {
             let key = (item.slot, item.pon_port, item.onu_id);
             if let Some(existing) = unique_map.get_mut(&key) {
@@ -376,8 +476,11 @@ impl OltDriver for HuaweiDriver {
         }
 
         let final_results: Vec<OnuOpticalData> = unique_map.into_values().collect();
-        info!("Coleta Híbrida da OLT Huawei '{}' finalizada com {} ONUs processadas.", target.name, final_results.len());
+        info!(
+            "Coleta Híbrida da OLT Huawei '{}' finalizada com {} ONUs processadas.",
+            target.name,
+            final_results.len()
+        );
         Ok(final_results)
     }
 }
-

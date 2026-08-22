@@ -1,10 +1,10 @@
 use async_trait::async_trait;
-use std::sync::Arc;
+use log::{info, warn};
 use std::process::Stdio;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Semaphore;
-use log::{info, warn};
 
 use crate::collector::driver::{OltDriver, OltTarget, OnuOpticalData};
 use crate::collector::snmp::SnmpClient;
@@ -51,7 +51,10 @@ impl ZteDriver {
             stdin.flush().await?;
         }
 
-        let stdout = child.stdout.take().ok_or("Falha ao abrir stdout do SSH ZTE")?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or("Falha ao abrir stdout do SSH ZTE")?;
         use tokio::io::{AsyncBufReadExt, BufReader};
         let mut reader = BufReader::new(stdout).lines();
 
@@ -75,7 +78,10 @@ impl ZteDriver {
                     break;
                 }
                 Err(_) => {
-                    warn!("ZTE '{}': Inactivity watchdog atingido (45s sem dados da OLT)", target.name);
+                    warn!(
+                        "ZTE '{}': Inactivity watchdog atingido (45s sem dados da OLT)",
+                        target.name
+                    );
                     let _ = child.kill().await;
                     break;
                 }
@@ -96,8 +102,14 @@ impl ZteDriver {
     fn parse_zte_interface_index(oid: &str, default_idx: usize) -> (i32, i32, i32) {
         let parts: Vec<&str> = oid.trim_start_matches('.').split('.').collect();
         if parts.len() >= 2 {
-            let onu_id = parts.last().and_then(|s| s.parse::<i32>().ok()).unwrap_or(((default_idx % 128) + 1) as i32);
-            let pon_raw = parts.get(parts.len().saturating_sub(2)).and_then(|s| s.parse::<u32>().ok()).unwrap_or(0);
+            let onu_id = parts
+                .last()
+                .and_then(|s| s.parse::<i32>().ok())
+                .unwrap_or(((default_idx % 128) + 1) as i32);
+            let pon_raw = parts
+                .get(parts.len().saturating_sub(2))
+                .and_then(|s| s.parse::<u32>().ok())
+                .unwrap_or(0);
 
             if pon_raw > 0 {
                 let (slot, port) = if pon_raw >= 0x10000000 {
@@ -134,18 +146,27 @@ impl OltDriver for ZteDriver {
         &self,
         target: &OltTarget,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        info!("Testando conectividade SNMP com OLT ZTE '{}' ({})", target.name, target.ip_address);
+        info!(
+            "Testando conectividade SNMP com OLT ZTE '{}' ({})",
+            target.name, target.ip_address
+        );
         let comm = target.snmp_community.as_deref().unwrap_or("public");
         let client = SnmpClient::new(&target.ip_address, target.snmp_port, comm, 3000).await?;
-        
+
         match client.get(".1.3.6.1.2.1.1.1.0").await {
             Ok(Some(vb)) => {
                 let desc = vb.value_str.unwrap_or_else(|| "ZTE GPON OLT".to_string());
                 Ok(format!("ZTE OLT Online: {}", desc))
             }
-            Ok(None) => Ok(format!("ZTE OLT ({}) respondeu sem identificação", target.ip_address)),
+            Ok(None) => Ok(format!(
+                "ZTE OLT ({}) respondeu sem identificação",
+                target.ip_address
+            )),
             Err(e) => {
-                warn!("Timeout ou falha SNMP com OLT ZTE ({}): {:?}", target.ip_address, e);
+                warn!(
+                    "Timeout ou falha SNMP com OLT ZTE ({}): {:?}",
+                    target.ip_address, e
+                );
                 Ok(format!("ZTE OLT ({}) - Conexão ativa", target.ip_address))
             }
         }
@@ -157,7 +178,7 @@ impl OltDriver for ZteDriver {
         semaphore: Arc<Semaphore>,
     ) -> Result<Vec<OnuOpticalData>, Box<dyn std::error::Error + Send + Sync>> {
         let _permit = semaphore.acquire().await?;
-        
+
         info!(
             "Iniciando coleta direta SNMP com OLT ZTE '{}' [{}]",
             target.name, target.ip_address
@@ -165,20 +186,26 @@ impl OltDriver for ZteDriver {
 
         let mut results = Vec::new();
         let comm = target.snmp_community.as_deref().unwrap_or("public");
-        
+
         // Dois clientes SNMP com timeouts diferentes:
         // snmp_slow (15s): walk de seriais que pode cruzar limite de placa PON (5-8s de latência)
         // snmp_fast (5s):  walks de dados ópticos (rx, tx, temp) - rápidos, mas socket isolado
         let snmp_slow = SnmpClient::new(&target.ip_address, target.snmp_port, comm, 15000).await?;
         let snmp_fast = SnmpClient::new(&target.ip_address, target.snmp_port, comm, 5000).await?;
         let snmp = &snmp_fast; // alias para leituras individuais rápidas
-        
+
         // Verificação prévia instantânea de conectividade SNMP e identificação do Modelo e Firmware
         let (_detected_model, _detected_fw) = match snmp_fast.get(".1.3.6.1.2.1.1.1.0").await {
             Ok(Some(vb)) => {
-                log::debug!("Conexão SNMP inicial estabelecida com OLT ZTE '{}'", target.name);
+                log::debug!(
+                    "Conexão SNMP inicial estabelecida com OLT ZTE '{}'",
+                    target.name
+                );
                 let sys_desc = vb.value_str.unwrap_or_default();
-                let fw = sys_desc.split_whitespace().find(|w| w.starts_with('V') || w.starts_with('R')).map(|s| s.to_string());
+                let fw = sys_desc
+                    .split_whitespace()
+                    .find(|w| w.starts_with('V') || w.starts_with('R'))
+                    .map(|s| s.to_string());
                 let model = if sys_desc.contains("C610") {
                     Some("ZTE ZXA10 C610".to_string())
                 } else if sys_desc.contains("C650") {
@@ -195,8 +222,16 @@ impl OltDriver for ZteDriver {
                 (model, fw)
             }
             _ => {
-                log::warn!("OLT ZTE '{}' ({}) não respondeu à checagem inicial SNMP.", target.name, target.ip_address);
-                return Err(format!("OLT ZTE '{}' ({}) inacessível via SNMP (Timeout)", target.name, target.ip_address).into());
+                log::warn!(
+                    "OLT ZTE '{}' ({}) não respondeu à checagem inicial SNMP.",
+                    target.name,
+                    target.ip_address
+                );
+                return Err(format!(
+                    "OLT ZTE '{}' ({}) inacessível via SNMP (Timeout)",
+                    target.name, target.ip_address
+                )
+                .into());
             }
         };
 
@@ -222,28 +257,37 @@ impl OltDriver for ZteDriver {
             target.name, onu_table_c600.len(), onu_table_c300_native.len(), onu_table_c300_legacy.len());
 
         // Mescla por sufixo de OID: elimina duplicatas entre MIBs, preservando a maior cobertura
-        let mut merged_map: std::collections::HashMap<String, crate::collector::snmp::SnmpVariableBinding> = std::collections::HashMap::new();
+        let mut merged_map: std::collections::HashMap<
+            String,
+            crate::collector::snmp::SnmpVariableBinding,
+        > = std::collections::HashMap::new();
 
         // Prioridade: c300_legacy → c300_native → c600 (a última inserção vence)
         for vb in onu_table_c300_legacy {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             let key = if parts.len() >= 2 {
-                format!("{}.{}", parts[parts.len()-2], parts[parts.len()-1])
-            } else { vb.oid.clone() };
+                format!("{}.{}", parts[parts.len() - 2], parts[parts.len() - 1])
+            } else {
+                vb.oid.clone()
+            };
             merged_map.insert(key, vb);
         }
         for vb in onu_table_c300_native {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             let key = if parts.len() >= 2 {
-                format!("{}.{}", parts[parts.len()-2], parts[parts.len()-1])
-            } else { vb.oid.clone() };
+                format!("{}.{}", parts[parts.len() - 2], parts[parts.len() - 1])
+            } else {
+                vb.oid.clone()
+            };
             merged_map.insert(key, vb);
         }
         for vb in onu_table_c600 {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             let key = if parts.len() >= 2 {
-                format!("{}.{}", parts[parts.len()-2], parts[parts.len()-1])
-            } else { vb.oid.clone() };
+                format!("{}.{}", parts[parts.len() - 2], parts[parts.len() - 1])
+            } else {
+                vb.oid.clone()
+            };
             merged_map.insert(key, vb);
         }
 
@@ -256,18 +300,32 @@ impl OltDriver for ZteDriver {
             for vb in alt {
                 let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
                 let key = if parts.len() >= 2 {
-                    format!("{}.{}", parts[parts.len()-2], parts[parts.len()-1])
-                } else { vb.oid.clone() };
+                    format!("{}.{}", parts[parts.len() - 2], parts[parts.len() - 1])
+                } else {
+                    vb.oid.clone()
+                };
                 merged_map.insert(key, vb);
             }
         }
 
-        let onu_table: Vec<crate::collector::snmp::SnmpVariableBinding> = merged_map.into_values().collect();
-        info!("ZTE '{}': {} ONUs encontradas na tabela de seriais (após mesclagem).", target.name, onu_table.len());
+        let onu_table: Vec<crate::collector::snmp::SnmpVariableBinding> =
+            merged_map.into_values().collect();
+        info!(
+            "ZTE '{}': {} ONUs encontradas na tabela de seriais (após mesclagem).",
+            target.name,
+            onu_table.len()
+        );
 
         if onu_table.is_empty() {
-            warn!("ZTE OLT '{}' ({}) não retornou registros na MIB de ONUs.", target.name, target.ip_address);
-            return Err(format!("OLT '{}' ({}) inacessível ou sem resposta na MIB de ONUs", target.name, target.ip_address).into());
+            warn!(
+                "ZTE OLT '{}' ({}) não retornou registros na MIB de ONUs.",
+                target.name, target.ip_address
+            );
+            return Err(format!(
+                "OLT '{}' ({}) inacessível ou sem resposta na MIB de ONUs",
+                target.name, target.ip_address
+            )
+            .into());
         }
 
         // 2. Tabelas de Diagnóstico Óptico Real da ZTE (Multi-MIB: C600 .1082.500.20.2.2.2.1 e C300/C320 .1082.500.1.2.4.2.1)
@@ -280,10 +338,19 @@ impl OltDriver for ZteDriver {
         // 2.1 Potência Óptica Rx da ONU (Downstream):
         // Na C600 Titan (zxAnGponRmAniRxOptLevel): .1082.500.20.2.2.2.1.10 (em dBuW / resolução 0.002 dB: val * 0.002 - 30.0)
         // No C300/C320: .1082.500.1.2.4.2.1.2 e .1012.3.50.12.1.1.10 (e .1012.3.50.12.1.1.14)
-        let rx_walk_c600 = snmp.bulk_walk(".1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.10", 65535).await.unwrap_or_default();
-        let mut rx_walk_c300 = snmp.bulk_walk(".1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.2", 65535).await.unwrap_or_default();
+        let rx_walk_c600 = snmp
+            .bulk_walk(".1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.10", 65535)
+            .await
+            .unwrap_or_default();
+        let mut rx_walk_c300 = snmp
+            .bulk_walk(".1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.2", 65535)
+            .await
+            .unwrap_or_default();
         if rx_walk_c300.is_empty() {
-            rx_walk_c300 = snmp.bulk_walk(".1.3.6.1.4.1.3902.1012.3.50.12.1.1.10", 65535).await.unwrap_or_default();
+            rx_walk_c300 = snmp
+                .bulk_walk(".1.3.6.1.4.1.3902.1012.3.50.12.1.1.10", 65535)
+                .await
+                .unwrap_or_default();
         }
 
         // 1) Fallback C300/C320
@@ -292,12 +359,24 @@ impl OltDriver for ZteDriver {
             if parts.len() >= 2 {
                 let key = format!("{}.{}", parts[parts.len() - 2], parts[parts.len() - 1]);
                 let raw_val = vb.value_int.unwrap_or(0);
-                if raw_val != 0 && raw_val != 65535000 && raw_val != -80000 && raw_val != 2147483647 && raw_val != 65535 {
-                    let dbm = if raw_val.abs() > 1000 { (raw_val as f64) / 1000.0 } else { (raw_val as f64) * 0.002 - 30.0 };
+                if raw_val != 0
+                    && raw_val != 65535000
+                    && raw_val != -80000
+                    && raw_val != 2147483647
+                    && raw_val != 65535
+                {
+                    let dbm = if raw_val.abs() > 1000 {
+                        (raw_val as f64) / 1000.0
+                    } else {
+                        (raw_val as f64) * 0.002 - 30.0
+                    };
                     if dbm < 10.0 && dbm > -60.0 {
                         rx_map.insert(key.clone(), dbm);
                         if parts.len() >= 3 {
-                            rx_map.insert(format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]), dbm);
+                            rx_map.insert(
+                                format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]),
+                                dbm,
+                            );
                         }
                     }
                 }
@@ -316,7 +395,8 @@ impl OltDriver for ZteDriver {
                     if dbm < 5.0 && dbm > -50.0 {
                         rx_map.insert(key2, dbm);
                         if parts.len() >= 3 {
-                            let key3 = format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]);
+                            let key3 =
+                                format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]);
                             rx_map.insert(key3, dbm);
                         }
                     }
@@ -328,8 +408,11 @@ impl OltDriver for ZteDriver {
         // Na C600 Titan (zxAnGponRmAniTxOptLevel): .1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.18
         // Verificado empiricamente: raw=6000 → 2.850 dBm real (OLT CLI)
         // Fórmula: dbm = (raw * 0.002) - 9.15
-        let tx_walk_c600 = snmp.bulk_walk(".1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.18", 65535).await.unwrap_or_default();
-        
+        let tx_walk_c600 = snmp
+            .bulk_walk(".1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.18", 65535)
+            .await
+            .unwrap_or_default();
+
         for vb in &tx_walk_c600 {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
@@ -346,7 +429,8 @@ impl OltDriver for ZteDriver {
                     if dbm > -20.0 && dbm < 10.0 {
                         tx_map.insert(key2, dbm);
                         if parts.len() >= 3 {
-                            let key3 = format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]);
+                            let key3 =
+                                format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]);
                             tx_map.insert(key3, dbm);
                         }
                     }
@@ -357,7 +441,10 @@ impl OltDriver for ZteDriver {
         // 2.3 Sinal Rx recebido na OLT (Upstream medido no chassi):
         // Na C600 Titan/C610/C650 (zxAnGponRmAniOltRxOptLevel): .1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.19
         // Fórmula oficial ZTE: dbm = (raw * 0.002) - 30.0
-        let olt_rx_walk_c600 = snmp.bulk_walk(".1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.19", 65535).await.unwrap_or_default();
+        let olt_rx_walk_c600 = snmp
+            .bulk_walk(".1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.19", 65535)
+            .await
+            .unwrap_or_default();
         for vb in &olt_rx_walk_c600 {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
@@ -368,7 +455,8 @@ impl OltDriver for ZteDriver {
                     if dbm < 5.0 && dbm > -50.0 {
                         olt_rx_map.insert(key2, dbm);
                         if parts.len() >= 3 {
-                            let key3 = format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]);
+                            let key3 =
+                                format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]);
                             olt_rx_map.insert(key3, dbm);
                         }
                     }
@@ -382,12 +470,27 @@ impl OltDriver for ZteDriver {
             if parts.len() >= 2 {
                 let key = format!("{}.{}", parts[parts.len() - 2], parts[parts.len() - 1]);
                 let raw_val = vb.value_int.unwrap_or(0);
-                if raw_val != 0 && raw_val != 65535000 && raw_val != -80000 && raw_val != 2147483647 && raw_val != 65535 {
-                    let dbm = if raw_val.abs() > 1000 { (raw_val as f64) / 1000.0 } else { (raw_val as f64) * 0.002 - 30.0 };
+                if raw_val != 0
+                    && raw_val != 65535000
+                    && raw_val != -80000
+                    && raw_val != 2147483647
+                    && raw_val != 65535
+                {
+                    let dbm = if raw_val.abs() > 1000 {
+                        (raw_val as f64) / 1000.0
+                    } else {
+                        (raw_val as f64) * 0.002 - 30.0
+                    };
                     if dbm < 10.0 && dbm > -60.0 {
                         olt_rx_map.entry(key.clone()).or_insert(dbm);
                         if parts.len() >= 3 {
-                            olt_rx_map.entry(format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2])).or_insert(dbm);
+                            olt_rx_map
+                                .entry(format!(
+                                    "{}.{}",
+                                    parts[parts.len() - 3],
+                                    parts[parts.len() - 2]
+                                ))
+                                .or_insert(dbm);
                         }
                     }
                 }
@@ -395,7 +498,10 @@ impl OltDriver for ZteDriver {
         }
 
         // 2.4 Temperatura da ONU
-        let temp_walk = snmp.bulk_walk(".1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.17", 65535).await.unwrap_or_default();
+        let temp_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.17", 65535)
+            .await
+            .unwrap_or_default();
         for vb in &temp_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
@@ -412,7 +518,8 @@ impl OltDriver for ZteDriver {
                     if temp_c > -40.0 && temp_c < 120.0 {
                         temp_map.insert(key2, temp_c);
                         if parts.len() >= 3 {
-                            let key3 = format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]);
+                            let key3 =
+                                format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]);
                             temp_map.insert(key3, temp_c);
                         }
                     }
@@ -422,7 +529,10 @@ impl OltDriver for ZteDriver {
 
         // 2.5 Nomes / Descrições dos Clientes
         let mut name_map = std::collections::HashMap::new();
-        let name_walk = snmp.bulk_walk(".1.3.6.1.4.1.3902.1082.500.10.2.3.3.1.2", 65535).await.unwrap_or_default();
+        let name_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.3902.1082.500.10.2.3.3.1.2", 65535)
+            .await
+            .unwrap_or_default();
         for vb in &name_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
@@ -432,7 +542,10 @@ impl OltDriver for ZteDriver {
                     if !cleaned.is_empty() && cleaned != "N/A" && cleaned != "--" {
                         name_map.insert(key.clone(), cleaned.to_string());
                         if parts.len() >= 3 {
-                            name_map.insert(format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]), cleaned.to_string());
+                            name_map.insert(
+                                format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]),
+                                cleaned.to_string(),
+                            );
                         }
                     }
                 }
@@ -442,7 +555,10 @@ impl OltDriver for ZteDriver {
         // 2.6 Distância física da fibra (em metros - zxAnGponOnuDistance):
         // MIB oficial ZTE Titan/C300: .1.3.6.1.4.1.3902.1082.500.10.2.3.10.1.2
         let mut distance_map = std::collections::HashMap::new();
-        let dist_walk = snmp.bulk_walk(".1.3.6.1.4.1.3902.1082.500.10.2.3.10.1.2", 65535).await.unwrap_or_default();
+        let dist_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.3902.1082.500.10.2.3.10.1.2", 65535)
+            .await
+            .unwrap_or_default();
         for vb in &dist_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
@@ -451,16 +567,21 @@ impl OltDriver for ZteDriver {
                     let key = format!("{}.{}", parts[parts.len() - 2], parts[parts.len() - 1]);
                     distance_map.insert(key.clone(), dist_val as i32);
                     if parts.len() >= 3 {
-                        distance_map.insert(format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]), dist_val as i32);
+                        distance_map.insert(
+                            format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]),
+                            dist_val as i32,
+                        );
                     }
                 }
             }
         }
 
-
         // 2.7 Causa da Última Desconexão via SNMP (zxAnGponOntLastDownCause):
         let mut down_cause_map = std::collections::HashMap::new();
-        let down_walk = snmp.bulk_walk(".1.3.6.1.4.1.3902.1012.3.28.2.1.4", 65535).await.unwrap_or_default();
+        let down_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.3902.1012.3.28.2.1.4", 65535)
+            .await
+            .unwrap_or_default();
         for vb in &down_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
@@ -474,7 +595,10 @@ impl OltDriver for ZteDriver {
                 };
                 down_cause_map.insert(key.clone(), reason.to_string());
                 if parts.len() >= 3 {
-                    down_cause_map.insert(format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]), reason.to_string());
+                    down_cause_map.insert(
+                        format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]),
+                        reason.to_string(),
+                    );
                 }
             }
         }
@@ -482,13 +606,15 @@ impl OltDriver for ZteDriver {
         // 2.8 Enriquecimento e Validação Cruzada via SSH Cirúrgico (show gpon onu state)
         // Coleta o estado de fase oficial da ZTE (DyingGasp vs LOS) em milissegundos com Inactivity Watchdog
         if target.mgmt_username.is_some() && target.mgmt_password.is_some() {
-            if let Ok(ssh_state_out) = Self::execute_ssh_commands(target, &["show gpon onu state"]).await {
+            if let Ok(ssh_state_out) =
+                Self::execute_ssh_commands(target, &["show gpon onu state"]).await
+            {
                 for line in ssh_state_out.lines() {
                     let parts: Vec<&str> = line.split_whitespace().collect();
                     if parts.len() >= 4 && parts[0].contains(':') {
                         let iface_onu = parts[0]; // Ex: "1/3/1:12"
                         let phase_state = parts[3]; // Ex: "DyingGasp", "working", "LOS"
-                        
+
                         let iface_parts: Vec<&str> = iface_onu.split(':').collect();
                         if iface_parts.len() == 2 {
                             let pon_prefix = iface_parts[0]; // "1/3/1"
@@ -497,18 +623,26 @@ impl OltDriver for ZteDriver {
                             if slot_port_parts.len() == 3 {
                                 let slot = slot_port_parts[1];
                                 let port = slot_port_parts[2];
-                                
+
                                 let reason = if phase_state.eq_ignore_ascii_case("DyingGasp") {
                                     "dying_gasp"
-                                } else if phase_state.eq_ignore_ascii_case("LOS") || phase_state.eq_ignore_ascii_case("OffLine") {
+                                } else if phase_state.eq_ignore_ascii_case("LOS")
+                                    || phase_state.eq_ignore_ascii_case("OffLine")
+                                {
                                     "los"
                                 } else {
                                     "working"
                                 };
-                                
+
                                 if reason != "working" {
-                                    down_cause_map.insert(format!("{}.{}.{}", slot, port, onu_id_str), reason.to_string());
-                                    down_cause_map.insert(format!("{}.{}", port, onu_id_str), reason.to_string());
+                                    down_cause_map.insert(
+                                        format!("{}.{}.{}", slot, port, onu_id_str),
+                                        reason.to_string(),
+                                    );
+                                    down_cause_map.insert(
+                                        format!("{}.{}", port, onu_id_str),
+                                        reason.to_string(),
+                                    );
                                 }
                             }
                         }
@@ -538,16 +672,27 @@ impl OltDriver for ZteDriver {
                     continue;
                 }
 
-                let serial = if raw_bytes.len() >= 12 && raw_bytes[0..4].iter().all(|b| b.is_ascii_alphanumeric()) {
+                let serial = if raw_bytes.len() >= 12
+                    && raw_bytes[0..4].iter().all(|b| b.is_ascii_alphanumeric())
+                {
                     // String de serial completa (ex: "ZTEGC1234567" ou "HWTC12345678")
-                    String::from_utf8_lossy(&raw_bytes[0..12]).trim().to_string()
+                    String::from_utf8_lossy(&raw_bytes[0..12])
+                        .trim()
+                        .to_string()
                 } else if raw_bytes.len() >= 8 {
                     let vendor_part = String::from_utf8_lossy(&raw_bytes[0..4]).to_string();
-                    let id_hex: String = raw_bytes[4..8].iter().map(|b| format!("{:02X}", b)).collect();
+                    let id_hex: String = raw_bytes[4..8]
+                        .iter()
+                        .map(|b| format!("{:02X}", b))
+                        .collect();
                     if vendor_part.chars().all(|c| c.is_alphanumeric()) {
                         format!("{}{}", vendor_part, id_hex)
                     } else {
-                        let full_hex: String = raw_bytes.iter().take(8).map(|b| format!("{:02X}", b)).collect();
+                        let full_hex: String = raw_bytes
+                            .iter()
+                            .take(8)
+                            .map(|b| format!("{:02X}", b))
+                            .collect();
                         format!("ZTEG{}", &full_hex[full_hex.len().saturating_sub(8)..])
                     }
                 } else if let Some(ref s) = vb.value_str {
@@ -575,44 +720,53 @@ impl OltDriver for ZteDriver {
                 let suffix2 = format!("{}.{}.{}", slot, pon_port, onu_id);
                 let suffix3 = format!("{}.{}", pon_port, onu_id);
 
-                let rx_dbm = rx_map.get(&suffix1)
+                let rx_dbm = rx_map
+                    .get(&suffix1)
                     .or_else(|| rx_map.get(&suffix2))
                     .or_else(|| rx_map.get(&suffix3))
                     .copied();
 
-                let tx_dbm = tx_map.get(&suffix1)
+                let tx_dbm = tx_map
+                    .get(&suffix1)
                     .or_else(|| tx_map.get(&suffix2))
                     .or_else(|| tx_map.get(&suffix3))
                     .copied();
 
-                let olt_rx_dbm = olt_rx_map.get(&suffix1)
+                let olt_rx_dbm = olt_rx_map
+                    .get(&suffix1)
                     .or_else(|| olt_rx_map.get(&suffix2))
                     .or_else(|| olt_rx_map.get(&suffix3))
                     .copied();
 
-                let temp_c = temp_map.get(&suffix1)
+                let temp_c = temp_map
+                    .get(&suffix1)
                     .or_else(|| temp_map.get(&suffix2))
                     .or_else(|| temp_map.get(&suffix3))
                     .copied();
 
-                let volt_v = volt_map.get(&suffix1)
+                let volt_v = volt_map
+                    .get(&suffix1)
                     .or_else(|| volt_map.get(&suffix2))
                     .or_else(|| volt_map.get(&suffix3))
                     .copied();
 
-                let customer_name = name_map.get(&suffix1)
+                let customer_name = name_map
+                    .get(&suffix1)
                     .or_else(|| name_map.get(&suffix2))
                     .or_else(|| name_map.get(&suffix3))
                     .cloned();
 
-                let distance_m = distance_map.get(&suffix1)
+                let distance_m = distance_map
+                    .get(&suffix1)
                     .or_else(|| distance_map.get(&suffix2))
                     .or_else(|| distance_map.get(&suffix3))
                     .copied();
 
-                let is_online = rx_dbm.is_some() && rx_dbm.unwrap() > -45.0 && rx_dbm.unwrap() != 0.0;
+                let is_online =
+                    rx_dbm.is_some() && rx_dbm.unwrap() > -45.0 && rx_dbm.unwrap() != 0.0;
                 let offline_reason = if !is_online {
-                    down_cause_map.get(&suffix1)
+                    down_cause_map
+                        .get(&suffix1)
                         .or_else(|| down_cause_map.get(&suffix2))
                         .or_else(|| down_cause_map.get(&suffix3))
                         .cloned()
@@ -629,13 +783,21 @@ impl OltDriver for ZteDriver {
                             Some(att)
                         } else if let Some(rx) = rx_dbm {
                             let att_down = 4.5 - rx;
-                            if att_down >= 0.0 && att_down <= 45.0 { Some(att_down) } else { None }
+                            if att_down >= 0.0 && att_down <= 45.0 {
+                                Some(att_down)
+                            } else {
+                                None
+                            }
                         } else {
                             None
                         }
                     } else if let Some(rx) = rx_dbm {
                         let att_down = 4.5 - rx;
-                        if att_down >= 0.0 && att_down <= 45.0 { Some(att_down) } else { None }
+                        if att_down >= 0.0 && att_down <= 45.0 {
+                            Some(att_down)
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
@@ -663,12 +825,16 @@ impl OltDriver for ZteDriver {
                 });
             }
         } else {
-            info!("OLT ZTE '{}' ({}) respondeu ao SNMP, mas não possui ONUs registradas na MIB.", target.name, target.ip_address);
+            info!(
+                "OLT ZTE '{}' ({}) respondeu ao SNMP, mas não possui ONUs registradas na MIB.",
+                target.name, target.ip_address
+            );
         }
 
         // Deduplica entradas por Serial único ou (slot, pon_port, onu_id)
         // Dando prioridade para instâncias online que possuem sinal óptico Rx válido
-        let mut unique_map: std::collections::HashMap<String, OnuOpticalData> = std::collections::HashMap::new();
+        let mut unique_map: std::collections::HashMap<String, OnuOpticalData> =
+            std::collections::HashMap::new();
         for item in results {
             let key = if !item.serial_number.is_empty() {
                 item.serial_number.clone()
@@ -685,7 +851,11 @@ impl OltDriver for ZteDriver {
         }
 
         let final_results: Vec<OnuOpticalData> = unique_map.into_values().collect();
-        info!("Coleta SNMP da OLT ZTE '{}' finalizada com {} ONUs lidas do equipamento.", target.name, final_results.len());
+        info!(
+            "Coleta SNMP da OLT ZTE '{}' finalizada com {} ONUs lidas do equipamento.",
+            target.name,
+            final_results.len()
+        );
         Ok(final_results)
     }
 }

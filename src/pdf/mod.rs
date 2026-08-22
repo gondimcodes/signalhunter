@@ -1,8 +1,8 @@
-use std::path::Path;
-use chrono::Local;
-use anyhow::{Context, Result};
-use printpdf::*;
 use crate::db::queries::OnuRecord;
+use anyhow::{Context, Result};
+use chrono::Local;
+use printpdf::*;
+use std::path::Path;
 
 const PAGE_W: f32 = 210.0;
 const PAGE_H: f32 = 297.0;
@@ -54,7 +54,9 @@ impl PdfWriter {
     }
 
     fn new_page(&mut self) {
-        self.doc.pages.push(PdfPage::new(Mm(PAGE_W), Mm(PAGE_H), vec![]));
+        self.doc
+            .pages
+            .push(PdfPage::new(Mm(PAGE_W), Mm(PAGE_H), vec![]));
         self.page_index = self.doc.pages.len() - 1;
         self.y = PAGE_H - MARGIN;
     }
@@ -90,8 +92,14 @@ impl PdfWriter {
         let page = &mut self.doc.pages[self.page_index];
         let line = Line {
             points: vec![
-                LinePoint { p: Point::new(Mm(start_x), Mm(y)), bezier: false },
-                LinePoint { p: Point::new(Mm(end_x), Mm(y)), bezier: false },
+                LinePoint {
+                    p: Point::new(Mm(start_x), Mm(y)),
+                    bezier: false,
+                },
+                LinePoint {
+                    p: Point::new(Mm(end_x), Mm(y)),
+                    bezier: false,
+                },
             ],
             is_closed: false,
         };
@@ -126,7 +134,10 @@ impl PdfWriter {
         self.text_at(report_subtitle, 11.0, MARGIN, false);
         self.y -= 5.0;
         self.text_at(
-            &format!("Emissao: {}  |  Operador: {}  |  Ambiente: Producao NOC", now_str, operator_name),
+            &format!(
+                "Emissao: {}  |  Operador: {}  |  Ambiente: Producao NOC",
+                now_str, operator_name
+            ),
             SUBTITLE_SIZE,
             MARGIN,
             false,
@@ -160,7 +171,8 @@ impl PdfWriter {
     fn save(self, path: &str) -> Result<()> {
         let mut warnings = Vec::new();
         let bytes = self.doc.save(&PdfSaveOptions::default(), &mut warnings);
-        std::fs::write(path, bytes).with_context(|| format!("Failed to create PDF file: {}", path))?;
+        std::fs::write(path, bytes)
+            .with_context(|| format!("Failed to create PDF file: {}", path))?;
         Ok(())
     }
 }
@@ -200,12 +212,17 @@ impl PdfReportGenerator {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut w = PdfWriter::new("SignalHunter - Optical Audit Report")?;
         let now_str = Local::now().format("%d/%m/%Y %H:%M:%S").to_string();
-        let is_degradation_report = scope_title.to_lowercase().contains("piora") || scope_title.to_lowercase().contains("delta");
+        let is_degradation_report = scope_title.to_lowercase().contains("piora")
+            || scope_title.to_lowercase().contains("delta");
 
         // Agrupa as ONUs por OLT
-        let mut olt_groups: std::collections::BTreeMap<String, Vec<&OnuRecord>> = std::collections::BTreeMap::new();
+        let mut olt_groups: std::collections::BTreeMap<String, Vec<&OnuRecord>> =
+            std::collections::BTreeMap::new();
         for onu in critical_onus {
-            let olt_name = onu.olt_name.clone().unwrap_or_else(|| "OLT Nao Identificada".to_string());
+            let olt_name = onu
+                .olt_name
+                .clone()
+                .unwrap_or_else(|| "OLT Nao Identificada".to_string());
             olt_groups.entry(olt_name).or_default().push(onu);
         }
 
@@ -220,7 +237,10 @@ impl PdfReportGenerator {
             list.sort_by(|a, b| {
                 let priority = |onu: &OnuRecord| -> (i32, f64, String) {
                     let rx = onu.latest_rx_power_dbm;
-                    let is_offline = rx.is_none() || onu.status == "offline" || onu.status == "los" || onu.status == "dying_gasp";
+                    let is_offline = rx.is_none()
+                        || onu.status == "offline"
+                        || onu.status == "los"
+                        || onu.status == "dying_gasp";
                     let is_dying_gasp = onu.status == "dying_gasp";
                     let is_los = is_offline && !is_dying_gasp;
 
@@ -247,8 +267,13 @@ impl PdfReportGenerator {
                 let p_a = priority(a);
                 let p_b = priority(b);
 
-                p_a.0.cmp(&p_b.0)
-                    .then_with(|| p_a.1.partial_cmp(&p_b.1).unwrap_or(std::cmp::Ordering::Equal))
+                p_a.0
+                    .cmp(&p_b.0)
+                    .then_with(|| {
+                        p_a.1
+                            .partial_cmp(&p_b.1)
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    })
                     .then_with(|| p_a.2.cmp(&p_b.2))
             });
         }
@@ -256,7 +281,12 @@ impl PdfReportGenerator {
         w.draw_header_bar(&now_str, operator_name, scope_title);
 
         if olt_groups.is_empty() {
-            w.text_at("Nenhum alerta de sinal critico ou atencao registrado no momento.", 10.0, MARGIN, false);
+            w.text_at(
+                "Nenhum alerta de sinal critico ou atencao registrado no momento.",
+                10.0,
+                MARGIN,
+                false,
+            );
             w.save(output_path.as_ref().to_str().unwrap_or("report.pdf"))?;
             return Ok(());
         }
@@ -270,17 +300,18 @@ impl PdfReportGenerator {
                 .cloned()
                 .unwrap_or_else(|| ("ZTE".to_string(), onus.len() as i64, onus.len() as i64));
 
-            let section_header = if is_degradation_report {
-                format!(
+            let section_header =
+                if is_degradation_report {
+                    format!(
                     "OLT: {}  |  Marca: {}  |  Total de ONUs: {}  |  Piora de Sinal (Delta-dB): {}",
                     olt_name, vendor, total_onus, onus.len()
                 )
-            } else {
-                format!(
-                    "OLT: {}  |  Marca: {}  |  Total de ONUs: {}  |  Total de Alertas: {}",
-                    olt_name, vendor, total_onus, total_alerts
-                )
-            };
+                } else {
+                    format!(
+                        "OLT: {}  |  Marca: {}  |  Total de ONUs: {}  |  Total de Alertas: {}",
+                        olt_name, vendor, total_onus, total_alerts
+                    )
+                };
 
             w.text_at(&section_header, SECTION_SIZE, MARGIN, true);
             w.y -= 4.5;
@@ -288,10 +319,17 @@ impl PdfReportGenerator {
 
             for (idx, onu) in onus.iter().enumerate() {
                 w.ensure_space(ROW_H);
-                
-                let rx_str = onu.latest_rx_power_dbm.map(|v| format!("{:.2} dBm", v)).unwrap_or_else(|| "--".to_string());
+
+                let rx_str = onu
+                    .latest_rx_power_dbm
+                    .map(|v| format!("{:.2} dBm", v))
+                    .unwrap_or_else(|| "--".to_string());
                 let pon_str = format!("S{}/P{}:{}", onu.slot, onu.pon_port, onu.onu_id);
-                let client_name = onu.customer_identifier.as_deref().or(onu.custom_name.as_deref()).unwrap_or("--");
+                let client_name = onu
+                    .customer_identifier
+                    .as_deref()
+                    .or(onu.custom_name.as_deref())
+                    .unwrap_or("--");
                 let client_short = if client_name.len() > 18 {
                     format!("{}...", &client_name[..16])
                 } else {
@@ -299,7 +337,10 @@ impl PdfReportGenerator {
                 };
 
                 let rx_opt = onu.latest_rx_power_dbm;
-                let is_offline = rx_opt.is_none() || onu.status == "offline" || onu.status == "los" || onu.status == "dying_gasp";
+                let is_offline = rx_opt.is_none()
+                    || onu.status == "offline"
+                    || onu.status == "los"
+                    || onu.status == "dying_gasp";
 
                 let (status_lbl, is_bold_status) = if is_offline {
                     if onu.status == "dying_gasp" {
@@ -328,7 +369,9 @@ impl PdfReportGenerator {
                 if is_degradation_report {
                     let delta_val = onu.latest_delta_prev_rx_db.unwrap_or(0.0);
                     // Cálculo do sinal anterior: rx_anterior = rx_atual + delta (se delta foi perda)
-                    let prev_rx_str = rx_opt.map(|curr| format!("{:.2} dBm", curr - delta_val)).unwrap_or_else(|| "--".to_string());
+                    let prev_rx_str = rx_opt
+                        .map(|curr| format!("{:.2} dBm", curr - delta_val))
+                        .unwrap_or_else(|| "--".to_string());
                     let delta_str = format!("{:.2} dB", delta_val);
 
                     w.text_at(&prev_rx_str, TD_SIZE, MARGIN + 106.0, false);
@@ -399,7 +442,11 @@ impl PdfReportGenerator {
         let mut w = PdfWriter::new("SignalHunter - Optical Root Cause Analysis")?;
         let now_str = Local::now().format("%d/%m/%Y %H:%M:%S").to_string();
 
-        w.draw_header_bar(&now_str, operator_name, "Laudo Técnico de Diagnóstico Óptico & Causa Raiz (RCA)");
+        w.draw_header_bar(
+            &now_str,
+            operator_name,
+            "Laudo Técnico de Diagnóstico Óptico & Causa Raiz (RCA)",
+        );
 
         // Resumo Executivo
         w.ensure_space(20.0);
@@ -417,7 +464,12 @@ impl PdfReportGenerator {
         w.y -= 6.0;
 
         if summary.incidents.is_empty() {
-            w.text_at("Nenhuma anomalia topológica ou falha de porta/slot detectada na rede óptica.", 10.0, MARGIN, false);
+            w.text_at(
+                "Nenhuma anomalia topológica ou falha de porta/slot detectada na rede óptica.",
+                10.0,
+                MARGIN,
+                false,
+            );
             w.save(output_path.as_ref().to_str().unwrap_or("report.pdf"))?;
             return Ok(());
         }
@@ -426,15 +478,33 @@ impl PdfReportGenerator {
             w.ensure_space(34.0);
 
             let is_crit = inc.severity == "critical";
-            let badge_str = if is_crit { "[FALHA CRITICA]" } else if inc.severity == "warning" { "[ATENCAO]" } else { "[INFORMATIVO]" };
-            
+            let badge_str = if is_crit {
+                "[FALHA CRITICA]"
+            } else if inc.severity == "warning" {
+                "[ATENCAO]"
+            } else {
+                "[INFORMATIVO]"
+            };
+
             // Título do Incidente
-            let title_line = format!("{}. {} {} - Precisao do Laudo: {}%", idx + 1, badge_str, sanitize(&inc.title), inc.confidence_score);
+            let title_line = format!(
+                "{}. {} {} - Precisao do Laudo: {}%",
+                idx + 1,
+                badge_str,
+                sanitize(&inc.title),
+                inc.confidence_score
+            );
             w.text_at(&title_line, 9.5, MARGIN, true);
             w.y -= 4.5;
 
             // Localização e Impacto
-            let loc_line = format!("Equipamento: {} | Localizacao: {} | Impacto: {} de {} ONUs afetadas", sanitize(&inc.olt_name), sanitize(&inc.location), inc.total_affected_onus, inc.total_pon_onus);
+            let loc_line = format!(
+                "Equipamento: {} | Localizacao: {} | Impacto: {} de {} ONUs afetadas",
+                sanitize(&inc.olt_name),
+                sanitize(&inc.location),
+                inc.total_affected_onus,
+                inc.total_pon_onus
+            );
             w.text_at(&loc_line, 8.0, MARGIN + 2.0, false);
             w.y -= 4.2;
 
@@ -460,7 +530,10 @@ impl PdfReportGenerator {
             if !inc.sample_onus.is_empty() {
                 let mut sample_parts = Vec::new();
                 for s in inc.sample_onus.iter().take(4) {
-                    let rx_val = s.rx_power_dbm.map(|v| format!("{:.2}dBm", v)).unwrap_or_else(|| "Offline".to_string());
+                    let rx_val = s
+                        .rx_power_dbm
+                        .map(|v| format!("{:.2}dBm", v))
+                        .unwrap_or_else(|| "Offline".to_string());
                     sample_parts.push(format!("{}({})", s.serial_number, rx_val));
                 }
                 let sample_line = format!("Amostra ONUs: {}", sample_parts.join(", "));
