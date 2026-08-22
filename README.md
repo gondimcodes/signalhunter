@@ -1,8 +1,6 @@
 # SignalHunter
 ### Intelligent Optical Telemetry, Degradation Diagnostics ($\Delta\text{dB}$) and High-Performance GPON / EPON Monitoring
 
-![SignalHunter Logo](logo.png)
-
 > **Engineered for Internet Service Providers (ISPs), Telecom Operators, and NOC Engineering Teams.**  
 > Continuous auditing of physical optical parameters (Rx, Tx, OLT-Rx, Attenuation, Temperature, Distance, and Voltage), granular time series, and automated predictive root-cause analysis (RCA).
 

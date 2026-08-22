@@ -1,8 +1,6 @@
 # SignalHunter
 ### Sistema Inteligente de Telemetria Óptica, Diagnóstico de Degradação ($\Delta\text{dB}$) e Monitoramento GPON / EPON de Alta Performance
 
-![SignalHunter Logo](logo.png)
-
 > **Desenvolvido para Provedores de Internet (ISPs), Operadoras de Telecomunicações e Equipes de NOC.**  
 > Auditoria contínua de parâmetros físicos ópticos (Rx, Tx, OLT-Rx, Atenuação, Temperatura, Distância e Voltagem), histórico granular e diagnósticos preditivos automatizados de causa-raiz.
 
