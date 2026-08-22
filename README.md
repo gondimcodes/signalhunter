@@ -1,0 +1,254 @@
+# SignalHunter
+### Intelligent Optical Telemetry, Degradation Diagnostics ($\Delta\text{dB}$) and High-Performance GPON / EPON Monitoring
+
+![SignalHunter Logo](logo.png)
+
+> **Engineered for Internet Service Providers (ISPs), Telecom Operators, and NOC Engineering Teams.**  
+> Continuous auditing of physical optical parameters (Rx, Tx, OLT-Rx, Attenuation, Temperature, Distance, and Voltage), granular time series, and automated predictive root-cause analysis (RCA).
+
+---
+
+## 🌐 Overview
+
+**SignalHunter** is an enterprise-grade platform developed entirely in asynchronous **Rust** on top of the `tokio` runtime. It was specifically architected to solve the primary operational bottleneck of telecom operators: **silent optical distribution network (ODN) degradation**.
+
+Rather than relying on reactive manual testing after customer trouble tickets are opened, SignalHunter connects directly to OLTs (*Optical Line Terminals*) via a high-resilience proprietary SNMP engine, collecting physical optical telemetry from tens of thousands of ONUs in seconds and automatically computing attenuation variances ($\Delta\text{dB}$) over time.
+
+---
+
+## ⚡ Competitive Advantages
+
+| Advantage | What SignalHunter Delivers |
+|---|---|
+| **🚀 Extreme Performance & Concurrency** | Written in pure Rust with native compilation. Zero garbage collection pauses, ultra-low memory footprint (< 50 MB RAM), and ability to audit 50,000+ ONUs concurrently without overloading OLT control boards. |
+| **🛡️ Resilient SNMP ASN.1 BER Parser** | Proprietary SNMP engine with hierarchical parsing from root `SEQUENCE (0x30)`, strict `Request-ID` verification (anti-cross contamination), and automatic `GetBulk` ➔ `GetNext` fallback on card boundary crossings. |
+| **🔍 Early Degradation Detection ($\Delta\text{dB}$)** | Identifies partial fiber breaks, macrobending, fusion splice degradation, and dirty connectors before the ONU enters a critical *Loss of Signal* (LOS) state. |
+| **🧠 Intelligent Predictive Diagnostics** | Analytical engine correlating collective signal drops per PON port, instantly diagnosing whether an anomaly is widespread in the feeder cable or isolated at a customer drop cable. |
+| **📄 Native Executive PDF Reports** | Instantaneous generation of technical PDF reports with detailed 5-sample history per ONU, network health diagrams, and prioritized field dispatch lists. |
+| **🔒 SSDLC & DevSecOps Security** | JWT authentication strictly encapsulated in `HttpOnly`/`Secure` cookies with anti-XSS protection, cryptographic CAPTCHA hashing with `SHA-256`, AES-256-GCM encryption for OLT credentials, and an immutable RBAC audit trail. |
+| **💎 Dark/Cyberpunk Neon SPA Interface** | Modern HTML5/CSS Glassmorphism frontend with zero heavy external dependencies (No Node/React/Webpack runtime required), served directly from the Axum binary over a single TLS port. |
+
+---
+
+## ✨ Key Features
+
+- **Real-Time Executive Dashboard**: Consolidated optical network health metrics, dynamic optical power distribution histogram (dBm), quality cards (Saturated, Excellent, Good, Warning, Critical, Offline, and Degradation), and interactive alert table with instant pagination (1,000 records/page).
+- **Individual ONU Audit & Historical Time Series**: Modal panel and split-view side drawer allowing deep inspection of an ONU's physical timeline (Rx ONU, Tx ONU, OLT-Rx, Attenuation, Temperature, and $\Delta\text{Rx}$).
+- **Signal Degradation Module ($\Delta\text{dB}$)**: Specialized analytical view to isolate ONUs that suffered progressive optical loss between consecutive pollings.
+- **Intelligent Optical Diagnostics & Network AI**: Probabilistic anomaly analysis categorized by vendor and PON port with root-cause identification.
+- **Multi-Vendor OLT Management**: Centralized inventory with auto-discovery of chassis, firmware, and serials, per-chassis concurrency throttles, configurable inter-port delays, and administrative operational states (*Active* vs *Inactive*).
+- **RBAC Access Control & Security Audit Logs**: Comprehensive user management (`admin`, `operator`, `viewer`) and complete traceability logging client IP, timestamp, and executed actions.
+
+---
+
+## 📸 System Demonstration & Screenshots
+
+### 🎬 Interactive Slideshow Demo
+![SignalHunter Demo](demo.gif)
+
+---
+### 1. Central Monitoring Dashboard
+Executive view with optical signal distribution histogram, global KPIs, and real-time alerts.
+![Executive Dashboard](dashboard.png)
+
+---
+
+### 2. OLT Equipment Showcase & Inventory
+Interactive hardware management with auto-detected chassis, firmware, and communication status.
+![OLT Inventory](olts.png)
+
+---
+
+### 3. High-Density ONU & Signal Explorer (Split View)
+Paginated inventory combined with immediate lateral inspection of optical physical parameters.
+![ONUs and Signals](onus_sinais.png)
+
+---
+
+### 4. ONU Detailed Audit & Historical Timeline
+Full audit of optical telemetry history, upstream/downstream attenuation, and signal drift ($\Delta\text{dB}$).
+![ONU Optical Audit](auditando_onu.png)
+
+---
+
+### 5. Signal Degradation Analysis ($\Delta\text{dB}$)
+Automated detection of passive optical network attenuation prior to physical disconnection.
+![Signal Degradation](piora_sinal.png)
+
+---
+
+### 6. Intelligent Optical Diagnostics (RCA)
+Predictive root-cause analysis identifying PON port anomalies, macrobends, and trunk issues.
+![Optical Diagnostics](diagnostico.png)
+
+---
+
+### 7. RBAC User Management & Security Profiles
+Granular permission management with administrator, operator, and viewer roles.
+![User Management](usuarios.png)
+
+---
+
+### 8. Security Audit Trail & Activity Logs
+Immutable chronological log recording all operator and system operations.
+![Audit Logs](auditoria.png)
+
+---
+
+## 🏭 Verified Multi-Vendor Support
+
+SignalHunter features specialized native Rust drivers for major telecom equipment manufacturers. The architecture prioritizes high-speed **SNMPv2c** for all available telemetry and relies on surgical **SSH CLI inspection** (with an *Inactivity Watchdog*) only for exclusive CLI-only data:
+
+### 📊 Collection Protocol Matrix by Vendor
+
+| Vendor | Supported Hardware Models | SNMPv2c Only | SNMPv2c + SSH | Role of SSH (When Enabled) |
+| :--- | :--- | :---: | :---: | :--- |
+| **Huawei** | SmartAX MA5800, MA5608T, MA5680T | ❌ | ✅ **Yes** | Drop alarm validation (Dying Gasp vs LOS) and telemetry cross-verification |
+| **Datacom** | DmOS DM4610, DM4615, DM4618 | ❌ | ✅ **Yes** | Distance fallback on ONUs without L2 bridge and OMCI alarm extraction |
+| **ZTE** | ZXA10 C600, C650, C610 (Titan), C300, C320 | ❌ | ✅ **Yes** | Instant `Phase State` inspection (Dying Gasp vs LOS) and cross-validation |
+| **FiberHome** | AN5516-01, AN5516-04, AN5516-06 | ✅ **Yes** | ⚪ *Optional* | **100% via SNMPv2c**: Rx, Tx, Real SFP Tx, Computed OLT-Rx, Temp, Voltage, Bias, Distance, and Names |
+| **Nokia / Alcatel** | ISAM 7360 FX, 7342, 7330, Lightspan FX | ✅ **Exclusive** | ❌ *Disabled* | **100% SNMPv2c**: Full DDM, Serials, `.88` Drop Alarms (Dying Gasp vs LOS), Rx, Tx, OLT-Rx, and Names |
+| **Parks** | Fiberlink 30028, 21000, 21016, 21008, 21004 | ✅ **Exclusive** | ❌ *Disabled* | **100% SNMPv2c**: centi-dBm Rx (`.15`), Temp (`.6.1.10`), Names (`.62`), Dying Gasp vs LOS (`.41`/`.5`) |
+
+---
+
+### 📋 Collected Telemetry Metrics by Vendor
+
+| Vendor | Collected Parameters |
+|---|---|
+| **Huawei** | Serial (Hex/ASCII), ONU Rx, ONU Tx, Upstream OLT-Rx, Metric Distance (m), Drop Cause (Dying Gasp / LOS), Temperature, Voltage, Customer Name |
+| **Datacom** | Serial, ONU Rx, Decimal Distance (km/m), Customer Names, SFP PON Tx Power, OMCI Drop Alarms, Uptime |
+| **ZTE** | Serial (ASCII/Hex), ONU Rx, ONU Tx, Upstream OLT-Rx, Optical Attenuation ($\text{dB}$), Distance (m), Temp, Voltage, Name, Phase State |
+| **FiberHome** | Serial, ONU Rx, ONU Tx, Real OLT SFP Tx (`.800.3.9.3.4.1.8`), Computed OLT-Rx, Temperature, Voltage, Bias Current, Distance (m), Customer Names, Operational Status |
+| **Nokia / Alcatel** | Serial (Hex/ALCL), ONU Rx, ONU Tx, Upstream OLT-Rx, Optical Attenuation ($\text{dB}$), Distance (m), Temp, Voltage, Bias, ONT Model, Differentiated Drop Cause (`.88`) |
+| **Parks** | Serial (Hex/ASCII), centi-dBm ONU Rx (`.15`), Customer Names (`.62`), Transceiver Temperature (`.6.1.10`), Dying Gasp vs LOS Drop Cause (`.41`/`.5`), Calibrated ONU Tx, and OLT-Rx |
+
+---
+
+### 📡 Technical OID Mapping & CLI Diagnostic Commands
+
+#### 1. Huawei (VRP / SmartAX MA5800 & MA5600T Series)
+* **Enterprise SNMP MIBs (`HUAWEI-XPON-MIB`):**
+  * `Physical Fiber Distance (m)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.20.<ifIndex>.<onuId>` (Integer in meters)
+  * `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.4.<ifIndex>.<onuId>` (Raw / 100)
+  * `ONU Optical Tx Power (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.3.<ifIndex>.<onuId>` (Raw / 100)
+  * `Upstream OLT Rx Power (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.6.<ifIndex>.<onuId>` ((Raw - 10000) / 100)
+  * `OLT SFP PON Tx Power (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.23.1.2.<ifIndex>` (Raw / 100)
+  * `Serial / PON Identifier`: `.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.3.<ifIndex>.<onuId>`
+  * `Customer Name / Description`: `.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.9.<ifIndex>.<onuId>`
+  * `ONT Equipment Model`: `.1.3.6.1.4.1.2011.6.128.1.1.2.45.1.4.<ifIndex>.<onuId>`
+  * `Last Drop Reason`: `.1.3.6.1.4.1.2011.6.128.1.1.2.47.1.3.<ifIndex>.<onuId>` (`1` = Dying Gasp / Power, `2`/`3` = LOS / Fiber Break)
+  * `Transceiver Temperature (°C)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.1.<ifIndex>.<onuId>`
+  * `Supply Voltage (V)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.2.<ifIndex>.<onuId>` (Raw / 100)
+
+* **SSH Inspection Commands (Read-Only Mode):**
+  ```text
+  display ont optical-info <frame>/<slot>/<port> <ont-id>
+  display ont info <frame>/<slot>/<port> <ont-id>
+  ```
+
+---
+
+#### 2. Datacom (DmOS DM4610 / DM4615 / DM4618)
+* **Enterprise SNMP MIBs (`DATACOM-DMOS-GPON-MIB`):**
+  * `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.22.<ifIndex>` (Exact decimal string)
+  * `Decimal Fiber Distance (km)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.21.<ifIndex>` (Decimal string, e.g., "2.35" km = 2350m)
+  * `Subscriber Name / Identifier`: `.1.3.6.1.4.1.3709.3.6.2.1.1.5.<ifIndex>`
+  * `OLT SFP PON Tx Power (dBm)`: `.1.3.6.1.4.1.3709.3.6.8.2.1.1.3.<portIndex>` (Raw / 100)
+  * `L2 Interface Mapping`: `.1.3.6.1.4.1.3709.3.6.2.1.1.3.<ifIndex>` (e.g., "gpon-1/1/1-onu-0")
+  * `ONU Connection Uptime`: `.1.3.6.1.4.1.3709.3.6.2.1.1.26.<ifIndex>` (TimeTicks)
+
+* **SSH Inspection Commands (Streaming with Inactivity Watchdog):**
+  ```text
+  show interface gpon onu
+  show interface transceivers gpon
+  show interface gpon <slot>/<shelf>/<port> onu <onu-id> | display curly-braces
+  ```
+
+---
+
+#### 3. ZTE (ZXA10 C300 / C320 / C600 / C610 Titan Series)
+* `ONU Optical Rx Power`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.1.<portIndex>.<onuId>` (raw / 1000 - 100 dBm)
+* `ONU Optical Tx Power`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.2.<portIndex>.<onuId>`
+* `Upstream OLT Rx Power`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.3.<portIndex>.<onuId>`
+* `Fiber Distance (m)`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.4.<portIndex>.<onuId>`
+* `Phase State (Dying Gasp vs LOS)`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.11.<portIndex>.<onuId>`
+
+* **SSH Inspection Commands (Read-Only Mode):**
+  ```text
+  show gpon onu detail-info gpon-onu_<port>:<onu-id>
+  show pon power ont gpon-onu_<port>:<onu-id>
+  ```
+
+---
+
+#### 4. FiberHome (AN5516-01 / AN5516-04 / AN5516-06 Series)
+FiberHome polling is executed **100% via SNMPv2c**:
+* `Real OLT SFP PON Tx Power (dBm)`: `.1.3.6.1.4.1.5875.800.3.9.3.4.1.8.<slot>.<port>` (raw / 100.0)
+* `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.6.<slot>.<port>.<onu>` (raw / 100.0)
+* `ONU Optical Tx Power (dBm)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.7.<slot>.<port>.<onu>` (raw / 100.0)
+* `Transceiver Temperature (°C)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.8.<slot>.<port>.<onu>` (raw / 10.0)
+* `Supply Voltage (V)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.9.<slot>.<port>.<onu>` (raw / 100.0)
+* `Bias Current (mA)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.10.<slot>.<port>.<onu>` (raw / 1000.0)
+* `Physical Fiber Distance (m)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.11.<slot>.<port>.<onu>`
+
+---
+
+#### 5. Nokia / Alcatel-Lucent (ISAM 7360 FX / Lightspan FX Series)
+Nokia polling is executed **100% via SNMPv2c** with complete SSH isolation:
+* `ONU Serial Numbers`: `.1.3.6.1.4.1.637.61.1.35.10.1.1.5`
+* `ONU Operational Status`: `.1.3.6.1.4.1.637.61.1.35.10.4.1.8` (`12`/`1` = Online)
+* `Drop Diagnosis (Dying Gasp vs LOS)`: `.1.3.6.1.4.1.637.61.1.35.10.1.1.88` (`256` = Dying Gasp / Power Outage, `2` = LOS / Fiber Break, `1` = Online)
+* `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.637.61.1.35.10.14.1.2` (raw * 0.002 dBm)
+* `ONU Optical Tx Power (dBm)`: `.1.3.6.1.4.1.637.61.1.35.10.14.1.3`
+* `Upstream OLT Rx Power (dBm)`: `.1.3.6.1.4.1.637.61.1.35.10.18.1.2` (raw / 10.0 dBm)
+
+---
+
+#### 6. Parks (Fiberlink 30028 / 21000 / 21016 Series)
+Parks polling is executed **100% via SNMPv2c** with complete SSH isolation:
+* `ONU Serial Numbers (Hex/ASCII)`: `.1.3.6.1.4.1.6771.10.1.5.1.18.<slot>.<port>.<onu>` (e.g., `PRKS00C418A1`)
+* `Subscriber Name / Login`: `.1.3.6.1.4.1.6771.10.1.5.1.62.<slot>.<port>.<onu>` (e.g., `NelsonAmorim`)
+* `ONT Model (Hex/ASCII)`: `.1.3.6.1.4.1.6771.10.1.5.1.23.<slot>.<port>.<onu>` (e.g., `Fiberlink101`)
+* `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.6771.10.1.5.1.15.<slot>.<port>.<onu>` (centi-dBm scale: `2638` $\rightarrow -26.38\text{ dBm}$)
+* `Transceiver Temperature (°C)`: `.1.3.6.1.4.1.6771.10.1.6.1.10.<slot>.<port>.<onu>.2` (raw / 10.0)
+* `Differentiated Drop Cause`: `.1.3.6.1.4.1.6771.10.1.5.1.41` (`1` = Dying Gasp / Power Outage, `0` = LOS / Fiber Break) and `.1.3.6.1.4.1.6771.10.1.5.1.5` (`3` = Online, `1` = Dying Gasp, `0` = LOS)
+
+---
+
+## 🎯 Optical Signal Power Classification (Downstream Rx)
+
+| Classification | Optical Power Range | Badge Color | Recommended NOC Action |
+|---|---|---|---|
+| **💎 Excellent** | $-14.00\text{ dBm}$ to $-18.00\text{ dBm}$ | Emerald Green | Ideal operational state without attenuation |
+| **✨ Good / Normal** | $-18.01\text{ dBm}$ to $-23.00\text{ dBm}$ | Cyan / Sky Blue | Standard operational GPON range |
+| **⚠️ Warning** | $-23.01\text{ dBm}$ to $-27.00\text{ dBm}$ | Amber / Orange | Preventive: inspect connectors and splitters |
+| **🚨 Critical** | $< -27.00\text{ dBm}$ | Crimson Red | Immediate field dispatch for optical repair |
+| **⚡ Saturated** | $> -14.00\text{ dBm}$ | Neon Blue | Insert optical attenuator (photodiode overload risk) |
+| **🔌 Offline (LOS)** | No signal / Disconnected | Dark Slate | Fiber cut or powered-off equipment |
+
+---
+
+## 🚀 Installation & Deployment
+
+For step-by-step instructions on installing **Rust**, compiling the standalone *release* binary, configuring **MariaDB/MySQL**, provisioning **TLS/HTTPS certificates**, and setting up the **Systemd** service on Linux (Debian 13), refer to the installation manual:
+
+📖 **[Access the Installation & Deployment Guide (INSTALL.md)](INSTALL.md)**  
+*(Para a versão em português, consulte [INSTALACAO.md](INSTALACAO.md))*
+
+---
+
+## ⚖️ Trademark, Brand Policy & Disclaimer
+
+While the source code of this project is released as Free and Open Source Software under the GNU GPLv3 license, the visual identity, logos, and the company and trade name **ISPFocus Serviços e Tecnologia Ltda** are proprietary intellectual property.
+
+- **Permitted Use:** The logos and visual identity may be used solely in direct connection with this software in its original and genuine form.
+- **Restrictions:** The use of the logos, visual identity, or the company name in derivative works, commercial forks, or third-party services without prior written permission is strictly prohibited. For details, see [TRADEMARKS.md](TRADEMARKS.md).
+- **Disclaimer of Liability:** The author and **ISPFocus Serviços e Tecnologia Ltda** shall not be held liable for any direct, indirect, or consequential damages resulting from the use or operation of this software. The software is provided "AS IS", without warranty of any kind.
+
+---
+
+## 📄 License and Support
+
+Developed by **[ISPFocus Serviços e Tecnologia Ltda](https://ispfocus.net.br)**.  
+For enterprise support, commercial licensing, or custom driver integrations, visit [ispfocus.net.br](https://ispfocus.net.br).

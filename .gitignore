@@ -1,0 +1,12 @@
+/target
+**/*.rs.bk
+*.orig
+.env
+config.toml
+certs/
+reports/
+*.db
+*.sqlite
+*.log
+.DS_Store
+Thumbs.db
