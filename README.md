@@ -43,13 +43,8 @@ Rather than relying on reactive manual testing after customer trouble tickets ar
 
 ## 📸 System Demonstration & Screenshots
 
-### 🎬 Interactive Slideshow Demo (1080p HD Video)
-
-https://github.com/user-attachments/assets/demo.mp4
-
-> *O GitHub exibe o player interativo de vídeo nativo acima. Abaixo, confira o preview animado em tempo real:*
-
-![SignalHunter Animated Demo](demo.gif)
+### 🎬 Interactive Slideshow Demo (Loop Animation)
+![SignalHunter Demo](demo.gif)
 
 ---
 ### 1. Central Monitoring Dashboard
