@@ -1,0 +1,91 @@
+# ==============================================================================
+# SignalHunter - Configuração Principal do Sistema
+# ==============================================================================
+
+[server]
+# Endereço IP e porta para o serviço web
+# Exemplo: "0.0.0.0" para escutar em todas as interfaces
+host = "0.0.0.0"
+port = 8443
+
+# Configuração de TLS / HTTPS (Recomendado para produção)
+# Se use_tls = false, o servidor iniciará em HTTP simples na porta configurada
+use_tls = false
+tls_cert_path = "certs/cert.pem"
+tls_key_path = "certs/key.pem"
+
+[database]
+# Configurações de Conexão com o MySQL / MariaDB
+host = "127.0.0.1"
+port = 3306
+username = "signalhunter_user"
+password = "altere_esta_senha_forte"
+database = "signalhunter"
+
+# Pool de Conexões Assíncronas
+max_connections = 25
+min_connections = 5
+connect_timeout_sec = 10
+idle_timeout_sec = 300
+
+[security]
+# Chave mestra hexadecimal de 32 bytes (64 caracteres hex) para AES-256-GCM
+# Utilizada para cifrar senhas e communities SNMP das OLTs no banco de dados.
+# GERE UMA CHAVE ÚNICA EM PRODUÇÃO COM O COMANDO: openssl rand -hex 32
+master_encryption_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+# Segredo JWT para autenticação e assinatura de sessões seguras no frontend
+# GERE UM SEGREDO FORTE DE ALTA ENTROPIA COM: openssl rand -base64 48
+jwt_secret = "altere_este_segredo_jwt_longo_e_aleatorio_para_producao_12345"
+
+# Tempo de validade do token de sessão do operador em horas (padrão: 24 horas)
+# Pode ser reduzido para 8 ou 12 horas conforme a política de segurança do seu NOC
+jwt_expiration_hours = 24
+
+[collector]
+# ==============================================================================
+# MECANISMOS DE PROTEÇÃO ATIVA DE CPU DAS OLTs
+# ==============================================================================
+
+# Intervalo padrão entre ciclos de varredura automática (em minutos)
+default_collection_interval_mins = 60
+
+# Máximo de OLTs varridas simultaneamente no sistema (Worker Pool)
+# Para redes com 50+ ou 100+ OLTs, recomenda-se entre 10 e 20 para coletas rápidas
+max_concurrent_olt_scans = 10
+
+# Máximo de requisições SNMP paralelas por chassi de OLT (Semáforo anti-sobrecarga)
+# Protege a CPU da placa de gerência da OLT contra travamento (recomendado: 2)
+max_concurrent_requests_per_olt = 2
+
+# Pausa obrigatória (pacing) entre leitura de blocos de portas PON (em milissegundos)
+# Evita sobrecarregar a fila de mensagens OMCI da OLT
+pon_inter_scan_delay_ms = 50
+
+# Timeout individual para requisições SNMP (em segundos)
+request_timeout_sec = 15
+
+# Protocolo primário de telemetria
+default_protocol = "snmp"
+
+[thresholds]
+# ==============================================================================
+# LIMITES PADRÃO DE QUALIDADE ÓPTICA (GPON / EPON)
+# ==============================================================================
+# Faixa Excelente (dBm)
+rx_excellent_min = -18.0
+rx_excellent_max = -14.0
+
+# Faixa Normal / Aceitável (dBm)
+rx_good_min = -23.0
+rx_good_max = -8.0
+
+# Alerta de Atenção (dBm)
+rx_warning_min = -26.9
+
+# Nível Crítico de Atenuação (dBm)
+rx_critical_min = -27.0
+
+# Delta de Degradação Rápida (dB)
+# Se a atenuação piorar mais que este valor entre leituras, gera alarme prioritário
+degradation_alert_delta_db = 3.0

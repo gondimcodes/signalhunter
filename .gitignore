@@ -2,7 +2,6 @@
 **/*.rs.bk
 *.orig
 .env
-config.toml
 certs/
 reports/
 *.db
