@@ -106,7 +106,7 @@ SignalHunter features specialized native Rust drivers for major telecom equipmen
 | **Huawei** | SmartAX MA5800, MA5608T, MA5680T | ❌ | ✅ **Yes** | Drop alarm validation (Dying Gasp vs LOS) and telemetry cross-verification |
 | **Datacom** | DmOS DM4610, DM4615, DM4618 | ❌ | ✅ **Yes** | Distance fallback on ONUs without L2 bridge and OMCI alarm extraction |
 | **ZTE** | ZXA10 C600, C650, C610 (Titan), C300, C320 | ❌ | ✅ **Yes** | Instant `Phase State` inspection (Dying Gasp vs LOS) and cross-validation |
-| **FiberHome** | AN5516-01, AN5516-04, AN5516-06 | ✅ **Yes** | ⚪ *Optional* | **100% via SNMPv2c**: Rx, Tx, Real SFP Tx, Computed OLT-Rx, Temp, Voltage, Bias, Distance, and Names |
+| **FiberHome** | AN5516-01, AN5516-04, AN5516-06 | ✅ **Exclusive** | ❌ *Disabled* | **100% via SNMPv2c**: Rx, Tx, Real SFP Tx, Computed OLT-Rx, Temp, Voltage, Bias, Distance, and Names |
 | **Nokia / Alcatel** | ISAM 7360 FX, 7342, 7330, Lightspan FX | ✅ **Exclusive** | ❌ *Disabled* | **100% SNMPv2c**: Full DDM, Serials, `.88` Drop Alarms (Dying Gasp vs LOS), Rx, Tx, OLT-Rx, and Names |
 | **Parks** | Fiberlink 30028, 21000, 21016, 21008, 21004 | ✅ **Exclusive** | ❌ *Disabled* | **100% SNMPv2c**: centi-dBm Rx (`.15`), Temp (`.6.1.10`), Names (`.62`), Dying Gasp vs LOS (`.41`/`.5`) |
 

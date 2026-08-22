@@ -1,15 +1,12 @@
 use async_trait::async_trait;
 use std::sync::Arc;
-use std::process::Stdio;
-use std::time::Duration;
-use tokio::io::AsyncWriteExt;
 use tokio::sync::Semaphore;
 use log::{info, warn, debug};
 
 use crate::collector::driver::{OltDriver, OltTarget, OnuOpticalData};
 use crate::collector::snmp::SnmpClient;
 
-/// Driver FiberHome de Alta Precisão para OLTs AN5516 / AN5116
+/// Driver FiberHome de Alta Precisão para OLTs AN5516 / AN5116 (100% SNMPv2c)
 pub struct FiberHomeDriver;
 
 impl FiberHomeDriver {
@@ -58,77 +55,6 @@ impl FiberHomeDriver {
         } else {
             oid.to_string()
         }
-    }
-
-    /// Executa comandos no FiberHome estritamente via SSH com streaming e watchdog de inatividade
-    #[allow(dead_code)]
-    async fn execute_ssh_commands(
-        target: &OltTarget,
-        commands: &[&str],
-    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        let user = target.mgmt_username.as_deref().unwrap_or("admin");
-        let pass = target.mgmt_password.as_deref().unwrap_or("");
-        let port = target.ssh_port;
-
-        let script = format!("{}\nexit\n", commands.join("\n"));
-
-        // SSH estrito com suporte a chaves RSA compatíveis
-        let mut child = tokio::process::Command::new("sshpass")
-            .arg("-p")
-            .arg(pass)
-            .arg("ssh")
-            .arg("-o")
-            .arg("StrictHostKeyChecking=no")
-            .arg("-o")
-            .arg("UserKnownHostsFile=/dev/null")
-            .arg("-o")
-            .arg("HostKeyAlgorithms=+ssh-rsa")
-            .arg("-o")
-            .arg("PubkeyAcceptedKeyTypes=+ssh-rsa")
-            .arg("-o")
-            .arg("ConnectTimeout=6")
-            .arg("-p")
-            .arg(port.to_string())
-            .arg(format!("{}@{}", user, target.ip_address))
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()?;
-
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(script.as_bytes()).await?;
-            stdin.flush().await?;
-        }
-
-        let stdout = child.stdout.take().ok_or("Falha ao abrir stdout do SSH FiberHome")?;
-        use tokio::io::{AsyncBufReadExt, BufReader};
-        let mut reader = BufReader::new(stdout).lines();
-
-        let mut full_output = String::new();
-        // Inactivity Watchdog: enquanto a FiberHome estiver transmitindo dados via SSH, não encerra
-        let inactivity_duration = Duration::from_secs(45);
-
-        loop {
-            match tokio::time::timeout(inactivity_duration, reader.next_line()).await {
-                Ok(Ok(Some(line))) => {
-                    full_output.push_str(&line);
-                    full_output.push('\n');
-                }
-                Ok(Ok(None)) => break,
-                Ok(Err(e)) => {
-                    warn!("FiberHome '{}': Erro no stream SSH: {}", target.name, e);
-                    break;
-                }
-                Err(_) => {
-                    warn!("FiberHome '{}': Inactivity watchdog atingido (45s sem dados)", target.name);
-                    let _ = child.kill().await;
-                    break;
-                }
-            }
-        }
-
-        let _ = child.wait().await;
-        Ok(full_output)
     }
 }
 

@@ -2869,7 +2869,7 @@
 
         function handleVendorChange() {
             var vendor = (document.getElementById('oltVendor').value || '').toLowerCase();
-            var isSnmpOnly = (vendor === 'parks' || vendor === 'nokia');
+            var isSnmpOnly = (vendor === 'parks' || vendor === 'nokia' || vendor === 'fiberhome');
             
             var sshPort = document.getElementById('oltSshPort');
             var sshUser = document.getElementById('oltSshUser');
