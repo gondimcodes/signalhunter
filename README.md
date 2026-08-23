@@ -1,7 +1,5 @@
-# SignalHunter
+# SignalHunter [![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=flat&logo=paypal&logoColor=white)](https://www.paypal.com/donate/?business=7LD8SPXNF2KH2&no_recurring=0&item_name=Sua+contribui%C3%A7%C3%A3o+ajuda+a+manter+meu+estoque+de+caf%C3%A9+em+dia+%3A%29&currency_code=BRL)
 ### Intelligent Optical Telemetry, Degradation Diagnostics ($\Delta\text{dB}$) and High-Performance GPON / EPON Monitoring
-
-[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=flat&logo=paypal&logoColor=white)](https://www.paypal.com/donate/?business=7LD8SPXNF2KH2&no_recurring=0&item_name=Sua+contribui%C3%A7%C3%A3o+ajuda+a+manter+meu+estoque+de+caf%C3%A9+em+dia+%3A%29&currency_code=BRL)
 
 > **Engineered for Internet Service Providers (ISPs), Telecom Operators, and NOC Engineering Teams.**  
 > Continuous auditing of physical optical parameters (Rx, Tx, OLT-Rx, Attenuation, Temperature, Distance, and Voltage), granular time series, and automated predictive root-cause analysis (RCA).
