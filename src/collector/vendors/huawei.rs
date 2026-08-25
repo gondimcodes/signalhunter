@@ -57,7 +57,7 @@ impl OltDriver for HuaweiDriver {
         target: &OltTarget,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         info!(
-            "Testando conectividade Híbrida (SNMP/SSH) com OLT Huawei '{}' ({})",
+            "Testando conectividade SNMP com OLT Huawei '{}' ({})",
             target.name, target.ip_address
         );
         let comm = target.snmp_community.as_deref().unwrap_or("public");
@@ -67,7 +67,7 @@ impl OltDriver for HuaweiDriver {
                 let desc = vb
                     .value_str
                     .unwrap_or_else(|| "Huawei SmartAX MA5800/MA5600 Series".to_string());
-                Ok(format!("Huawei OLT Híbrido Online: {}", desc))
+                Ok(format!("Huawei OLT Online: {}", desc))
             }
             _ => Err(format!(
                 "OLT Huawei '{}' ({}) inacessível via SNMP",
@@ -85,7 +85,7 @@ impl OltDriver for HuaweiDriver {
         let _permit = semaphore.acquire().await?;
 
         info!(
-            "Huawei '{}' [{}]: Iniciando Coleta Híbrida (SNMPv2c de alta velocidade + SSH de validação e distância)...",
+            "Huawei '{}' [{}]: Iniciando Coleta SNMPv2c de alta velocidade...",
             target.name, target.ip_address
         );
 
@@ -477,7 +477,7 @@ impl OltDriver for HuaweiDriver {
 
         let final_results: Vec<OnuOpticalData> = unique_map.into_values().collect();
         info!(
-            "Coleta Híbrida da OLT Huawei '{}' finalizada com {} ONUs processadas.",
+            "Coleta SNMP da OLT Huawei '{}' finalizada com {} ONUs processadas.",
             target.name,
             final_results.len()
         );

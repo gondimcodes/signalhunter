@@ -1,95 +1,17 @@
 use async_trait::async_trait;
 use log::{info, warn};
-use std::process::Stdio;
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::io::AsyncWriteExt;
 use tokio::sync::Semaphore;
 
 use crate::collector::driver::{OltDriver, OltTarget, OnuOpticalData};
 use crate::collector::snmp::SnmpClient;
 
-/// Driver ZTE para OLTs C300, C320, C600 TITAN e chassis modulares GPON
+/// Driver ZTE para OLTs C300, C320, C600 TITAN e chassis modulares GPON (100% SNMP)
 pub struct ZteDriver;
 
 impl ZteDriver {
     pub fn new() -> Self {
         Self
-    }
-
-    /// Executa comandos no ZTE via SSH não-interativo utilizando streaming com watchdog de inatividade
-    async fn execute_ssh_commands(
-        target: &OltTarget,
-        commands: &[&str],
-    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        let user = target.mgmt_username.as_deref().unwrap_or("admin");
-        let pass = target.mgmt_password.as_deref().unwrap_or("");
-        let port = target.ssh_port;
-
-        let script = format!("terminal length 0\n{}\nexit\n", commands.join("\n"));
-
-        let mut child = tokio::process::Command::new("sshpass")
-            .arg("-p")
-            .arg(pass)
-            .arg("ssh")
-            .arg("-o")
-            .arg("StrictHostKeyChecking=no")
-            .arg("-o")
-            .arg("UserKnownHostsFile=/dev/null")
-            .arg("-o")
-            .arg("ConnectTimeout=10")
-            .arg("-p")
-            .arg(port.to_string())
-            .arg(format!("{}@{}", user, target.ip_address))
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()?;
-
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(script.as_bytes()).await?;
-            stdin.flush().await?;
-        }
-
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or("Falha ao abrir stdout do SSH ZTE")?;
-        use tokio::io::{AsyncBufReadExt, BufReader};
-        let mut reader = BufReader::new(stdout).lines();
-
-        let mut full_output = String::new();
-        // Inactivity Watchdog: Enquanto a ZTE estiver enviando dados/linhas, a coleta segue sem limite global.
-        // Se ficar em silêncio absoluto por mais de 45 segundos sem enviar dados, encerra com segurança.
-        let inactivity_duration = Duration::from_secs(45);
-
-        loop {
-            match tokio::time::timeout(inactivity_duration, reader.next_line()).await {
-                Ok(Ok(Some(line))) => {
-                    full_output.push_str(&line);
-                    full_output.push('\n');
-                }
-                Ok(Ok(None)) => {
-                    // Stream encerrado normalmente pela OLT
-                    break;
-                }
-                Ok(Err(e)) => {
-                    warn!("ZTE '{}': Erro no stream SSH: {}", target.name, e);
-                    break;
-                }
-                Err(_) => {
-                    warn!(
-                        "ZTE '{}': Inactivity watchdog atingido (45s sem dados da OLT)",
-                        target.name
-                    );
-                    let _ = child.kill().await;
-                    break;
-                }
-            }
-        }
-
-        let _ = child.wait().await;
-        Ok(full_output)
     }
 
     /// Decodificação exata de interface PON da ZTE (Slot, Porta PON e ONU ID) a partir do índice OID
@@ -577,6 +499,7 @@ impl OltDriver for ZteDriver {
         }
 
         // 2.7 Causa da Última Desconexão via SNMP (zxAnGponOntLastDownCause):
+        // 1 = dying_gasp (energia), 2 = los (rompimento/fibra), 3 = manual_deactivate
         let mut down_cause_map = std::collections::HashMap::new();
         let down_walk = snmp
             .bulk_walk(".1.3.6.1.4.1.3902.1012.3.28.2.1.4", 65535)
@@ -599,54 +522,6 @@ impl OltDriver for ZteDriver {
                         format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]),
                         reason.to_string(),
                     );
-                }
-            }
-        }
-
-        // 2.8 Enriquecimento e Validação Cruzada via SSH Cirúrgico (show gpon onu state)
-        // Coleta o estado de fase oficial da ZTE (DyingGasp vs LOS) em milissegundos com Inactivity Watchdog
-        if target.mgmt_username.is_some() && target.mgmt_password.is_some() {
-            if let Ok(ssh_state_out) =
-                Self::execute_ssh_commands(target, &["show gpon onu state"]).await
-            {
-                for line in ssh_state_out.lines() {
-                    let parts: Vec<&str> = line.split_whitespace().collect();
-                    if parts.len() >= 4 && parts[0].contains(':') {
-                        let iface_onu = parts[0]; // Ex: "1/3/1:12"
-                        let phase_state = parts[3]; // Ex: "DyingGasp", "working", "LOS"
-
-                        let iface_parts: Vec<&str> = iface_onu.split(':').collect();
-                        if iface_parts.len() == 2 {
-                            let pon_prefix = iface_parts[0]; // "1/3/1"
-                            let onu_id_str = iface_parts[1]; // "12"
-                            let slot_port_parts: Vec<&str> = pon_prefix.split('/').collect();
-                            if slot_port_parts.len() == 3 {
-                                let slot = slot_port_parts[1];
-                                let port = slot_port_parts[2];
-
-                                let reason = if phase_state.eq_ignore_ascii_case("DyingGasp") {
-                                    "dying_gasp"
-                                } else if phase_state.eq_ignore_ascii_case("LOS")
-                                    || phase_state.eq_ignore_ascii_case("OffLine")
-                                {
-                                    "los"
-                                } else {
-                                    "working"
-                                };
-
-                                if reason != "working" {
-                                    down_cause_map.insert(
-                                        format!("{}.{}.{}", slot, port, onu_id_str),
-                                        reason.to_string(),
-                                    );
-                                    down_cause_map.insert(
-                                        format!("{}.{}", port, onu_id_str),
-                                        reason.to_string(),
-                                    );
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }

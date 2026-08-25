@@ -216,7 +216,7 @@ jwt_secret = "SEU_BASE64_GERADO_ACIMA"
 jwt_expiration_hours = 24
 
 [collector]
-default_collection_interval_mins = 60
+default_collection_interval_mins = 1440
 max_concurrent_olt_scans = 10
 max_concurrent_requests_per_olt = 2
 request_timeout_sec = 15

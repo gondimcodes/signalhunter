@@ -94,9 +94,9 @@ SignalHunter features specialized native Rust drivers for major telecom equipmen
 
 | Vendor | Supported Hardware Models | SNMPv2c Only | SNMPv2c + SSH | Role of SSH (When Enabled) |
 | :--- | :--- | :---: | :---: | :--- |
-| **Huawei** | SmartAX MA5800, MA5608T, MA5680T | ❌ | ✅ **Yes** | Drop alarm validation (Dying Gasp vs LOS) and telemetry cross-verification |
+| **Huawei** | SmartAX MA5800, MA5608T, MA5680T | ✅ **Exclusive** | ❌ *Disabled* | **100% via SNMPv2c**: Rx, Tx, SFP PON Tx, OLT-Rx, Metric Distance (m), Drop Alarms (Dying Gasp vs LOS), Temp, Voltage, and Names |
 | **Datacom** | DmOS DM4610, DM4615, DM4618 | ❌ | ✅ **Yes** | Distance fallback on ONUs without L2 bridge and OMCI alarm extraction |
-| **ZTE** | ZXA10 C600, C650, C610 (Titan), C300, C320 | ❌ | ✅ **Yes** | Instant `Phase State` inspection (Dying Gasp vs LOS) and cross-validation |
+| **ZTE** | ZXA10 C600, C650, C610 (Titan), C300, C320 | ✅ **Exclusive** | ❌ *Disabled* | **100% via SNMPv2c**: Rx, Tx, Computed OLT-Rx, Distance (m), Temp, Voltage, Names, and Last Down Cause (`.1012.3.28.2.1.4`) |
 | **FiberHome** | AN5516-01, AN5516-04, AN5516-06 | ✅ **Exclusive** | ❌ *Disabled* | **100% via SNMPv2c**: Rx, Tx, Real SFP Tx, Computed OLT-Rx, Temp, Voltage, Bias, Distance, and Names |
 | **Nokia / Alcatel** | ISAM 7360 FX, 7342, 7330, Lightspan FX | ✅ **Exclusive** | ❌ *Disabled* | **100% SNMPv2c**: Full DDM, Serials, `.88` Drop Alarms (Dying Gasp vs LOS), Rx, Tx, OLT-Rx, and Names |
 | **Parks** | Fiberlink 30028, 21000, 21016, 21008, 21004 | ✅ **Exclusive** | ❌ *Disabled* | **100% SNMPv2c**: centi-dBm Rx (`.15`), Temp (`.6.1.10`), Names (`.62`), Dying Gasp vs LOS (`.41`/`.5`) |
@@ -107,9 +107,9 @@ SignalHunter features specialized native Rust drivers for major telecom equipmen
 
 | Vendor | Collected Parameters |
 |---|---|
-| **Huawei** | Serial (Hex/ASCII), ONU Rx, ONU Tx, Upstream OLT-Rx, Metric Distance (m), Drop Cause (Dying Gasp / LOS), Temperature, Voltage, Customer Name |
+| **Huawei** | Serial (Hex/ASCII), ONU Rx, ONU Tx, Upstream OLT-Rx, OLT SFP Tx, Metric Distance (m), Drop Cause (Dying Gasp / LOS), Temperature, Voltage, Customer Name |
 | **Datacom** | Serial, ONU Rx, Decimal Distance (km/m), Customer Names, SFP PON Tx Power, OMCI Drop Alarms, Uptime |
-| **ZTE** | Serial (ASCII/Hex), ONU Rx, ONU Tx, Upstream OLT-Rx, Optical Attenuation ($\text{dB}$), Distance (m), Temp, Voltage, Name, Phase State |
+| **ZTE** | Serial (ASCII/Hex), ONU Rx, ONU Tx, Upstream OLT-Rx, Optical Attenuation ($\text{dB}$), Distance (m), Temp, Voltage, Name, Last Down Cause (Dying Gasp / LOS) |
 | **FiberHome** | Serial, ONU Rx, ONU Tx, Real OLT SFP Tx (`.800.3.9.3.4.1.8`), Computed OLT-Rx, Temperature, Voltage, Bias Current, Distance (m), Customer Names, Operational Status |
 | **Nokia / Alcatel** | Serial (Hex/ALCL), ONU Rx, ONU Tx, Upstream OLT-Rx, Optical Attenuation ($\text{dB}$), Distance (m), Temp, Voltage, Bias, ONT Model, Differentiated Drop Cause (`.88`) |
 | **Parks** | Serial (Hex/ASCII), centi-dBm ONU Rx (`.15`), Customer Names (`.62`), Transceiver Temperature (`.6.1.10`), Dying Gasp vs LOS Drop Cause (`.41`/`.5`), Calibrated ONU Tx, and OLT-Rx |
@@ -119,24 +119,18 @@ SignalHunter features specialized native Rust drivers for major telecom equipmen
 ### 📡 Technical OID Mapping & CLI Diagnostic Commands
 
 #### 1. Huawei (VRP / SmartAX MA5800 & MA5600T Series)
-* **Enterprise SNMP MIBs (`HUAWEI-XPON-MIB`):**
-  * `Physical Fiber Distance (m)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.20.<ifIndex>.<onuId>` (Integer in meters)
-  * `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.4.<ifIndex>.<onuId>` (Raw / 100)
-  * `ONU Optical Tx Power (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.3.<ifIndex>.<onuId>` (Raw / 100)
-  * `Upstream OLT Rx Power (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.6.<ifIndex>.<onuId>` ((Raw - 10000) / 100)
-  * `OLT SFP PON Tx Power (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.23.1.2.<ifIndex>` (Raw / 100)
-  * `Serial / PON Identifier`: `.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.3.<ifIndex>.<onuId>`
-  * `Customer Name / Description`: `.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.9.<ifIndex>.<onuId>`
-  * `ONT Equipment Model`: `.1.3.6.1.4.1.2011.6.128.1.1.2.45.1.4.<ifIndex>.<onuId>`
-  * `Last Drop Reason`: `.1.3.6.1.4.1.2011.6.128.1.1.2.47.1.3.<ifIndex>.<onuId>` (`1` = Dying Gasp / Power, `2`/`3` = LOS / Fiber Break)
-  * `Transceiver Temperature (°C)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.1.<ifIndex>.<onuId>`
-  * `Supply Voltage (V)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.2.<ifIndex>.<onuId>` (Raw / 100)
-
-* **SSH Inspection Commands (Read-Only Mode):**
-  ```text
-  display ont optical-info <frame>/<slot>/<port> <ont-id>
-  display ont info <frame>/<slot>/<port> <ont-id>
-  ```
+Huawei telemetry polling is executed **100% via SNMPv2c**:
+* `Physical Fiber Distance (m)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.20.<ifIndex>.<onuId>` (Integer in meters)
+* `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.4.<ifIndex>.<onuId>` (Raw / 100)
+* `ONU Optical Tx Power (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.3.<ifIndex>.<onuId>` (Raw / 100)
+* `Upstream OLT Rx Power (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.6.<ifIndex>.<onuId>` ((Raw - 10000) / 100)
+* `OLT SFP PON Tx Power (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.23.1.2.<ifIndex>` (Raw / 100)
+* `Serial / PON Identifier`: `.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.3.<ifIndex>.<onuId>`
+* `Customer Name / Description`: `.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.9.<ifIndex>.<onuId>`
+* `ONT Equipment Model`: `.1.3.6.1.4.1.2011.6.128.1.1.2.45.1.4.<ifIndex>.<onuId>`
+* `Last Drop Reason`: `.1.3.6.1.4.1.2011.6.128.1.1.2.47.1.3.<ifIndex>.<onuId>` (`1` = Dying Gasp / Power, `2`/`3` = LOS / Fiber Break)
+* `Transceiver Temperature (°C)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.1.<ifIndex>.<onuId>`
+* `Supply Voltage (V)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.2.<ifIndex>.<onuId>` (Raw / 100)
 
 ---
 
@@ -159,17 +153,15 @@ SignalHunter features specialized native Rust drivers for major telecom equipmen
 ---
 
 #### 3. ZTE (ZXA10 C300 / C320 / C600 / C610 Titan Series)
+ZTE telemetry polling is executed **100% via SNMPv2c**:
 * `ONU Optical Rx Power`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.1.<portIndex>.<onuId>` (raw / 1000 - 100 dBm)
 * `ONU Optical Tx Power`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.2.<portIndex>.<onuId>`
 * `Upstream OLT Rx Power`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.3.<portIndex>.<onuId>`
-* `Fiber Distance (m)`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.4.<portIndex>.<onuId>`
-* `Phase State (Dying Gasp vs LOS)`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.11.<portIndex>.<onuId>`
-
-* **SSH Inspection Commands (Read-Only Mode):**
-  ```text
-  show gpon onu detail-info gpon-onu_<port>:<onu-id>
-  show pon power ont gpon-onu_<port>:<onu-id>
-  ```
+* `Physical Fiber Distance (m)`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.10.1.2.<ifIndex>.<onuId>`
+* `Last Down Cause (Dying Gasp vs LOS)`: `.1.3.6.1.4.1.3902.1012.3.28.2.1.4.<ifIndex>.<onuId>` (`1` = Dying Gasp / Power, `2` = LOS / Fiber Break)
+* `Subscriber Name / Description`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.9.1.2.<ifIndex>.<onuId>`
+* `Transceiver Temperature (°C)`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.5.<portIndex>.<onuId>` (raw / 100.0)
+* `Supply Voltage (V)`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.4.<portIndex>.<onuId>` (raw / 100.0)
 
 ---
 

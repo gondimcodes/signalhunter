@@ -2869,7 +2869,7 @@
 
         function handleVendorChange() {
             var vendor = (document.getElementById('oltVendor').value || '').toLowerCase();
-            var isSnmpOnly = (vendor === 'parks' || vendor === 'nokia' || vendor === 'fiberhome');
+            var isSnmpOnly = (vendor === 'huawei' || vendor === 'zte' || vendor === 'parks' || vendor === 'nokia' || vendor === 'fiberhome');
             
             var sshPort = document.getElementById('oltSshPort');
             var sshUser = document.getElementById('oltSshUser');
@@ -3062,16 +3062,17 @@
                 payload.snmp_community = commVal;
             }
 
-            if (sshUserVal) {
-                payload.mgmt_username = sshUserVal;
-            }
-
-            if (sshPassVal) {
-                payload.mgmt_password = sshPassVal;
-            }
-
             if (editId) {
+                payload.mgmt_username = sshUserVal || "";
+                payload.mgmt_password = sshPassVal || "";
                 payload.is_active = (document.getElementById('oltActive').value === 'true');
+            } else {
+                if (sshUserVal) {
+                    payload.mgmt_username = sshUserVal;
+                }
+                if (sshPassVal) {
+                    payload.mgmt_password = sshPassVal;
+                }
             }
 
             try {

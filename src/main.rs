@@ -362,7 +362,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 }
             }
 
-            // Intervalo de ciclo contínuo configurado no config.toml (default: 60 minutos)
+            // Intervalo de ciclo contínuo configurado no config.toml (default: 1440 minutos = 24h)
             let interval_mins = background_state
                 .config
                 .collector

@@ -391,20 +391,38 @@ pub async fn update_olt_handler(
         _ => None,
     };
 
-    let mgmt_password_encrypted = match payload.mgmt_password {
-        Some(ref pwd) if !pwd.trim().is_empty() => {
-            Some(state.crypto.encrypt(pwd.trim()).map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(ApiResponse {
-                        success: false,
-                        message: format!("Erro ao criptografar senha SSH: {}", e),
-                        data: None,
-                    }),
-                )
-            })?)
+    let mgmt_username_cleaned: Option<Option<String>> = match payload.mgmt_username {
+        Some(ref user) => {
+            let trimmed = user.trim();
+            if trimmed.is_empty() {
+                Some(None) // Transforma string vazia em NULL no banco
+            } else {
+                Some(Some(trimmed.to_string()))
+            }
         }
-        _ => None,
+        None => None,
+    };
+
+    let mgmt_password_encrypted = match payload.mgmt_password {
+        Some(ref pwd) => {
+            let trimmed = pwd.trim();
+            if trimmed.is_empty() {
+                Some(None) // Transforma string vazia em NULL no banco (remove senha)
+            } else {
+                let enc = state.crypto.encrypt(trimmed).map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(ApiResponse {
+                            success: false,
+                            message: format!("Erro ao criptografar senha SSH: {}", e),
+                            data: None,
+                        }),
+                    )
+                })?;
+                Some(Some(enc))
+            }
+        }
+        None => None,
     };
 
     let mut sets = Vec::new();
@@ -428,7 +446,7 @@ pub async fn update_olt_handler(
     if payload.ssh_port.is_some() {
         sets.push("ssh_port = ?");
     }
-    if payload.mgmt_username.is_some() {
+    if mgmt_username_cleaned.is_some() {
         sets.push("mgmt_username = ?");
     }
     if mgmt_password_encrypted.is_some() {
@@ -472,11 +490,11 @@ pub async fn update_olt_handler(
     if let Some(sport) = payload.ssh_port {
         query = query.bind(sport);
     }
-    if let Some(ref suser) = payload.mgmt_username {
-        query = query.bind(suser);
+    if let Some(ref suser_opt) = mgmt_username_cleaned {
+        query = query.bind(suser_opt.as_deref());
     }
-    if let Some(ref spass) = mgmt_password_encrypted {
-        query = query.bind(spass);
+    if let Some(ref spass_opt) = mgmt_password_encrypted {
+        query = query.bind(spass_opt.as_deref());
     }
     if let Some(active) = payload.is_active {
         query = query.bind(active);

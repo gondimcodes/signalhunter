@@ -47,8 +47,8 @@ jwt_expiration_hours = 24
 # MECANISMOS DE PROTEÇÃO ATIVA DE CPU DAS OLTs
 # ==============================================================================
 
-# Intervalo padrão entre ciclos de varredura automática (em minutos)
-default_collection_interval_mins = 60
+# Intervalo padrão de coleta automática (em minutos). Padrão: 1440 (24 horas)
+default_collection_interval_mins = 1440
 
 # Máximo de OLTs varridas simultaneamente no sistema (Worker Pool)
 # Para redes com 50+ ou 100+ OLTs, recomenda-se entre 10 e 20 para coletas rápidas

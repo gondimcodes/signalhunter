@@ -50,7 +50,7 @@ pub struct SecurityConfig {
 }
 
 fn default_interval_mins() -> u32 {
-    60
+    1440
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
