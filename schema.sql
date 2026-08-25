@@ -26,8 +26,6 @@ CREATE TABLE IF NOT EXISTS olts (
     vendor ENUM('huawei', 'zte', 'datacom', 'fiberhome', 'nokia', 'parks', 'generic') NOT NULL,
     model VARCHAR(64) NULL,
     firmware_version VARCHAR(64) NULL,
-    primary_protocol ENUM('snmp', 'netconf', 'ssh') NOT NULL DEFAULT 'snmp',
-    fallback_protocol ENUM('snmp', 'netconf', 'ssh', 'none') NOT NULL DEFAULT 'ssh',
     
     -- Parâmetros SNMP (Credenciais cifradas com AES-256-GCM)
     snmp_version ENUM('v2c', 'v3') NOT NULL DEFAULT 'v2c',
@@ -38,13 +36,6 @@ CREATE TABLE IF NOT EXISTS olts (
     snmp_v3_auth_pass_encrypted TEXT NULL,
     snmp_v3_priv_proto ENUM('DES', 'AES', 'AES128', 'AES256') NULL,
     snmp_v3_priv_pass_encrypted TEXT NULL,
-    
-    -- Parâmetros SSH / Netconf (Credenciais cifradas)
-    netconf_port INT UNSIGNED NOT NULL DEFAULT 830,
-    ssh_port INT UNSIGNED NOT NULL DEFAULT 22,
-    mgmt_username VARCHAR(64) NULL,
-    mgmt_password_encrypted TEXT NULL,
-    mgmt_ssh_key_encrypted TEXT NULL,
     
     -- Parâmetros de Proteção e Agendamento
     is_active BOOLEAN NOT NULL DEFAULT TRUE,

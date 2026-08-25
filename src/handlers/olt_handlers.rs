@@ -16,15 +16,9 @@ pub struct CreateOltPayload {
     pub vendor: String,
     pub model: Option<String>,
     pub firmware_version: Option<String>,
-    pub primary_protocol: Option<String>,
-    pub fallback_protocol: Option<String>,
     pub snmp_version: Option<String>,
     pub snmp_port: Option<u32>,
     pub snmp_community: Option<String>,
-    pub netconf_port: Option<u32>,
-    pub ssh_port: Option<u32>,
-    pub mgmt_username: Option<String>,
-    pub mgmt_password: Option<String>,
     pub collection_interval_mins: Option<u32>,
     pub max_concurrent_requests: Option<u8>,
     pub pon_delay_ms: Option<u32>,
@@ -184,6 +178,17 @@ pub async fn create_olt_handler(
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
     let _ = require_admin_permission(&state, &headers)?;
 
+    let pool = state.db.as_ref().ok_or_else(|| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(ApiResponse {
+                success: false,
+                message: "Banco de dados não disponível".to_string(),
+                data: None,
+            }),
+        )
+    })?;
+
     if let Err(msg) = validate_olt_fields(
         Some(&payload.name),
         Some(&payload.ip_address),
@@ -199,17 +204,6 @@ pub async fn create_olt_handler(
             }),
         ));
     }
-
-    let pool = state.db.as_ref().ok_or_else(|| {
-        (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(ApiResponse {
-                success: false,
-                message: "Banco de dados não disponível".to_string(),
-                data: None,
-            }),
-        )
-    })?;
 
     // Validação de unicidade (impedir duplicatas por IP ou Nome)
     let existing = sqlx::query("SELECT id FROM olts WHERE ip_address = ? OR name = ? LIMIT 1")
@@ -230,7 +224,7 @@ pub async fn create_olt_handler(
         ));
     }
 
-    // Criptografar community SNMP e senha SSH se fornecidas
+    // Criptografar community SNMP se fornecida
     let snmp_community_encrypted = match payload.snmp_community {
         Some(ref comm) if !comm.trim().is_empty() => {
             Some(state.crypto.encrypt(comm.trim()).map_err(|e| {
@@ -247,44 +241,21 @@ pub async fn create_olt_handler(
         _ => None,
     };
 
-    let mgmt_password_encrypted = match payload.mgmt_password {
-        Some(ref pwd) if !pwd.trim().is_empty() => {
-            Some(state.crypto.encrypt(pwd.trim()).map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(ApiResponse {
-                        success: false,
-                        message: format!("Falha ao criptografar senha de gerência: {}", e),
-                        data: None,
-                    }),
-                )
-            })?)
-        }
-        _ => None,
-    };
-
     let res = sqlx::query(
         "INSERT INTO olts (
-            name, ip_address, vendor, model, firmware_version, primary_protocol, fallback_protocol,
-            snmp_version, snmp_port, snmp_community_encrypted, netconf_port, ssh_port,
-            mgmt_username, mgmt_password_encrypted, collection_interval_mins,
-            max_concurrent_requests, pon_delay_ms
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            name, ip_address, vendor, model, firmware_version,
+            snmp_version, snmp_port, snmp_community_encrypted,
+            collection_interval_mins, max_concurrent_requests, pon_delay_ms
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(payload.name.trim())
     .bind(payload.ip_address.trim())
     .bind(payload.vendor.trim().to_lowercase())
     .bind(payload.model.as_deref())
     .bind(payload.firmware_version.as_deref())
-    .bind(payload.primary_protocol.as_deref().unwrap_or("snmp"))
-    .bind(payload.fallback_protocol.as_deref().unwrap_or("ssh"))
     .bind(payload.snmp_version.as_deref().unwrap_or("v2c"))
     .bind(payload.snmp_port.unwrap_or(161))
     .bind(snmp_community_encrypted.as_deref())
-    .bind(payload.netconf_port.unwrap_or(830))
-    .bind(payload.ssh_port.unwrap_or(22))
-    .bind(payload.mgmt_username.as_deref())
-    .bind(mgmt_password_encrypted.as_deref())
     .bind(payload.collection_interval_mins.unwrap_or(60))
     .bind(payload.max_concurrent_requests.unwrap_or(2))
     .bind(payload.pon_delay_ms.unwrap_or(50))
@@ -334,9 +305,6 @@ pub struct UpdateOltPayload {
     pub vendor: Option<String>,
     pub snmp_port: Option<u32>,
     pub snmp_community: Option<String>,
-    pub ssh_port: Option<u32>,
-    pub mgmt_username: Option<String>,
-    pub mgmt_password: Option<String>,
     pub is_active: Option<bool>,
 }
 
@@ -391,40 +359,6 @@ pub async fn update_olt_handler(
         _ => None,
     };
 
-    let mgmt_username_cleaned: Option<Option<String>> = match payload.mgmt_username {
-        Some(ref user) => {
-            let trimmed = user.trim();
-            if trimmed.is_empty() {
-                Some(None) // Transforma string vazia em NULL no banco
-            } else {
-                Some(Some(trimmed.to_string()))
-            }
-        }
-        None => None,
-    };
-
-    let mgmt_password_encrypted = match payload.mgmt_password {
-        Some(ref pwd) => {
-            let trimmed = pwd.trim();
-            if trimmed.is_empty() {
-                Some(None) // Transforma string vazia em NULL no banco (remove senha)
-            } else {
-                let enc = state.crypto.encrypt(trimmed).map_err(|e| {
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(ApiResponse {
-                            success: false,
-                            message: format!("Erro ao criptografar senha SSH: {}", e),
-                            data: None,
-                        }),
-                    )
-                })?;
-                Some(Some(enc))
-            }
-        }
-        None => None,
-    };
-
     let mut sets = Vec::new();
     let mut query_builder = String::from("UPDATE olts SET ");
 
@@ -442,15 +376,6 @@ pub async fn update_olt_handler(
     }
     if snmp_community_encrypted.is_some() {
         sets.push("snmp_community_encrypted = ?");
-    }
-    if payload.ssh_port.is_some() {
-        sets.push("ssh_port = ?");
-    }
-    if mgmt_username_cleaned.is_some() {
-        sets.push("mgmt_username = ?");
-    }
-    if mgmt_password_encrypted.is_some() {
-        sets.push("mgmt_password_encrypted = ?");
     }
     if payload.is_active.is_some() {
         sets.push("is_active = ?");
@@ -486,15 +411,6 @@ pub async fn update_olt_handler(
     }
     if let Some(ref comm) = snmp_community_encrypted {
         query = query.bind(comm);
-    }
-    if let Some(sport) = payload.ssh_port {
-        query = query.bind(sport);
-    }
-    if let Some(ref suser_opt) = mgmt_username_cleaned {
-        query = query.bind(suser_opt.as_deref());
-    }
-    if let Some(ref spass_opt) = mgmt_password_encrypted {
-        query = query.bind(spass_opt.as_deref());
     }
     if let Some(active) = payload.is_active {
         query = query.bind(active);

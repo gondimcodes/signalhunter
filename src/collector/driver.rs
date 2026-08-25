@@ -38,19 +38,11 @@ pub struct OltTarget {
     pub ip_address: String,
     pub vendor: String,
     pub model: Option<String>,
-    pub primary_protocol: String,
-    pub fallback_protocol: String,
 
     // Parâmetros SNMP
     pub snmp_version: String,
     pub snmp_port: u16,
     pub snmp_community: Option<String>,
-
-    // Parâmetros SSH / Netconf
-    pub netconf_port: u16,
-    pub ssh_port: u16,
-    pub mgmt_username: Option<String>,
-    pub mgmt_password: Option<String>,
 
     // Proteção de CPU da OLT
     pub max_concurrent_requests: usize,

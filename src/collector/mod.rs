@@ -41,8 +41,8 @@ impl CollectorRegistry {
         let semaphore = Arc::new(Semaphore::new(max_concurrency));
 
         info!(
-            "Iniciando coleta controlada para OLT '{}' ({}) via protocolo primário '{}' (Concorrência máxima: {})",
-            target.name, target.ip_address, target.primary_protocol, max_concurrency
+            "Iniciando coleta controlada para OLT '{}' ({}) via SNMPv2c (Concorrência máxima: {})",
+            target.name, target.ip_address, max_concurrency
         );
 
         match driver

@@ -10,16 +10,10 @@ pub struct OltRecord {
     pub vendor: String,
     pub model: Option<String>,
     pub firmware_version: Option<String>,
-    pub primary_protocol: String,
-    pub fallback_protocol: String,
     pub snmp_version: String,
     pub snmp_port: u32,
     pub snmp_v3_user: Option<String>,
-    pub netconf_port: u32,
-    pub ssh_port: u32,
-    pub mgmt_username: Option<String>,
     pub snmp_community: Option<String>,
-    pub mgmt_password: Option<String>,
     pub is_active: bool,
     pub collection_interval_mins: u32,
     pub max_concurrent_requests: u8,
@@ -38,8 +32,6 @@ pub struct OltWithCredentials {
     pub vendor: String,
     pub model: Option<String>,
     pub firmware_version: Option<String>,
-    pub primary_protocol: String,
-    pub fallback_protocol: String,
     pub snmp_version: String,
     pub snmp_port: u32,
     pub snmp_community_encrypted: Option<String>,
@@ -48,11 +40,6 @@ pub struct OltWithCredentials {
     pub snmp_v3_auth_pass_encrypted: Option<String>,
     pub snmp_v3_priv_proto: Option<String>,
     pub snmp_v3_priv_pass_encrypted: Option<String>,
-    pub netconf_port: u32,
-    pub ssh_port: u32,
-    pub mgmt_username: Option<String>,
-    pub mgmt_password_encrypted: Option<String>,
-    pub mgmt_ssh_key_encrypted: Option<String>,
     pub is_active: bool,
     pub collection_interval_mins: u32,
     pub max_concurrent_requests: u8,
@@ -135,13 +122,12 @@ pub async fn list_olts(
     crypto: &crate::crypto::CryptoManager,
 ) -> Result<Vec<OltRecord>, sqlx::Error> {
     let rows = sqlx::query_as::<_, OltWithCredentials>(
-        "SELECT id, name, ip_address, vendor, model, firmware_version, primary_protocol, fallback_protocol,
+        "SELECT id, name, ip_address, vendor, model, firmware_version,
                 snmp_version, snmp_port, snmp_community_encrypted, snmp_v3_user, snmp_v3_auth_proto,
                 snmp_v3_auth_pass_encrypted, snmp_v3_priv_proto, snmp_v3_priv_pass_encrypted,
-                netconf_port, ssh_port, mgmt_username, mgmt_password_encrypted, mgmt_ssh_key_encrypted,
                 is_active, collection_interval_mins, max_concurrent_requests, pon_delay_ms,
                 last_collected_at, last_collection_status, last_error_message, created_at
-         FROM olts ORDER BY name ASC"
+         FROM olts ORDER BY name ASC",
     )
     .fetch_all(pool)
     .await?;
@@ -152,10 +138,6 @@ pub async fn list_olts(
             .snmp_community_encrypted
             .as_deref()
             .and_then(|enc| crypto.decrypt(enc).ok());
-        let mgmt_password = r
-            .mgmt_password_encrypted
-            .as_deref()
-            .and_then(|enc| crypto.decrypt(enc).ok());
 
         records.push(OltRecord {
             id: r.id,
@@ -164,16 +146,10 @@ pub async fn list_olts(
             vendor: r.vendor,
             model: r.model,
             firmware_version: r.firmware_version,
-            primary_protocol: r.primary_protocol,
-            fallback_protocol: r.fallback_protocol,
             snmp_version: r.snmp_version,
             snmp_port: r.snmp_port,
             snmp_v3_user: r.snmp_v3_user,
-            netconf_port: r.netconf_port,
-            ssh_port: r.ssh_port,
-            mgmt_username: r.mgmt_username,
             snmp_community,
-            mgmt_password,
             is_active: r.is_active,
             collection_interval_mins: r.collection_interval_mins,
             max_concurrent_requests: r.max_concurrent_requests,

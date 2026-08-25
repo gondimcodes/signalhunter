@@ -20,13 +20,12 @@ pub async fn sync_olt_telemetry(
     let pool = state.db.as_ref().ok_or("Banco de dados não disponível")?;
 
     let olt_row = sqlx::query_as::<_, crate::db::queries::OltWithCredentials>(
-        "SELECT id, name, ip_address, vendor, model, firmware_version, primary_protocol, fallback_protocol,
+        "SELECT id, name, ip_address, vendor, model, firmware_version,
                 snmp_version, snmp_port, snmp_community_encrypted, snmp_v3_user, snmp_v3_auth_proto,
                 snmp_v3_auth_pass_encrypted, snmp_v3_priv_proto, snmp_v3_priv_pass_encrypted,
-                netconf_port, ssh_port, mgmt_username, mgmt_password_encrypted, mgmt_ssh_key_encrypted,
                 is_active, collection_interval_mins, max_concurrent_requests, pon_delay_ms,
                 last_collected_at, last_collection_status, last_error_message, created_at
-         FROM olts WHERE id = ?"
+         FROM olts WHERE id = ?",
     )
     .bind(olt_id)
     .fetch_optional(pool)
@@ -46,26 +45,15 @@ pub async fn sync_olt_telemetry(
         .as_deref()
         .and_then(|enc| state.crypto.decrypt(enc).ok());
 
-    let decrypted_password = olt_row
-        .mgmt_password_encrypted
-        .as_deref()
-        .and_then(|enc| state.crypto.decrypt(enc).ok());
-
     let target = OltTarget {
         id: olt_row.id,
         name: olt_row.name.clone(),
         ip_address: olt_row.ip_address.clone(),
         vendor: olt_row.vendor.clone(),
         model: olt_row.model,
-        primary_protocol: olt_row.primary_protocol.clone(),
-        fallback_protocol: olt_row.fallback_protocol,
         snmp_version: olt_row.snmp_version,
         snmp_port: olt_row.snmp_port as u16,
         snmp_community: decrypted_community,
-        netconf_port: olt_row.netconf_port as u16,
-        ssh_port: olt_row.ssh_port as u16,
-        mgmt_username: olt_row.mgmt_username,
-        mgmt_password: decrypted_password,
         max_concurrent_requests: olt_row.max_concurrent_requests as usize,
         pon_delay: Duration::from_millis(olt_row.pon_delay_ms as u64),
         timeout: Duration::from_secs(5),

@@ -145,8 +145,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 vendor ENUM('huawei', 'zte', 'datacom', 'fiberhome', 'nokia', 'parks', 'generic') NOT NULL,
                 model VARCHAR(64) NULL,
                 firmware_version VARCHAR(64) NULL,
-                primary_protocol ENUM('snmp', 'netconf', 'ssh') NOT NULL DEFAULT 'snmp',
-                fallback_protocol ENUM('snmp', 'netconf', 'ssh', 'none') NOT NULL DEFAULT 'ssh',
                 snmp_version ENUM('v2c', 'v3') NOT NULL DEFAULT 'v2c',
                 snmp_port INT UNSIGNED NOT NULL DEFAULT 161,
                 snmp_community_encrypted TEXT NULL,
@@ -155,11 +153,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 snmp_v3_auth_pass_encrypted TEXT NULL,
                 snmp_v3_priv_proto ENUM('DES', 'AES', 'AES128', 'AES256') NULL,
                 snmp_v3_priv_pass_encrypted TEXT NULL,
-                netconf_port INT UNSIGNED NOT NULL DEFAULT 830,
-                ssh_port INT UNSIGNED NOT NULL DEFAULT 22,
-                mgmt_username VARCHAR(64) NULL,
-                mgmt_password_encrypted TEXT NULL,
-                mgmt_ssh_key_encrypted TEXT NULL,
                 is_active BOOLEAN NOT NULL DEFAULT TRUE,
                 collection_interval_mins INT UNSIGNED NOT NULL DEFAULT 60,
                 max_concurrent_requests TINYINT UNSIGNED NOT NULL DEFAULT 2,
@@ -172,6 +165,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 INDEX idx_olt_active (is_active)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
         ).execute(pool).await;
+
+        // Migração suave e segura: remove colunas legadas de SSH / Netconf caso existam na base de dados
+        let _ = sqlx::query("ALTER TABLE olts DROP COLUMN IF EXISTS primary_protocol")
+            .execute(pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE olts DROP COLUMN IF EXISTS fallback_protocol")
+            .execute(pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE olts DROP COLUMN IF EXISTS netconf_port")
+            .execute(pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE olts DROP COLUMN IF EXISTS ssh_port")
+            .execute(pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE olts DROP COLUMN IF EXISTS mgmt_username")
+            .execute(pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE olts DROP COLUMN IF EXISTS mgmt_password_encrypted")
+            .execute(pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE olts DROP COLUMN IF EXISTS mgmt_ssh_key_encrypted")
+            .execute(pool)
+            .await;
 
         let _ = sqlx::query(
             "CREATE TABLE IF NOT EXISTS onus (
