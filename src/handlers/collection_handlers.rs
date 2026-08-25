@@ -156,19 +156,63 @@ pub async fn sync_olt_telemetry(
                     })
             };
 
+            // Extrator Dinâmico de Modelo (ex: "ZXA10 C600", "ZXA10 C610", "DM4615", "MA5800")
+            let detected_model = if let Some(first_comma) = sys_desc.find(',') {
+                let prefix = sys_desc[..first_comma].trim();
+                if !prefix.is_empty()
+                    && prefix.len() <= 35
+                    && prefix.chars().any(|c| c.is_alphanumeric())
+                {
+                    Some(prefix.to_string())
+                } else {
+                    None
+                }
+            } else if sys_desc.to_uppercase().contains("DM") {
+                sys_desc
+                    .split_whitespace()
+                    .find(|w| {
+                        w.to_uppercase().starts_with("DM46") || w.to_uppercase().starts_with("DM47")
+                    })
+                    .map(|s| s.trim().to_string())
+            } else if sys_desc.to_uppercase().contains("MA5") {
+                sys_desc
+                    .split_whitespace()
+                    .find(|w| w.to_uppercase().starts_with("MA5"))
+                    .map(|s| s.trim().to_string())
+            } else {
+                None
+            };
+
             if let Some(ref fw) = detected_fw {
                 info!(
                     "OLT '{}' [{}]: Versão de firmware identificada via SNMP: '{}'",
                     target.name, target.ip_address, fw
                 );
-                let _ = sqlx::query("UPDATE olts SET firmware_version = ? WHERE id = ?")
-                    .bind(fw)
-                    .bind(olt_id)
-                    .execute(pool)
-                    .await;
-            } else {
-                log::warn!("OLT '{}' [{}]: Resposta sysDescr ('{}') não contém padrão de versão identificável.", target.name, target.ip_address, sys_desc);
             }
+
+            if let Some(ref m) = detected_model {
+                info!(
+                    "OLT '{}' [{}]: Modelo identificado via SNMP: '{}'",
+                    target.name, target.ip_address, m
+                );
+            }
+
+            // Atualiza firmware e modelo (caso o modelo na base esteja nulo, vazio ou genérico)
+            let _ = sqlx::query(
+                "UPDATE olts SET 
+                    firmware_version = COALESCE(?, firmware_version),
+                    model = CASE 
+                        WHEN model IS NULL OR model = '' OR model = '--' OR model LIKE '%GPON%' 
+                        THEN COALESCE(?, model) 
+                        ELSE model 
+                    END
+                 WHERE id = ?",
+            )
+            .bind(&detected_fw)
+            .bind(&detected_model)
+            .bind(olt_id)
+            .execute(pool)
+            .await;
         }
     }
 
