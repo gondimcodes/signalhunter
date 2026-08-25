@@ -601,12 +601,12 @@ impl PdfReportGenerator {
 
         // Cabeçalho da Tabela
         let col_pos = MARGIN + 1.0;
-        let col_ip = MARGIN + 8.0;
-        let col_host = MARGIN + 38.0;
-        let col_vendor = MARGIN + 76.0;
-        let col_model = MARGIN + 102.0;
-        let col_fw = MARGIN + 128.0;
-        let col_status = MARGIN + 168.0;
+        let col_ip = MARGIN + 7.0;
+        let col_host = MARGIN + 35.0;
+        let col_vendor = MARGIN + 68.0;
+        let col_model = MARGIN + 90.0;
+        let col_fw = MARGIN + 138.0;
+        let col_status = MARGIN + 172.0;
 
         let draw_table_header_fw = |writer: &mut PdfWriter| {
             writer.ensure_space(ROW_H * 2.0);

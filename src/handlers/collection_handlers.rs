@@ -148,6 +148,7 @@ pub async fn sync_olt_telemetry(
             } else if vendor_lower.contains("huawei")
                 || desc_upper.contains("MA5")
                 || desc_upper.contains("HUAWEI")
+                || desc_upper.contains("SMARTAX")
             {
                 let model = if desc_upper.contains("MA5800") {
                     "Huawei SmartAX MA5800".to_string()
@@ -157,6 +158,10 @@ pub async fn sync_olt_telemetry(
                     "Huawei SmartAX MA5680T".to_string()
                 } else if desc_upper.contains("MA5683") {
                     "Huawei SmartAX MA5683T".to_string()
+                } else if desc_upper.contains("MA5600") {
+                    "Huawei SmartAX MA5600T".to_string()
+                } else if desc_upper.contains("MA5603") {
+                    "Huawei SmartAX MA5603T".to_string()
                 } else {
                     "Huawei SmartAX GPON".to_string()
                 };
@@ -173,7 +178,7 @@ pub async fn sync_olt_telemetry(
                     sys_desc
                         .split_whitespace()
                         .find(|w| {
-                            (w.starts_with('V') || w.starts_with('R'))
+                            (w.starts_with('V') || w.starts_with('v') || w.starts_with('R'))
                                 && w.chars().any(|c| c.is_ascii_digit())
                         })
                         .map(|s| {
