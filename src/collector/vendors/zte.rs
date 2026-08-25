@@ -257,9 +257,12 @@ impl OltDriver for ZteDriver {
         let mut temp_map = std::collections::HashMap::new();
         let volt_map: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
 
+        info!(
+            "ZTE '{}': Coletando telemetrias ópticas (Rx, Tx, OLT-Rx, Temp, Distâncias e Quedas)...",
+            target.name
+        );
+
         // 2.1 Potência Óptica Rx da ONU (Downstream):
-        // Na C600 Titan (zxAnGponRmAniRxOptLevel): .1082.500.20.2.2.2.1.10 (em dBuW / resolução 0.002 dB: val * 0.002 - 30.0)
-        // No C300/C320: .1082.500.1.2.4.2.1.2 e .1012.3.50.12.1.1.10 (e .1012.3.50.12.1.1.14)
         let rx_walk_c600 = snmp
             .bulk_walk(".1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.10", 65535)
             .await

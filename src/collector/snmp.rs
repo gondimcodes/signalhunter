@@ -397,7 +397,7 @@ impl SnmpClient {
         }
     }
 
-    /// Executa um SNMP Walk seguro, rápido e infalível com SNMP GetBulk (60 repetições por pacote)
+    /// Executa um SNMP Walk seguro, rápido e infalível com SNMP GetBulk (30 repetições por pacote)
     /// Baixa 3000+ ONUs em menos de 2 segundos sem timeout de UDP
     pub async fn bulk_walk(
         &self,
@@ -410,7 +410,7 @@ impl SnmpClient {
 
         loop {
             let mut chunk = None;
-            for attempt in 1..=4 {
+            for attempt in 1..=3 {
                 match self.get_bulk(&current_oid, 30).await {
                     Ok(vbs) if !vbs.is_empty() => {
                         chunk = Some(vbs);
@@ -418,7 +418,7 @@ impl SnmpClient {
                     }
                     Ok(_) => break,
                     Err(e) => {
-                        if attempt < 4 {
+                        if attempt < 3 {
                             tokio::time::sleep(Duration::from_millis(150 * attempt)).await;
                         } else {
                             log::debug!(
@@ -432,10 +432,11 @@ impl SnmpClient {
             }
 
             match chunk {
-                Some(vbs) => {
+                Some(vbs) if !vbs.is_empty() => {
                     let mut reached_end = false;
+                    let mut new_oid_count = 0;
+
                     for binding in vbs {
-                        // endOfMibView / noSuchObject sinaliza fim da sub-árvore
                         if binding.oid.starts_with("endOfMib:") {
                             reached_end = true;
                             break;
@@ -457,6 +458,7 @@ impl SnmpClient {
 
                         current_oid = binding.oid.clone();
                         results.push(binding);
+                        new_oid_count += 1;
 
                         if max_entries > 0 && results.len() >= max_entries {
                             reached_end = true;
@@ -464,63 +466,15 @@ impl SnmpClient {
                         }
                     }
 
-                    if reached_end {
+                    if reached_end || new_oid_count == 0 {
                         break;
                     }
                 }
-                None => {
+                _ => {
                     if results.is_empty() {
-                        // Fallback para GetNext walk desde o início se GetBulk não funcionar
                         return self
                             .walk(root_oid, max_entries, Duration::from_micros(20))
                             .await;
-                    }
-                    // GetBulk falhou no meio do walk (ex: OLT ZTE demora ao cruzar limite de placa PON)
-                    // Continua via GetNext a partir do último OID obtido com sucesso
-                    log::debug!(
-                        "GetBulk falhou após {} entradas em {}, continuando via GetNext a partir de {}",
-                        results.len(), root_oid, current_oid
-                    );
-                    let mut get_next_oid = current_oid.clone();
-                    'gn_fallback: loop {
-                        let mut found = false;
-                        for attempt in 1u64..=6 {
-                            match self.get_next(&get_next_oid).await {
-                                Ok(Some(vb)) => {
-                                    if vb.oid.starts_with("endOfMib:") {
-                                        break 'gn_fallback;
-                                    }
-                                    let curr_parts: Vec<&str> =
-                                        vb.oid.trim_start_matches('.').split('.').collect();
-                                    if curr_parts.len() < root_parts.len()
-                                        || !curr_parts.starts_with(&root_parts[..])
-                                    {
-                                        break 'gn_fallback;
-                                    }
-                                    if vb.oid == get_next_oid {
-                                        break 'gn_fallback;
-                                    }
-                                    get_next_oid = vb.oid.clone();
-                                    results.push(vb);
-                                    if max_entries > 0 && results.len() >= max_entries {
-                                        break 'gn_fallback;
-                                    }
-                                    found = true;
-                                    break;
-                                }
-                                Ok(None) | Err(_) => {
-                                    if attempt < 6 {
-                                        tokio::time::sleep(Duration::from_millis(100 * attempt))
-                                            .await;
-                                    } else {
-                                        break 'gn_fallback;
-                                    }
-                                }
-                            }
-                        }
-                        if !found {
-                            break;
-                        }
                     }
                     break;
                 }
