@@ -230,6 +230,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .execute(pool)
         .await;
 
+        let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_onus_olt_id ON onus (olt_id, id)")
+            .execute(pool)
+            .await;
+
         let _ = sqlx::query(
             "CREATE TABLE IF NOT EXISTS audit_logs (
                 id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
