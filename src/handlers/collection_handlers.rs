@@ -104,7 +104,7 @@ pub async fn sync_olt_telemetry(
                 || desc_upper.contains("DMOS")
                 || desc_upper.contains("DATACOM")
             {
-                // Datacom DmOS: Ex: "DmOS 12.2.2 DM4610 8GPON+2XS..."
+                // Datacom DmOS: Ex: "DM4615 16GPON+4GT+4XS (DmOS version 9.4.2-042-1-g6453973b4e)"
                 let model = if desc_upper.contains("DM4618") {
                     "Datacom DM4618".to_string()
                 } else if desc_upper.contains("DM4615") {
@@ -119,16 +119,27 @@ pub async fn sync_olt_telemetry(
                     "Datacom DmOS OLT".to_string()
                 };
 
-                let fw = if let Some(pos) = desc_upper.find("DMOS") {
+                let fw = if let Some(pos) = desc_upper.find("VERSION ") {
+                    let part = &sys_desc[pos + 8..];
+                    part.split(|c: char| c.is_whitespace() || c == ')' || c == ',')
+                        .next()
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| "DmOS".to_string())
+                } else if let Some(pos) = desc_upper.find("DMOS") {
                     let part = &sys_desc[pos..];
                     part.split_whitespace()
-                        .nth(1)
-                        .map(|s| s.to_string())
+                        .find(|w| w.contains('.') && w.chars().any(|c| c.is_ascii_digit()))
+                        .map(|s| {
+                            s.trim_matches(|c: char| !c.is_alphanumeric() && c != '.' && c != '-')
+                                .to_string()
+                        })
                         .unwrap_or_else(|| "DmOS".to_string())
                 } else {
                     sys_desc
                         .split_whitespace()
-                        .find(|w| w.contains('.'))
+                        .find(|w| w.contains('.') && w.chars().any(|c| c.is_ascii_digit()))
                         .map(|s| s.to_string())
                         .unwrap_or_else(|| "--".to_string())
                 };
@@ -150,11 +161,33 @@ pub async fn sync_olt_telemetry(
                     "Huawei SmartAX GPON".to_string()
                 };
 
-                let fw = sys_desc
-                    .split_whitespace()
-                    .find(|w| w.starts_with('V') || w.starts_with('R'))
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| "--".to_string());
+                let fw = if let Some(pos) = desc_upper.find("VERSION ") {
+                    let part = &sys_desc[pos + 8..];
+                    part.split(|c: char| c.is_whitespace() || c == ')' || c == ',')
+                        .next()
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| "--".to_string())
+                } else {
+                    sys_desc
+                        .split_whitespace()
+                        .find(|w| {
+                            (w.starts_with('V') || w.starts_with('R'))
+                                && w.chars().any(|c| c.is_ascii_digit())
+                        })
+                        .map(|s| {
+                            s.trim_matches(|c: char| !c.is_alphanumeric() && c != '.' && c != '-')
+                                .to_string()
+                        })
+                        .unwrap_or_else(|| {
+                            sys_desc
+                                .split_whitespace()
+                                .find(|w| w.contains('.') && w.chars().any(|c| c.is_ascii_digit()))
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| "--".to_string())
+                        })
+                };
 
                 (Some(model), Some(fw))
             } else if vendor_lower.contains("zte")
@@ -175,11 +208,33 @@ pub async fn sync_olt_telemetry(
                     "ZTE ZXA10 GPON".to_string()
                 };
 
-                let fw = sys_desc
-                    .split_whitespace()
-                    .find(|w| w.starts_with('V') || w.starts_with('R'))
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| "--".to_string());
+                let fw = if let Some(pos) = desc_upper.find("VERSION ") {
+                    let part = &sys_desc[pos + 8..];
+                    part.split(|c: char| c.is_whitespace() || c == ')' || c == ',')
+                        .next()
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| "--".to_string())
+                } else if let Some(pos) = desc_upper.find("V") {
+                    let part = &sys_desc[pos..];
+                    part.split_whitespace()
+                        .find(|w| {
+                            (w.starts_with('V') || w.starts_with('v') || w.starts_with('R'))
+                                && w.chars().any(|c| c.is_ascii_digit())
+                        })
+                        .map(|s| {
+                            s.trim_matches(|c: char| !c.is_alphanumeric() && c != '.' && c != '-')
+                                .to_string()
+                        })
+                        .unwrap_or_else(|| "--".to_string())
+                } else {
+                    sys_desc
+                        .split_whitespace()
+                        .find(|w| w.contains('.') && w.chars().any(|c| c.is_ascii_digit()))
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| "--".to_string())
+                };
 
                 (Some(model), Some(fw))
             } else if vendor_lower.contains("nokia")
@@ -236,10 +291,21 @@ pub async fn sync_olt_telemetry(
             };
 
             let _ = sqlx::query(
-                "UPDATE olts SET model = COALESCE(?, model), firmware_version = COALESCE(?, firmware_version) WHERE id = ?"
+                "UPDATE olts SET 
+                    model = CASE WHEN ? IS NOT NULL AND ? != '' AND ? != '--' THEN ? ELSE COALESCE(model, ?) END,
+                    firmware_version = CASE WHEN ? IS NOT NULL AND ? != '' AND ? != '--' THEN ? ELSE COALESCE(firmware_version, ?) END
+                 WHERE id = ?"
             )
-            .bind(model)
-            .bind(fw)
+            .bind(&model)
+            .bind(&model)
+            .bind(&model)
+            .bind(&model)
+            .bind(&model)
+            .bind(&fw)
+            .bind(&fw)
+            .bind(&fw)
+            .bind(&fw)
+            .bind(&fw)
             .bind(olt_id)
             .execute(pool)
             .await;
