@@ -203,115 +203,76 @@ pub async fn get_dashboard_metrics(pool: &MySqlPool) -> Result<DashboardMetrics,
     .await
     .unwrap_or((0,));
 
-    let saturated_onus: (i64,) = sqlx::query_as(
-        "SELECT COUNT(DISTINCT o.id) FROM onus o 
+    // Contagem rápida de status agregados da tabela onus (los, dying_gasp, offline, total)
+    let onu_status_counts: (i64, i64, i64) = sqlx::query_as(
+        "SELECT 
+            COUNT(CASE WHEN o.status = 'los' THEN 1 END) AS los_count,
+            COUNT(CASE WHEN o.status = 'dying_gasp' THEN 1 END) AS dying_gasp_count,
+            COUNT(CASE WHEN o.status IN ('offline', 'los', 'dying_gasp', 'unknown') THEN 1 END) AS offline_count
+         FROM onus o 
          JOIN olts ol ON o.olt_id = ol.id 
-         JOIN (
-            SELECT onu_id, rx_power_dbm FROM onu_signal_history 
-            WHERE id IN (SELECT MAX(id) FROM onu_signal_history GROUP BY onu_id)
-         ) h ON o.id = h.onu_id 
-         WHERE ol.is_active = TRUE AND h.rx_power_dbm > -14.00",
+         WHERE ol.is_active = TRUE",
     )
     .fetch_one(pool)
     .await
-    .unwrap_or((0,));
+    .unwrap_or((0, 0, 0));
 
-    let excellent_onus: (i64,) = sqlx::query_as(
-        "SELECT COUNT(DISTINCT o.id) FROM onus o 
-         JOIN olts ol ON o.olt_id = ol.id 
-         JOIN (
-            SELECT onu_id, signal_quality FROM onu_signal_history 
-            WHERE id IN (SELECT MAX(id) FROM onu_signal_history GROUP BY onu_id)
-         ) h ON o.id = h.onu_id 
-         WHERE ol.is_active = TRUE AND h.signal_quality = 'excellent'",
+    let los_onus = onu_status_counts.0;
+    let dying_gasp_onus = onu_status_counts.1;
+    let offline_onus = onu_status_counts.2;
+
+    // Consulta agregada única para a última leitura de sinal de cada ONU (elimina 6x subqueries com GROUP BY)
+    #[derive(sqlx::FromRow)]
+    struct SignalAggregate {
+        saturated_count: i64,
+        excellent_count: i64,
+        good_count: i64,
+        warning_count: i64,
+        critical_count: i64,
+        degraded_count: i64,
+    }
+
+    let signal_agg: SignalAggregate = sqlx::query_as(
+        "WITH latest_history AS (
+            SELECT h.onu_id, h.rx_power_dbm, h.signal_quality, h.is_degraded,
+                   ROW_NUMBER() OVER (PARTITION BY h.onu_id ORDER BY h.id DESC) as rn
+            FROM onu_signal_history h
+            JOIN onus o ON h.onu_id = o.id
+            JOIN olts ol ON o.olt_id = ol.id
+            WHERE ol.is_active = TRUE
+        )
+        SELECT 
+            COALESCE(SUM(CASE WHEN rx_power_dbm > -14.00 THEN 1 ELSE 0 END), 0) AS saturated_count,
+            COALESCE(SUM(CASE WHEN signal_quality = 'excellent' THEN 1 ELSE 0 END), 0) AS excellent_count,
+            COALESCE(SUM(CASE WHEN signal_quality = 'good' THEN 1 ELSE 0 END), 0) AS good_count,
+            COALESCE(SUM(CASE WHEN signal_quality = 'warning' THEN 1 ELSE 0 END), 0) AS warning_count,
+            COALESCE(SUM(CASE WHEN signal_quality = 'critical' THEN 1 ELSE 0 END), 0) AS critical_count,
+            COALESCE(SUM(CASE WHEN is_degraded = TRUE THEN 1 ELSE 0 END), 0) AS degraded_count
+        FROM latest_history
+        WHERE rn = 1"
     )
     .fetch_one(pool)
     .await
-    .unwrap_or((0,));
+    .unwrap_or(SignalAggregate {
+        saturated_count: 0,
+        excellent_count: 0,
+        good_count: 0,
+        warning_count: 0,
+        critical_count: 0,
+        degraded_count: 0,
+    });
 
-    let good_onus: (i64,) = sqlx::query_as(
-        "SELECT COUNT(DISTINCT o.id) FROM onus o 
-         JOIN olts ol ON o.olt_id = ol.id 
-         JOIN (
-            SELECT onu_id, signal_quality FROM onu_signal_history 
-            WHERE id IN (SELECT MAX(id) FROM onu_signal_history GROUP BY onu_id)
-         ) h ON o.id = h.onu_id 
-         WHERE ol.is_active = TRUE AND h.signal_quality = 'good'",
-    )
-    .fetch_one(pool)
-    .await
-    .unwrap_or((0,));
+    let saturated_onus = signal_agg.saturated_count;
+    let excellent_onus = signal_agg.excellent_count;
+    let good_onus = signal_agg.good_count;
+    let warning_onus = signal_agg.warning_count;
+    let critical_onus = signal_agg.critical_count;
+    let degraded_onus = signal_agg.degraded_count;
 
-    let warning_onus: (i64,) = sqlx::query_as(
-        "SELECT COUNT(DISTINCT o.id) FROM onus o 
-         JOIN olts ol ON o.olt_id = ol.id 
-         JOIN (
-            SELECT onu_id, signal_quality FROM onu_signal_history 
-            WHERE id IN (SELECT MAX(id) FROM onu_signal_history GROUP BY onu_id)
-         ) h ON o.id = h.onu_id 
-         WHERE ol.is_active = TRUE AND h.signal_quality = 'warning'",
-    )
-    .fetch_one(pool)
-    .await
-    .unwrap_or((0,));
-
-    let critical_onus: (i64,) = sqlx::query_as(
-        "SELECT COUNT(DISTINCT o.id) FROM onus o 
-         JOIN olts ol ON o.olt_id = ol.id 
-         JOIN (
-            SELECT onu_id, signal_quality FROM onu_signal_history 
-            WHERE id IN (SELECT MAX(id) FROM onu_signal_history GROUP BY onu_id)
-         ) h ON o.id = h.onu_id 
-         WHERE ol.is_active = TRUE AND h.signal_quality = 'critical'",
-    )
-    .fetch_one(pool)
-    .await
-    .unwrap_or((0,));
-
-    let los_onus: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM onus o 
-         JOIN olts ol ON o.olt_id = ol.id 
-         WHERE ol.is_active = TRUE AND o.status = 'los'",
-    )
-    .fetch_one(pool)
-    .await
-    .unwrap_or((0,));
-
-    let dying_gasp_onus: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM onus o 
-         JOIN olts ol ON o.olt_id = ol.id 
-         WHERE ol.is_active = TRUE AND o.status = 'dying_gasp'",
-    )
-    .fetch_one(pool)
-    .await
-    .unwrap_or((0,));
-
-    let offline_onus: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM onus o 
-         JOIN olts ol ON o.olt_id = ol.id 
-         WHERE ol.is_active = TRUE AND o.status IN ('offline', 'los', 'dying_gasp', 'unknown')",
-    )
-    .fetch_one(pool)
-    .await
-    .unwrap_or((0,));
-
-    let degraded_onus: (i64,) = sqlx::query_as(
-        "SELECT COUNT(DISTINCT o.id) FROM onus o 
-         JOIN olts ol ON o.olt_id = ol.id 
-         JOIN (
-            SELECT onu_id, is_degraded FROM onu_signal_history 
-            WHERE id IN (SELECT MAX(id) FROM onu_signal_history GROUP BY onu_id)
-         ) h ON o.id = h.onu_id 
-         WHERE ol.is_active = TRUE AND h.is_degraded = TRUE",
-    )
-    .fetch_one(pool)
-    .await
-    .unwrap_or((0,));
-
-    let healthy_onus = excellent_onus.0 + good_onus.0;
+    let healthy_onus = excellent_onus + good_onus;
 
     // Apenas ONUs ativas na planta óptica (excluindo dying gasp que é falta de energia)
-    let optical_plant_onus = total_onus.0.saturating_sub(dying_gasp_onus.0);
+    let optical_plant_onus = total_onus.0.saturating_sub(dying_gasp_onus);
     let health_percentage = if optical_plant_onus > 0 {
         ((healthy_onus as f64) / (optical_plant_onus as f64)) * 100.0
     } else {
@@ -321,16 +282,16 @@ pub async fn get_dashboard_metrics(pool: &MySqlPool) -> Result<DashboardMetrics,
     Ok(DashboardMetrics {
         total_olts: total_olts.0,
         total_onus: total_onus.0,
-        saturated_onus: saturated_onus.0,
-        excellent_onus: excellent_onus.0,
-        good_onus: good_onus.0,
+        saturated_onus,
+        excellent_onus,
+        good_onus,
         healthy_onus,
-        warning_onus: warning_onus.0,
-        critical_onus: critical_onus.0,
-        offline_onus: offline_onus.0,
-        los_onus: los_onus.0,
-        dying_gasp_onus: dying_gasp_onus.0,
-        degraded_onus: degraded_onus.0,
+        warning_onus,
+        critical_onus,
+        offline_onus,
+        los_onus,
+        dying_gasp_onus,
+        degraded_onus,
         health_percentage,
     })
 }
