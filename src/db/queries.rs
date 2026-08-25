@@ -221,7 +221,7 @@ pub async fn get_dashboard_metrics(pool: &MySqlPool) -> Result<DashboardMetrics,
     let dying_gasp_onus = onu_status_counts.1;
     let offline_onus = onu_status_counts.2;
 
-    // Consulta agregada única para a última leitura de sinal de cada ONU (elimina 6x subqueries com GROUP BY)
+    // Consulta agregada de alta performance: busca a última leitura apenas para as ONUs ativas
     #[derive(sqlx::FromRow)]
     struct SignalAggregate {
         saturated_count: i64,
@@ -233,23 +233,22 @@ pub async fn get_dashboard_metrics(pool: &MySqlPool) -> Result<DashboardMetrics,
     }
 
     let signal_agg: SignalAggregate = sqlx::query_as(
-        "WITH latest_history AS (
-            SELECT h.onu_id, h.rx_power_dbm, h.signal_quality, h.is_degraded,
-                   ROW_NUMBER() OVER (PARTITION BY h.onu_id ORDER BY h.id DESC) as rn
-            FROM onu_signal_history h
-            JOIN onus o ON h.onu_id = o.id
-            JOIN olts ol ON o.olt_id = ol.id
-            WHERE ol.is_active = TRUE
+        "SELECT 
+            COALESCE(SUM(CASE WHEN h.rx_power_dbm > -14.00 THEN 1 ELSE 0 END), 0) AS saturated_count,
+            COALESCE(SUM(CASE WHEN h.signal_quality = 'excellent' THEN 1 ELSE 0 END), 0) AS excellent_count,
+            COALESCE(SUM(CASE WHEN h.signal_quality = 'good' THEN 1 ELSE 0 END), 0) AS good_count,
+            COALESCE(SUM(CASE WHEN h.signal_quality = 'warning' THEN 1 ELSE 0 END), 0) AS warning_count,
+            COALESCE(SUM(CASE WHEN h.signal_quality = 'critical' THEN 1 ELSE 0 END), 0) AS critical_count,
+            COALESCE(SUM(CASE WHEN h.is_degraded = TRUE THEN 1 ELSE 0 END), 0) AS degraded_count
+        FROM onus o
+        JOIN olts ol ON o.olt_id = ol.id
+        LEFT JOIN onu_signal_history h ON h.id = (
+            SELECT id FROM onu_signal_history 
+            WHERE onu_id = o.id 
+            ORDER BY id DESC 
+            LIMIT 1
         )
-        SELECT 
-            COALESCE(SUM(CASE WHEN rx_power_dbm > -14.00 THEN 1 ELSE 0 END), 0) AS saturated_count,
-            COALESCE(SUM(CASE WHEN signal_quality = 'excellent' THEN 1 ELSE 0 END), 0) AS excellent_count,
-            COALESCE(SUM(CASE WHEN signal_quality = 'good' THEN 1 ELSE 0 END), 0) AS good_count,
-            COALESCE(SUM(CASE WHEN signal_quality = 'warning' THEN 1 ELSE 0 END), 0) AS warning_count,
-            COALESCE(SUM(CASE WHEN signal_quality = 'critical' THEN 1 ELSE 0 END), 0) AS critical_count,
-            COALESCE(SUM(CASE WHEN is_degraded = TRUE THEN 1 ELSE 0 END), 0) AS degraded_count
-        FROM latest_history
-        WHERE rn = 1"
+        WHERE ol.is_active = TRUE"
     )
     .fetch_one(pool)
     .await
