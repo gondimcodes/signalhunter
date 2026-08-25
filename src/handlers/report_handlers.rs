@@ -348,8 +348,8 @@ pub async fn generate_report_pdf_handler(
     };
 
     // Busca metadados de cada OLT: Total de ONUs e Total Real de Alertas calculados no banco (Apenas problemas ópticos e LOS, sem Dying Gasp)
-    let olt_metadata: Vec<(String, String, i64, i64)> = sqlx::query_as(
-        "SELECT ol.name, UPPER(ol.vendor), 
+    let olt_metadata: Vec<(String, String, Option<String>, i64, i64)> = sqlx::query_as(
+        "SELECT ol.name, UPPER(ol.vendor), ol.model,
                 COUNT(CASE WHEN o.last_seen_at >= DATE_SUB(COALESCE(ol.last_collected_at, UTC_TIMESTAMP()), INTERVAL 15 MINUTE) THEN 1 END) AS total_onus,
                 COUNT(CASE WHEN o.last_seen_at >= DATE_SUB(COALESCE(ol.last_collected_at, UTC_TIMESTAMP()), INTERVAL 15 MINUTE)
                            AND (o.status IN ('los', 'offline')
@@ -368,15 +368,15 @@ pub async fn generate_report_pdf_handler(
              ORDER BY id DESC LIMIT 1
          )
          WHERE ol.is_active = TRUE
-         GROUP BY ol.id, ol.name, ol.vendor, ol.last_collected_at"
+         GROUP BY ol.id, ol.name, ol.vendor, ol.model, ol.last_collected_at"
     )
     .fetch_all(pool)
     .await
     .unwrap_or_default();
 
     let mut olt_info_map = std::collections::HashMap::new();
-    for (name, vendor, total_onus, total_alerts) in olt_metadata {
-        olt_info_map.insert(name, (vendor, total_onus, total_alerts));
+    for (name, vendor, model, total_onus, total_alerts) in olt_metadata {
+        olt_info_map.insert(name, (vendor, model, total_onus, total_alerts));
     }
 
     // Busca as últimas 5 leituras de cada ONU para inclusão no PDF

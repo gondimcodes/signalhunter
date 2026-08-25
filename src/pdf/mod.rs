@@ -208,7 +208,7 @@ impl PdfReportGenerator {
         operator_name: &str,
         critical_onus: &[OnuRecord],
         history_map: &std::collections::HashMap<u64, Vec<f64>>,
-        olt_info_map: &std::collections::HashMap<String, (String, i64, i64)>,
+        olt_info_map: &std::collections::HashMap<String, (String, Option<String>, i64, i64)>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut w = PdfWriter::new("SignalHunter - Optical Audit Report")?;
         let now_str = Local::now().format("%d/%m/%Y %H:%M:%S").to_string();
@@ -295,23 +295,29 @@ impl PdfReportGenerator {
             w.ensure_space(18.0);
             w.y -= 2.0;
 
-            let (vendor, total_onus, total_alerts) = olt_info_map
-                .get(olt_name)
-                .cloned()
-                .unwrap_or_else(|| ("ZTE".to_string(), onus.len() as i64, onus.len() as i64));
-
-            let section_header =
-                if is_degradation_report {
-                    format!(
-                    "OLT: {}  |  Marca: {}  |  Total de ONUs: {}  |  Piora de Sinal (Delta-dB): {}",
-                    olt_name, vendor, total_onus, onus.len()
-                )
-                } else {
-                    format!(
-                        "OLT: {}  |  Marca: {}  |  Total de ONUs: {}  |  Total de Alertas: {}",
-                        olt_name, vendor, total_onus, total_alerts
+            let (vendor, model_opt, total_onus, total_alerts) =
+                olt_info_map.get(olt_name).cloned().unwrap_or_else(|| {
+                    (
+                        "ZTE".to_string(),
+                        None,
+                        onus.len() as i64,
+                        onus.len() as i64,
                     )
-                };
+                });
+
+            let model_str = model_opt.as_deref().unwrap_or("--");
+
+            let section_header = if is_degradation_report {
+                format!(
+                    "OLT: {}  |  Marca: {}  |  Modelo: {}  |  Total de ONUs: {}  |  Piora de Sinal (Delta-dB): {}",
+                    olt_name, vendor, model_str, total_onus, onus.len()
+                )
+            } else {
+                format!(
+                        "OLT: {}  |  Marca: {}  |  Modelo: {}  |  Total de ONUs: {}  |  Total de Alertas: {}",
+                        olt_name, vendor, model_str, total_onus, total_alerts
+                    )
+            };
 
             w.text_at(&section_header, SECTION_SIZE, MARGIN, true);
             w.y -= 4.5;
