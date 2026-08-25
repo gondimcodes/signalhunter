@@ -225,8 +225,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         ).execute(pool).await;
 
         let _ = sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_onu_latest_id ON onu_signal_history (onu_id, id DESC)"
-        ).execute(pool).await;
+            "CREATE INDEX IF NOT EXISTS idx_onu_latest_id ON onu_signal_history (onu_id, id DESC)",
+        )
+        .execute(pool)
+        .await;
 
         let _ = sqlx::query(
             "CREATE TABLE IF NOT EXISTS audit_logs (
