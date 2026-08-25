@@ -74,7 +74,7 @@ pub async fn sync_olt_telemetry(
     let onus_data = state.collectors.execute_scan(&target).await?;
     let count = onus_data.len();
 
-    // Identifica e atualiza modelo, firmware e nome da OLT automaticamente na base de dados
+    // Identifica e atualiza versão de firmware da OLT automaticamente na base de dados
     let comm = target.snmp_community.as_deref().unwrap_or("public");
     if let Ok(snmp_client) =
         crate::collector::snmp::SnmpClient::new(&target.ip_address, target.snmp_port, comm, 2500)
@@ -88,232 +88,51 @@ pub async fn sync_olt_telemetry(
             .and_then(|vb| vb.value_str)
             .unwrap_or_default();
 
-        let sys_name = snmp_client
-            .get(".1.3.6.1.2.1.1.5.0")
-            .await
-            .ok()
-            .flatten()
-            .and_then(|vb| vb.value_str)
-            .unwrap_or_default();
-
-        if !sys_desc.is_empty() || !sys_name.is_empty() {
-            let vendor_lower = target.vendor.to_lowercase();
+        if !sys_desc.is_empty() {
             let desc_upper = sys_desc.to_uppercase();
 
-            let (model, fw) = if vendor_lower.contains("datacom")
-                || desc_upper.contains("DMOS")
-                || desc_upper.contains("DATACOM")
-            {
-                // Datacom DmOS: Ex: "DM4615 16GPON+4GT+4XS (DmOS version 9.4.2-042-1-g6453973b4e)"
-                let model = if desc_upper.contains("DM4618") {
-                    "Datacom DM4618".to_string()
-                } else if desc_upper.contains("DM4615") {
-                    "Datacom DM4615".to_string()
-                } else if desc_upper.contains("DM4610") {
-                    "Datacom DM4610".to_string()
-                } else if desc_upper.contains("DM4612") {
-                    "Datacom DM4612".to_string()
-                } else if desc_upper.contains("DM4611") {
-                    "Datacom DM4611".to_string()
-                } else {
-                    "Datacom DmOS OLT".to_string()
-                };
-
-                let fw = if let Some(pos) = desc_upper.find("VERSION ") {
-                    let part = &sys_desc[pos + 8..];
-                    part.split(|c: char| c.is_whitespace() || c == ')' || c == ',')
-                        .next()
-                        .map(|s| s.trim())
-                        .filter(|s| !s.is_empty())
-                        .map(|s| s.to_string())
-                        .unwrap_or_else(|| "DmOS".to_string())
-                } else if let Some(pos) = desc_upper.find("DMOS") {
-                    let part = &sys_desc[pos..];
-                    part.split_whitespace()
-                        .find(|w| w.contains('.') && w.chars().any(|c| c.is_ascii_digit()))
-                        .map(|s| {
-                            s.trim_matches(|c: char| !c.is_alphanumeric() && c != '.' && c != '-')
-                                .to_string()
-                        })
-                        .unwrap_or_else(|| "DmOS".to_string())
-                } else {
-                    sys_desc
-                        .split_whitespace()
-                        .find(|w| w.contains('.') && w.chars().any(|c| c.is_ascii_digit()))
-                        .map(|s| s.to_string())
-                        .unwrap_or_else(|| "--".to_string())
-                };
-
-                (Some(model), Some(fw))
-            } else if vendor_lower.contains("huawei")
-                || desc_upper.contains("MA5")
-                || desc_upper.contains("HUAWEI")
-                || desc_upper.contains("SMARTAX")
-            {
-                let model = if desc_upper.contains("MA5800") {
-                    "Huawei SmartAX MA5800".to_string()
-                } else if desc_upper.contains("MA5608") {
-                    "Huawei SmartAX MA5608T".to_string()
-                } else if desc_upper.contains("MA5680") {
-                    "Huawei SmartAX MA5680T".to_string()
-                } else if desc_upper.contains("MA5683") {
-                    "Huawei SmartAX MA5683T".to_string()
-                } else if desc_upper.contains("MA5600") {
-                    "Huawei SmartAX MA5600T".to_string()
-                } else if desc_upper.contains("MA5603") {
-                    "Huawei SmartAX MA5603T".to_string()
-                } else {
-                    "Huawei SmartAX GPON".to_string()
-                };
-
-                let fw = if let Some(pos) = desc_upper.find("VERSION ") {
-                    let part = &sys_desc[pos + 8..];
-                    part.split(|c: char| c.is_whitespace() || c == ')' || c == ',')
-                        .next()
-                        .map(|s| s.trim())
-                        .filter(|s| !s.is_empty())
-                        .map(|s| s.to_string())
-                        .unwrap_or_else(|| "--".to_string())
-                } else {
-                    sys_desc
-                        .split_whitespace()
-                        .find(|w| {
-                            (w.starts_with('V') || w.starts_with('v') || w.starts_with('R'))
-                                && w.chars().any(|c| c.is_ascii_digit())
-                        })
-                        .map(|s| {
-                            s.trim_matches(|c: char| !c.is_alphanumeric() && c != '.' && c != '-')
-                                .to_string()
-                        })
-                        .unwrap_or_else(|| {
-                            sys_desc
-                                .split_whitespace()
-                                .find(|w| w.contains('.') && w.chars().any(|c| c.is_ascii_digit()))
-                                .map(|s| s.to_string())
-                                .unwrap_or_else(|| "--".to_string())
-                        })
-                };
-
-                (Some(model), Some(fw))
-            } else if vendor_lower.contains("zte")
-                || desc_upper.contains("ZXA")
-                || desc_upper.contains("ZTE")
-            {
-                let model = if desc_upper.contains("C610") {
-                    "ZTE ZXA10 C610".to_string()
-                } else if desc_upper.contains("C650") {
-                    "ZTE ZXA10 C650".to_string()
-                } else if desc_upper.contains("C600") {
-                    "ZTE ZXA10 C600".to_string()
-                } else if desc_upper.contains("C320") {
-                    "ZTE ZXA10 C320".to_string()
-                } else if desc_upper.contains("C300") {
-                    "ZTE ZXA10 C300".to_string()
-                } else {
-                    "ZTE ZXA10 GPON".to_string()
-                };
-
-                let fw = if let Some(pos) = desc_upper.find("VERSION ") {
-                    let part = &sys_desc[pos + 8..];
-                    part.split(|c: char| c.is_whitespace() || c == ')' || c == ',')
-                        .next()
-                        .map(|s| s.trim())
-                        .filter(|s| !s.is_empty())
-                        .map(|s| s.to_string())
-                        .unwrap_or_else(|| "--".to_string())
-                } else if let Some(pos) = desc_upper.find("V") {
-                    let part = &sys_desc[pos..];
-                    part.split_whitespace()
-                        .find(|w| {
-                            (w.starts_with('V') || w.starts_with('v') || w.starts_with('R'))
-                                && w.chars().any(|c| c.is_ascii_digit())
-                        })
-                        .map(|s| {
-                            s.trim_matches(|c: char| !c.is_alphanumeric() && c != '.' && c != '-')
-                                .to_string()
-                        })
-                        .unwrap_or_else(|| "--".to_string())
-                } else {
-                    sys_desc
-                        .split_whitespace()
-                        .find(|w| w.contains('.') && w.chars().any(|c| c.is_ascii_digit()))
-                        .map(|s| s.to_string())
-                        .unwrap_or_else(|| "--".to_string())
-                };
-
-                (Some(model), Some(fw))
-            } else if vendor_lower.contains("nokia")
-                || desc_upper.contains("ISAM")
-                || desc_upper.contains("LIGHTSPAN")
-            {
-                let model = if desc_upper.contains("7368") {
-                    "Nokia 7368 ISAM ONT".to_string()
-                } else if desc_upper.contains("7342") {
-                    "Nokia 7342 ISAM FTU".to_string()
-                } else if desc_upper.contains("7330") {
-                    "Nokia 7330 ISAM FD".to_string()
-                } else if desc_upper.contains("LIGHTSPAN") || desc_upper.contains("FX") {
-                    "Nokia ISAM 7360 FX".to_string()
-                } else {
-                    "Nokia ISAM 7360".to_string()
-                };
-
-                let fw = sys_desc
-                    .split_whitespace()
-                    .find(|w| w.starts_with('R') || w.starts_with('V'))
+            // Extrator Universal e Dinâmico de Versão de Firmware
+            let detected_fw = if let Some(pos) = desc_upper.find("VERSION ") {
+                let part = &sys_desc[pos + 8..];
+                part.split(|c: char| c.is_whitespace() || c == ')' || c == ',' || c == ';')
+                    .next()
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty())
                     .map(|s| s.to_string())
-                    .unwrap_or_else(|| "--".to_string());
-
-                (Some(model), Some(fw))
-            } else if vendor_lower.contains("parks")
-                || desc_upper.contains("FIBERLINK")
-                || desc_upper.contains("PARKS")
-            {
-                let model = if desc_upper.contains("30028") {
-                    "Parks Fiberlink 30028".to_string()
-                } else if desc_upper.contains("21016") {
-                    "Parks Fiberlink 21016".to_string()
-                } else if desc_upper.contains("21008") {
-                    "Parks Fiberlink 21008".to_string()
-                } else if desc_upper.contains("21004") {
-                    "Parks Fiberlink 21004".to_string()
-                } else {
-                    "Parks Fiberlink GPON".to_string()
-                };
-
-                let fw = sys_desc
-                    .split_whitespace()
-                    .find(|w| w.contains('.'))
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| "--".to_string());
-
-                (Some(model), Some(fw))
             } else {
-                (
-                    Some(format!("{} GPON", target.vendor.to_uppercase())),
-                    Some("--".to_string()),
-                )
+                sys_desc
+                    .split_whitespace()
+                    .find(|w| {
+                        let cleaned =
+                            w.trim_matches(|c: char| !c.is_alphanumeric() && c != '.' && c != '-');
+                        (cleaned.starts_with('V')
+                            || cleaned.starts_with('v')
+                            || cleaned.starts_with('R'))
+                            && cleaned.chars().any(|c| c.is_ascii_digit())
+                            && cleaned.len() >= 3
+                    })
+                    .or_else(|| {
+                        sys_desc.split_whitespace().find(|w| {
+                            let cleaned = w.trim_matches(|c: char| {
+                                !c.is_alphanumeric() && c != '.' && c != '-'
+                            });
+                            cleaned.contains('.')
+                                && cleaned.chars().filter(|c| c.is_ascii_digit()).count() >= 2
+                        })
+                    })
+                    .map(|s| {
+                        s.trim_matches(|c: char| !c.is_alphanumeric() && c != '.' && c != '-')
+                            .to_string()
+                    })
             };
 
-            let _ = sqlx::query(
-                "UPDATE olts SET 
-                    model = CASE WHEN ? IS NOT NULL AND ? != '' AND ? != '--' THEN ? ELSE COALESCE(model, ?) END,
-                    firmware_version = CASE WHEN ? IS NOT NULL AND ? != '' AND ? != '--' THEN ? ELSE COALESCE(firmware_version, ?) END
-                 WHERE id = ?"
-            )
-            .bind(&model)
-            .bind(&model)
-            .bind(&model)
-            .bind(&model)
-            .bind(&model)
-            .bind(&fw)
-            .bind(&fw)
-            .bind(&fw)
-            .bind(&fw)
-            .bind(&fw)
-            .bind(olt_id)
-            .execute(pool)
-            .await;
+            if let Some(ref fw) = detected_fw {
+                let _ = sqlx::query("UPDATE olts SET firmware_version = ? WHERE id = ?")
+                    .bind(fw)
+                    .bind(olt_id)
+                    .execute(pool)
+                    .await;
+            }
         }
     }
 
