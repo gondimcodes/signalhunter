@@ -88,18 +88,18 @@ Histórico completo e imutável de todas as ações e eventos executados no sist
 
 ## 🏭 Suporte Multi-Vendor Homologado
 
-O SignalHunter possui drivers de engenharia especializados em Rust nativo para os principais fabricantes de telecomunicações do mercado. A arquitetura foi concebida para priorizar **SNMPv2c** de alta velocidade em todos os dados disponíveis e recorrer ao **SSH cirúrgico** (com *Inactivity Watchdog*) apenas para informações exclusivas de CLI:
+O SignalHunter possui drivers de engenharia especializados em Rust nativo para os principais fabricantes de telecomunicações do mercado. A arquitetura opera **100% via SNMPv2c de alta velocidade** em todos os fabricantes, entregando alto rendimento, coleta não-bloqueante e zero dependência de sessões CLI interativas:
 
 ### 📊 Matriz de Protocolos de Coleta por Fabricante
 
-| Vendor | Modelos Homologados | Apenas SNMPv2c | SNMPv2c + SSH | Papel do SSH (Quando Utilizado) |
+| Fabricante | Modelos Homologados | Compatibilidade de Firmware | Protocolo | Parâmetros Coletados |
 | :--- | :--- | :---: | :---: | :--- |
-| **Huawei** | SmartAX MA5800, MA5608T, MA5680T | ✅ **Exclusivo** | ❌ *Desabilitado* | **100% via SNMPv2c**: Rx, Tx, SFP Tx PON, OLT-Rx, Distância Métrica (m), Alarmes de Queda (Dying Gasp / LOS), Temp, Tensão e Nomes |
-| **Datacom** | DmOS DM4610, DM4615, DM4618 | ❌ | ✅ **Sim** | Fallback de distância em ONUs sem bridge L2 e extração de alarmes OMCI |
-| **ZTE** | ZXA10 C600, C650, C610 (Titan), C300, C320 | ✅ **Exclusivo** | ❌ *Desabilitado* | **100% via SNMPv2c**: Rx, Tx, OLT-Rx Calculado, Distância (m), Temp, Tensão, Nomes e Causa de Queda (`.1012.3.28.2.1.4`) |
-| **FiberHome** | AN5516-01, AN5516-04, AN5516-06 | ✅ **Exclusivo** | ❌ *Desabilitado* | **100% via SNMPv2c**: Rx, Tx, SFP Tx Real, OLT-Rx Calculado, Temp, Tensão, Bias, Distância e Nomes |
-| **Nokia / Alcatel** | ISAM 7360 FX, 7342, 7330, Lightspan FX | ✅ **Exclusivo** | ❌ *Desabilitado* | **100% SNMPv2c**: DDM completo, Seriais, Alarmes `.88` (Dying Gasp vs LOS), Rx, Tx, OLT-Rx e Nomes |
-| **Parks** | Fiberlink 30028, 21000, 21016, 21008, 21004 | ✅ **Exclusivo** | ❌ *Desabilitado* | **100% SNMPv2c**: Rx centi-dBm (`.15`), Temp (`.6.1.10`), Nomes (`.62`), Dying Gasp vs LOS (`.41`/`.5`) |
+| **Huawei** | SmartAX MA5800, MA5608T, MA5680T | Todas as versões VRP | ✅ **SNMPv2c (100%)** | Rx, Tx, SFP Tx PON, OLT-Rx, Distância Métrica (m), Alarmes de Queda (Dying Gasp / LOS), Temp, Tensão e Nomes |
+| **Datacom** | DmOS DM4610, DM4615, DM4618 | **DmOS $\ge$ 12.6** | ✅ **SNMPv2c (100%)** | Rx (`.22`), Tx (`.21`), Motivo da Última Queda (`.31`), Status Primário (`.37`), SFP PON Tx, Uptime e Nomes |
+| **ZTE** | ZXA10 C600, C650, C610 (Titan), C300, C320 | Todas as versões | ✅ **SNMPv2c (100%)** | Rx, Tx, OLT-Rx Calculado, Distância (m), Temp, Tensão, Nomes e Causa de Queda (`.1012.3.28.2.1.4`) |
+| **FiberHome** | AN5516-01, AN5516-04, AN5516-06 | Todas as versões | ✅ **SNMPv2c (100%)** | Rx, Tx, SFP Tx Real, OLT-Rx Calculado, Temp, Tensão, Bias, Distância e Nomes |
+| **Nokia / Alcatel** | ISAM 7360 FX, 7342, 7330, Lightspan FX | Todas as versões | ✅ **SNMPv2c (100%)** | DDM completo, Seriais, Alarmes `.88` (Dying Gasp vs LOS), Rx, Tx, OLT-Rx e Nomes |
+| **Parks** | Fiberlink 30028, 21000, 21016, 21008, 21004 | Todas as versões | ✅ **SNMPv2c (100%)** | Rx centi-dBm (`.15`), Temp (`.6.1.10`), Nomes (`.62`), Dying Gasp vs LOS (`.41`/`.5`) |
 
 ---
 
@@ -108,7 +108,7 @@ O SignalHunter possui drivers de engenharia especializados em Rust nativo para o
 | Fabricante | Parâmetros Coletados |
 |---|---|
 | **Huawei** | Serial (Hex/ASCII), Rx ONU, Tx ONU, OLT-Rx Upstream, Tx SFP PON OLT, Distância Métrica (m), Causa da Queda (Dying Gasp / LOS), Temperatura, Tensão, Nome do Cliente |
-| **Datacom** | Serial, Rx ONU, Distância Decimal (km/m), Nomes de Clientes, Potência Tx SFP PON, Alarmes OMCI de Queda, Uptime |
+| **Datacom** | Serial, Rx ONU (`.22`), Tx ONU (`.21`), Nomes de Clientes (`.5`), Potência Tx SFP PON, Motivo da Queda (`.31`), Status Primário (`.37`), Uptime de Conexão |
 | **ZTE** | Serial (ASCII/Hex), Rx ONU, Tx ONU, OLT-Rx Upstream, Atenuação ($\text{dB}$), Distância (m), Temp, Tensão, Nome, Causa de Queda (Dying Gasp / LOS) |
 | **FiberHome** | Serial, Rx ONU, Tx ONU, OLT SFP Tx Real (`.800.3.9.3.4.1.8`), OLT-Rx Calculado, Temperatura, Tensão, Bias Current, Distância (m), Nomes de Clientes, Status Operacional |
 | **Nokia / Alcatel** | Serial (Hex/ALCL), Rx ONU, Tx ONU, OLT-Rx Upstream, Atenuação ($\text{dB}$), Distância (m), Temp, Voltagem, Bias, Modelo ONT, Queda Diferenciada (`.88`) |
@@ -116,7 +116,7 @@ O SignalHunter possui drivers de engenharia especializados em Rust nativo para o
 
 ---
 
-### 📡 Mapeamento Técnico de OIDs & Comandos de Validação
+### 📡 Mapeamento Técnico de OIDs
 
 #### 1. Huawei (VRP / SmartAX MA5800 & MA5600T Series)
 A coleta na Huawei opera **100% via SNMPv2c**:
@@ -135,21 +135,18 @@ A coleta na Huawei opera **100% via SNMPv2c**:
 ---
 
 #### 2. Datacom (DmOS DM4610 / DM4615 / DM4618)
-A Datacom opera prioritariamente via **SNMPv2c**, com **Streaming Line-by-Line e Watchdog de Inatividade** no SSH:
+A coleta na Datacom opera **100% via SNMPv2c** (requer firmware **DmOS $\ge$ 12.6**):
 
 * **Tabelas SNMP Enterprise (`DATACOM-DMOS-GPON-MIB`):**
-  * `Potência Óptica Rx da ONU (dBm)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.22.<ifIndex>` (String decimal exata)
-  * `Distância Decimal da Fibra (km)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.21.<ifIndex>` (String decimal, ex: "2.35" km = 2350m)
+  * `Potência Óptica Rx da ONU (dBm)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.22.<ifIndex>` (onuIfOnuPowerRx)
+  * `Potência Óptica Tx da ONU (dBm)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.21.<ifIndex>` (onuIfOnuPowerTx)
+  * `Motivo da Última Queda`: `.1.3.6.1.4.1.3709.3.6.2.1.1.31.<ifIndex>` (onuIfLastDownReason)
+  * `Status Operacional Primário`: `.1.3.6.1.4.1.3709.3.6.2.1.1.37.<ifIndex>` (onuIfPrimaryStatus)
   * `Nome / Identificador do Assinante`: `.1.3.6.1.4.1.3709.3.6.2.1.1.5.<ifIndex>`
   * `Potência Tx Módulos SFP PON OLT (dBm)`: `.1.3.6.1.4.1.3709.3.6.8.2.1.1.3.<portIndex>` (Valor / 100)
   * `Interface L2 / Mapeamento de Porta`: `.1.3.6.1.4.1.3709.3.6.2.1.1.3.<ifIndex>` (Ex: "gpon-1/1/1-onu-0")
   * `Uptime de Conexão da ONU`: `.1.3.6.1.4.1.3709.3.6.2.1.1.26.<ifIndex>` (TimeTicks)
 
-* **Comandos SSH de Validação Estrutural e OMCI (Streaming com Inactivity Watchdog):**
-  ```text
-  show interface gpon onu
-  show interface transceivers gpon
-  show interface gpon <slot>/<shelf>/<port> onu <onu-id> | display curly-braces
 ---
 
 #### 3. ZTE (ZXA10 C300 / C320 / C600 / C610 Titan Series)

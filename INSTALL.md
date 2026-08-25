@@ -372,8 +372,7 @@ sudo ufw status
 
 > **Network Routing Requirements:**  
 > Ensure the server has IP routing to all OLTs on:
-> - **SNMP:** UDP `161`
-> - **SSH:** TCP `22` (Huawei, Datacom, and ZTE)
+> - **SNMP:** UDP `161` (100% Universal SNMPv2c Telemetry)
 
 ---
 

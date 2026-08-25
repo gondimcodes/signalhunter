@@ -88,18 +88,18 @@ Immutable chronological log recording all operator and system operations.
 
 ## 🏭 Verified Multi-Vendor Support
 
-SignalHunter features specialized native Rust drivers for major telecom equipment manufacturers. The architecture prioritizes high-speed **SNMPv2c** for all available telemetry and relies on surgical **SSH CLI inspection** (with an *Inactivity Watchdog*) only for exclusive CLI-only data:
+SignalHunter features specialized native Rust drivers for major telecom equipment manufacturers. The architecture operates **100% via high-speed SNMPv2c** across all vendors, delivering high throughput, non-blocking telemetry and zero dependency on interactive CLI shells:
 
 ### 📊 Collection Protocol Matrix by Vendor
 
-| Vendor | Supported Hardware Models | SNMPv2c Only | SNMPv2c + SSH | Role of SSH (When Enabled) |
+| Vendor | Supported Hardware Models | Firmware Compatibility | Protocol | Collected Parameters |
 | :--- | :--- | :---: | :---: | :--- |
-| **Huawei** | SmartAX MA5800, MA5608T, MA5680T | ✅ **Exclusive** | ❌ *Disabled* | **100% via SNMPv2c**: Rx, Tx, SFP PON Tx, OLT-Rx, Metric Distance (m), Drop Alarms (Dying Gasp vs LOS), Temp, Voltage, and Names |
-| **Datacom** | DmOS DM4610, DM4615, DM4618 (DmOS $\ge$ 12.6) | ✅ **Exclusive** | ❌ *Disabled* | **100% via SNMPv2c**: Rx (`.22`), Tx (`.21`), Last Down Reason (`.31`), Primary Status (`.37`), SFP PON Tx, and Names |
-| **ZTE** | ZXA10 C600, C650, C610 (Titan), C300, C320 | ✅ **Exclusive** | ❌ *Disabled* | **100% via SNMPv2c**: Rx, Tx, Computed OLT-Rx, Distance (m), Temp, Voltage, Names, and Last Down Cause (`.1012.3.28.2.1.4`) |
-| **FiberHome** | AN5516-01, AN5516-04, AN5516-06 | ✅ **Exclusive** | ❌ *Disabled* | **100% via SNMPv2c**: Rx, Tx, Real SFP Tx, Computed OLT-Rx, Temp, Voltage, Bias, Distance, and Names |
-| **Nokia / Alcatel** | ISAM 7360 FX, 7342, 7330, Lightspan FX | ✅ **Exclusive** | ❌ *Disabled* | **100% SNMPv2c**: Full DDM, Serials, `.88` Drop Alarms (Dying Gasp vs LOS), Rx, Tx, OLT-Rx, and Names |
-| **Parks** | Fiberlink 30028, 21000, 21016, 21008, 21004 | ✅ **Exclusive** | ❌ *Disabled* | **100% SNMPv2c**: centi-dBm Rx (`.15`), Temp (`.6.1.10`), Names (`.62`), Dying Gasp vs LOS (`.41`/`.5`) |
+| **Huawei** | SmartAX MA5800, MA5608T, MA5680T | All VRP Versions | ✅ **SNMPv2c (100%)** | Rx, Tx, SFP PON Tx, OLT-Rx, Distance (m), Dying Gasp vs LOS, Temp, Voltage, Names |
+| **Datacom** | DmOS DM4610, DM4615, DM4618 | **DmOS $\ge$ 12.6** | ✅ **SNMPv2c (100%)** | Rx (`.22`), Tx (`.21`), Last Down Reason (`.31`), Primary Status (`.37`), SFP PON Tx, Uptime, Names |
+| **ZTE** | ZXA10 C600, C650, C610 (Titan), C300, C320 | All Versions | ✅ **SNMPv2c (100%)** | Rx, Tx, Computed OLT-Rx, Distance (m), Temp, Voltage, Names, Last Down Cause (`.1012.3.28.2.1.4`) |
+| **FiberHome** | AN5516-01, AN5516-04, AN5516-06 | All Versions | ✅ **SNMPv2c (100%)** | Rx, Tx, Real SFP Tx, Computed OLT-Rx, Temp, Voltage, Bias, Distance, Names |
+| **Nokia / Alcatel** | ISAM 7360 FX, 7342, 7330, Lightspan FX | All Versions | ✅ **SNMPv2c (100%)** | Full DDM, Serials, `.88` Drop Alarms (Dying Gasp vs LOS), Rx, Tx, OLT-Rx, Names |
+| **Parks** | Fiberlink 30028, 21000, 21016, 21008, 21004 | All Versions | ✅ **SNMPv2c (100%)** | centi-dBm Rx (`.15`), Temp (`.6.1.10`), Names (`.62`), Dying Gasp vs LOS (`.41`/`.5`) |
 
 ---
 
@@ -108,7 +108,7 @@ SignalHunter features specialized native Rust drivers for major telecom equipmen
 | Vendor | Collected Parameters |
 |---|---|
 | **Huawei** | Serial (Hex/ASCII), ONU Rx, ONU Tx, Upstream OLT-Rx, OLT SFP Tx, Metric Distance (m), Drop Cause (Dying Gasp / LOS), Temperature, Voltage, Customer Name |
-| **Datacom** | Serial, ONU Rx (`.22`), ONU Tx (`.21`), Customer Names (`.5`), SFP PON Tx Power, Last Down Cause (`.31`), Primary Status (`.37`) |
+| **Datacom** | Serial, ONU Rx (`.22`), ONU Tx (`.21`), Customer Names (`.5`), SFP PON Tx Power, Last Down Cause (`.31`), Primary Status (`.37`), Connection Uptime |
 | **ZTE** | Serial (ASCII/Hex), ONU Rx, ONU Tx, Upstream OLT-Rx, Optical Attenuation ($\text{dB}$), Distance (m), Temp, Voltage, Name, Last Down Cause (Dying Gasp / LOS) |
 | **FiberHome** | Serial, ONU Rx, ONU Tx, Real OLT SFP Tx (`.800.3.9.3.4.1.8`), Computed OLT-Rx, Temperature, Voltage, Bias Current, Distance (m), Customer Names, Operational Status |
 | **Nokia / Alcatel** | Serial (Hex/ALCL), ONU Rx, ONU Tx, Upstream OLT-Rx, Optical Attenuation ($\text{dB}$), Distance (m), Temp, Voltage, Bias, ONT Model, Differentiated Drop Cause (`.88`) |
@@ -116,7 +116,7 @@ SignalHunter features specialized native Rust drivers for major telecom equipmen
 
 ---
 
-### 📡 Technical OID Mapping & CLI Diagnostic Commands
+### 📡 Technical OID Mapping
 
 #### 1. Huawei (VRP / SmartAX MA5800 & MA5600T Series)
 Huawei telemetry polling is executed **100% via SNMPv2c**:
@@ -135,24 +135,15 @@ Huawei telemetry polling is executed **100% via SNMPv2c**:
 ---
 
 #### 2. Datacom (DmOS DM4610 / DM4615 / DM4618)
-Datacom telemetry polling is executed **100% via SNMPv2c** (DmOS $\ge$ 12.6):
+Datacom telemetry polling is executed **100% via SNMPv2c** (requires firmware **DmOS $\ge$ 12.6**):
 * `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.22.<ifIndex>` (onuIfOnuPowerRx)
 * `ONU Optical Tx Power (dBm)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.21.<ifIndex>` (onuIfOnuPowerTx)
 * `Last Down Reason`: `.1.3.6.1.4.1.3709.3.6.2.1.1.31.<ifIndex>` (onuIfLastDownReason)
 * `Primary Operational Status`: `.1.3.6.1.4.1.3709.3.6.2.1.1.37.<ifIndex>` (onuIfPrimaryStatus)
 * `Customer Name / Description`: `.1.3.6.1.4.1.3709.3.6.2.1.1.5.<ifIndex>` (onuIfDescription)
-* `OLT SFP PON Tx Power (dBm)`: `.1.3.6.1.4.1.3709.3.6.8.2.1.1.3.<portIndex>`
-  * `Subscriber Name / Identifier`: `.1.3.6.1.4.1.3709.3.6.2.1.1.5.<ifIndex>`
-  * `OLT SFP PON Tx Power (dBm)`: `.1.3.6.1.4.1.3709.3.6.8.2.1.1.3.<portIndex>` (Raw / 100)
-  * `L2 Interface Mapping`: `.1.3.6.1.4.1.3709.3.6.2.1.1.3.<ifIndex>` (e.g., "gpon-1/1/1-onu-0")
-  * `ONU Connection Uptime`: `.1.3.6.1.4.1.3709.3.6.2.1.1.26.<ifIndex>` (TimeTicks)
-
-* **SSH Inspection Commands (Streaming with Inactivity Watchdog):**
-  ```text
-  show interface gpon onu
-  show interface transceivers gpon
-  show interface gpon <slot>/<shelf>/<port> onu <onu-id> | display curly-braces
-  ```
+* `OLT SFP PON Tx Power (dBm)`: `.1.3.6.1.4.1.3709.3.6.8.2.1.1.3.<portIndex>` (Raw / 100)
+* `L2 Interface Mapping`: `.1.3.6.1.4.1.3709.3.6.2.1.1.3.<ifIndex>` (e.g., "gpon-1/1/1-onu-0")
+* `ONU Connection Uptime`: `.1.3.6.1.4.1.3709.3.6.2.1.1.26.<ifIndex>` (TimeTicks)
 
 ---
 

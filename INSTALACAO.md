@@ -388,9 +388,8 @@ sudo ufw status
 ```
 
 > **Atenção sobre o Firewall e Rotas para as OLTs:**
-> Certifique-se de que o servidor possui rota de rede para as OLTs nas portas:
-> - **SNMP:** UDP `161`
-> - **SSH:** TCP `22` (Huawei, Datacom e ZTE)
+> Certifique-se de que o servidor possui rota de rede para as OLTs na porta:
+> - **SNMP:** UDP `161` (Operação 100% SNMPv2c Universal)
 
 ---
 
