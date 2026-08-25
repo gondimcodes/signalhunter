@@ -11,7 +11,7 @@ const MARGIN: f32 = 15.0;
 // Font sizes (points)
 const TITLE_SIZE: f32 = 15.0;
 const SUBTITLE_SIZE: f32 = 8.5;
-const SECTION_SIZE: f32 = 9.5;
+const SECTION_SIZE: f32 = 8.0;
 const TH_SIZE: f32 = 8.0;
 const TD_SIZE: f32 = 7.5;
 const FOOTER_SIZE: f32 = 7.0;
