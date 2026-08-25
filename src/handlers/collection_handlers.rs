@@ -77,16 +77,33 @@ pub async fn sync_olt_telemetry(
     // Identifica e atualiza versão de firmware da OLT automaticamente na base de dados
     let comm = target.snmp_community.as_deref().unwrap_or("public");
     if let Ok(snmp_client) =
-        crate::collector::snmp::SnmpClient::new(&target.ip_address, target.snmp_port, comm, 2500)
+        crate::collector::snmp::SnmpClient::new(&target.ip_address, target.snmp_port, comm, 3500)
             .await
     {
-        let sys_desc = snmp_client
+        let mut sys_desc = snmp_client
             .get(".1.3.6.1.2.1.1.1.0")
             .await
             .ok()
             .flatten()
             .and_then(|vb| vb.value_str)
             .unwrap_or_default();
+
+        // Para OLTs Huawei, se o sysDescr genérico não contiver versão, consulta a MIB Enterprise Huawei de Software Version:
+        // .1.3.6.1.4.1.2011.6.128.1.1.2.21.1.10 (hwGponDevSoftwareVersion) ou .1.3.6.1.4.1.2011.2.23.1.2.1.1.2
+        if sys_desc.is_empty()
+            || (!sys_desc.contains('V') && !sys_desc.contains('v') && !sys_desc.contains('.'))
+        {
+            if let Ok(Some(vb)) = snmp_client
+                .get(".1.3.6.1.4.1.2011.6.128.1.1.2.21.1.10.0")
+                .await
+            {
+                if let Some(s) = vb.value_str {
+                    if !s.trim().is_empty() {
+                        sys_desc = format!("{} {}", sys_desc, s.trim());
+                    }
+                }
+            }
+        }
 
         if !sys_desc.is_empty() {
             let desc_upper = sys_desc.to_uppercase();
@@ -127,11 +144,17 @@ pub async fn sync_olt_telemetry(
             };
 
             if let Some(ref fw) = detected_fw {
+                info!(
+                    "OLT '{}' [{}]: Versão de firmware identificada via SNMP: '{}'",
+                    target.name, target.ip_address, fw
+                );
                 let _ = sqlx::query("UPDATE olts SET firmware_version = ? WHERE id = ?")
                     .bind(fw)
                     .bind(olt_id)
                     .execute(pool)
                     .await;
+            } else {
+                log::warn!("OLT '{}' [{}]: Resposta sysDescr ('{}') não contém padrão de versão identificável.", target.name, target.ip_address, sys_desc);
             }
         }
     }
