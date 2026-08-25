@@ -182,6 +182,8 @@
             flex-shrink: 0;
             flex-wrap: wrap;
             width: 100%;
+            position: relative;
+            z-index: 1100;
         }
 
         .tab-btn {
@@ -219,47 +221,61 @@
             position: relative;
             display: inline-flex;
             align-items: center;
+            z-index: 1200;
         }
 
         .tab-dropdown-menu {
             display: none;
             position: absolute;
-            top: calc(100% + 4px);
+            top: 100%;
             left: 0;
-            background: rgba(15, 23, 42, 0.96);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(0, 240, 255, 0.3);
+            background: rgba(11, 17, 33, 0.98);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 240, 255, 0.4);
             border-radius: 8px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 240, 255, 0.15);
-            min-width: 220px;
-            z-index: 1000;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 240, 255, 0.2);
+            min-width: 250px;
+            z-index: 99999;
             padding: 6px 0;
+            margin-top: 2px;
         }
 
-        .tab-dropdown:hover .tab-dropdown-menu {
+        /* Ponte invisível para evitar que o mouse saia e feche o menu */
+        .tab-dropdown-menu::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 0;
+            width: 100%;
+            height: 8px;
+        }
+
+        .tab-dropdown:hover .tab-dropdown-menu,
+        .tab-dropdown-menu:hover {
             display: block;
         }
 
         .tab-dropdown-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 14px;
+            gap: 10px;
+            padding: 9px 14px;
             color: #E2E8F0;
             font-size: 0.82rem;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
             text-decoration: none;
             background: transparent;
             border: none;
             width: 100%;
             text-align: left;
+            white-space: nowrap;
         }
 
         .tab-dropdown-item:hover {
-            background: rgba(0, 240, 255, 0.12);
+            background: rgba(0, 240, 255, 0.15);
             color: #00F0FF;
             padding-left: 18px;
         }
@@ -3016,13 +3032,10 @@
         async function handleSaveOlt(e) {
             e.preventDefault();
             var editId = document.getElementById('oltEditId').value;
-            var nameVal = document.getElementById('oltName').value.trim();
-            var ipVal = document.getElementById('oltIp').value.trim();
-            var commVal = document.getElementById('oltCommunity').value.trim();
+            var nameVal = (document.getElementById('oltName').value || '').trim();
+            var ipVal = (document.getElementById('oltIp').value || '').trim();
+            var commVal = (document.getElementById('oltCommunity').value || '').trim();
             var portVal = parseInt(document.getElementById('oltPort').value, 10) || 161;
-            var sshPortVal = parseInt(document.getElementById('oltSshPort').value, 10) || 22;
-            var sshUserVal = document.getElementById('oltSshUser').value.trim();
-            var sshPassVal = document.getElementById('oltSshPass').value;
 
             // 1. Validação do Nome
             if (!nameVal) {
