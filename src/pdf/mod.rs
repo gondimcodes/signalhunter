@@ -581,9 +581,9 @@ impl PdfReportGenerator {
         let now_str = Local::now().format("%d/%m/%Y %H:%M:%S").to_string();
 
         w.draw_header_bar(
-            "Inventario de Hardware, Modelos e Firmwares das OLTs",
             &now_str,
             operator_name,
+            "Inventario de Hardware, Modelos e Firmwares das OLTs",
         );
 
         // Subtítulo descritivo
@@ -628,9 +628,9 @@ impl PdfReportGenerator {
             if w.y < MARGIN + 18.0 {
                 w.new_page();
                 w.draw_header_bar(
-                    "Inventario de Hardware, Modelos e Firmwares das OLTs (Cont.)",
                     &now_str,
                     operator_name,
+                    "Inventario de Hardware, Modelos e Firmwares das OLTs (Cont.)",
                 );
                 draw_table_header_fw(&mut w);
             }

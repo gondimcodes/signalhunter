@@ -74,99 +74,175 @@ pub async fn sync_olt_telemetry(
     let onus_data = state.collectors.execute_scan(&target).await?;
     let count = onus_data.len();
 
-    // Identifica e atualiza modelo e firmware da OLT automaticamente na base de dados
+    // Identifica e atualiza modelo, firmware e nome da OLT automaticamente na base de dados
     let comm = target.snmp_community.as_deref().unwrap_or("public");
     if let Ok(snmp_client) =
-        crate::collector::snmp::SnmpClient::new(&target.ip_address, target.snmp_port, comm, 1500)
+        crate::collector::snmp::SnmpClient::new(&target.ip_address, target.snmp_port, comm, 2500)
             .await
     {
-        if let Ok(Some(vb)) = snmp_client.get(".1.3.6.1.2.1.1.1.0").await {
-            let sys_desc = vb.value_str.unwrap_or_default();
-            if !sys_desc.is_empty() {
+        let sys_desc = snmp_client
+            .get(".1.3.6.1.2.1.1.1.0")
+            .await
+            .ok()
+            .flatten()
+            .and_then(|vb| vb.value_str)
+            .unwrap_or_default();
+
+        let sys_name = snmp_client
+            .get(".1.3.6.1.2.1.1.5.0")
+            .await
+            .ok()
+            .flatten()
+            .and_then(|vb| vb.value_str)
+            .unwrap_or_default();
+
+        if !sys_desc.is_empty() || !sys_name.is_empty() {
+            let vendor_lower = target.vendor.to_lowercase();
+            let desc_upper = sys_desc.to_uppercase();
+
+            let (model, fw) = if vendor_lower.contains("datacom")
+                || desc_upper.contains("DMOS")
+                || desc_upper.contains("DATACOM")
+            {
+                // Datacom DmOS: Ex: "DmOS 12.2.2 DM4610 8GPON+2XS..."
+                let model = if desc_upper.contains("DM4618") {
+                    "Datacom DM4618".to_string()
+                } else if desc_upper.contains("DM4615") {
+                    "Datacom DM4615".to_string()
+                } else if desc_upper.contains("DM4610") {
+                    "Datacom DM4610".to_string()
+                } else if desc_upper.contains("DM4612") {
+                    "Datacom DM4612".to_string()
+                } else if desc_upper.contains("DM4611") {
+                    "Datacom DM4611".to_string()
+                } else {
+                    "Datacom DmOS OLT".to_string()
+                };
+
+                let fw = if let Some(pos) = desc_upper.find("DMOS") {
+                    let part = &sys_desc[pos..];
+                    part.split_whitespace()
+                        .nth(1)
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| "DmOS".to_string())
+                } else {
+                    sys_desc
+                        .split_whitespace()
+                        .find(|w| w.contains('.'))
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| "--".to_string())
+                };
+
+                (Some(model), Some(fw))
+            } else if vendor_lower.contains("huawei")
+                || desc_upper.contains("MA5")
+                || desc_upper.contains("HUAWEI")
+            {
+                let model = if desc_upper.contains("MA5800") {
+                    "Huawei SmartAX MA5800".to_string()
+                } else if desc_upper.contains("MA5608") {
+                    "Huawei SmartAX MA5608T".to_string()
+                } else if desc_upper.contains("MA5680") {
+                    "Huawei SmartAX MA5680T".to_string()
+                } else if desc_upper.contains("MA5683") {
+                    "Huawei SmartAX MA5683T".to_string()
+                } else {
+                    "Huawei SmartAX GPON".to_string()
+                };
+
+                let fw = sys_desc
+                    .split_whitespace()
+                    .find(|w| w.starts_with('V') || w.starts_with('R'))
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| "--".to_string());
+
+                (Some(model), Some(fw))
+            } else if vendor_lower.contains("zte")
+                || desc_upper.contains("ZXA")
+                || desc_upper.contains("ZTE")
+            {
+                let model = if desc_upper.contains("C610") {
+                    "ZTE ZXA10 C610".to_string()
+                } else if desc_upper.contains("C650") {
+                    "ZTE ZXA10 C650".to_string()
+                } else if desc_upper.contains("C600") {
+                    "ZTE ZXA10 C600".to_string()
+                } else if desc_upper.contains("C320") {
+                    "ZTE ZXA10 C320".to_string()
+                } else if desc_upper.contains("C300") {
+                    "ZTE ZXA10 C300".to_string()
+                } else {
+                    "ZTE ZXA10 GPON".to_string()
+                };
+
+                let fw = sys_desc
+                    .split_whitespace()
+                    .find(|w| w.starts_with('V') || w.starts_with('R'))
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| "--".to_string());
+
+                (Some(model), Some(fw))
+            } else if vendor_lower.contains("nokia")
+                || desc_upper.contains("ISAM")
+                || desc_upper.contains("LIGHTSPAN")
+            {
+                let model = if desc_upper.contains("7368") {
+                    "Nokia 7368 ISAM ONT".to_string()
+                } else if desc_upper.contains("7342") {
+                    "Nokia 7342 ISAM FTU".to_string()
+                } else if desc_upper.contains("7330") {
+                    "Nokia 7330 ISAM FD".to_string()
+                } else if desc_upper.contains("LIGHTSPAN") || desc_upper.contains("FX") {
+                    "Nokia ISAM 7360 FX".to_string()
+                } else {
+                    "Nokia ISAM 7360".to_string()
+                };
+
                 let fw = sys_desc
                     .split_whitespace()
                     .find(|w| w.starts_with('R') || w.starts_with('V'))
-                    .map(|s| s.to_string());
-                let vendor_lower = target.vendor.to_lowercase();
-                let model = if vendor_lower.contains("nokia")
-                    || sys_desc.contains("ISAM")
-                    || sys_desc.contains("7360")
-                    || sys_desc.contains("7330")
-                    || sys_desc.contains("Lightspan")
-                {
-                    if sys_desc.contains("7368") {
-                        Some("Nokia 7368 ISAM ONT".to_string())
-                    } else if sys_desc.contains("7342") {
-                        Some("Nokia 7342 ISAM FTU".to_string())
-                    } else if sys_desc.contains("7330") {
-                        Some("Nokia 7330 ISAM FD".to_string())
-                    } else if sys_desc.contains("Lightspan") || sys_desc.contains("FX") {
-                        Some("Nokia ISAM 7360 FX".to_string())
-                    } else if sys_desc.contains("7360") || sys_desc.contains("ISAM") {
-                        Some("Nokia ISAM 7360".to_string())
-                    } else {
-                        Some("Nokia ISAM GPON".to_string())
-                    }
-                } else if vendor_lower.contains("huawei") || sys_desc.contains("MA5") {
-                    if sys_desc.contains("MA5800") {
-                        Some("Huawei SmartAX MA5800".to_string())
-                    } else if sys_desc.contains("MA5608") {
-                        Some("Huawei SmartAX MA5608T".to_string())
-                    } else {
-                        Some("Huawei SmartAX GPON".to_string())
-                    }
-                } else if vendor_lower.contains("zte")
-                    || sys_desc.contains("ZXA")
-                    || sys_desc.contains("C600")
-                    || sys_desc.contains("C300")
-                {
-                    if sys_desc.contains("C610") {
-                        Some("ZTE ZXA10 C610".to_string())
-                    } else if sys_desc.contains("C650") {
-                        Some("ZTE ZXA10 C650".to_string())
-                    } else if sys_desc.contains("C600") {
-                        Some("ZTE ZXA10 C600".to_string())
-                    } else if sys_desc.contains("C320") {
-                        Some("ZTE ZXA10 C320".to_string())
-                    } else if sys_desc.contains("C300") {
-                        Some("ZTE ZXA10 C300".to_string())
-                    } else {
-                        Some("ZTE ZXA10 GPON".to_string())
-                    }
-                } else if vendor_lower.contains("datacom") || sys_desc.contains("DmOS") {
-                    Some("Datacom DmOS DM4610".to_string())
-                } else if vendor_lower.contains("fiberhome") || sys_desc.contains("AN5516") {
-                    Some("FiberHome AN5516".to_string())
-                } else if vendor_lower.contains("parks")
-                    || sys_desc.contains("PARKS")
-                    || sys_desc.contains("Fiberlink")
-                {
-                    if sys_desc.contains("30028") {
-                        Some("Parks Fiberlink 30028".to_string())
-                    } else if sys_desc.contains("21016") {
-                        Some("Parks Fiberlink 21016".to_string())
-                    } else if sys_desc.contains("21008") {
-                        Some("Parks Fiberlink 21008".to_string())
-                    } else if sys_desc.contains("21004") {
-                        Some("Parks Fiberlink 21004".to_string())
-                    } else if sys_desc.contains("21000") {
-                        Some("Parks Fiberlink 21000".to_string())
-                    } else {
-                        Some("Parks Fiberlink GPON".to_string())
-                    }
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| "--".to_string());
+
+                (Some(model), Some(fw))
+            } else if vendor_lower.contains("parks")
+                || desc_upper.contains("FIBERLINK")
+                || desc_upper.contains("PARKS")
+            {
+                let model = if desc_upper.contains("30028") {
+                    "Parks Fiberlink 30028".to_string()
+                } else if desc_upper.contains("21016") {
+                    "Parks Fiberlink 21016".to_string()
+                } else if desc_upper.contains("21008") {
+                    "Parks Fiberlink 21008".to_string()
+                } else if desc_upper.contains("21004") {
+                    "Parks Fiberlink 21004".to_string()
                 } else {
-                    Some(format!("{} GPON", target.vendor.to_uppercase()))
+                    "Parks Fiberlink GPON".to_string()
                 };
 
-                let _ = sqlx::query(
-                    "UPDATE olts SET model = COALESCE(?, model), firmware_version = COALESCE(?, firmware_version) WHERE id = ?"
+                let fw = sys_desc
+                    .split_whitespace()
+                    .find(|w| w.contains('.'))
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| "--".to_string());
+
+                (Some(model), Some(fw))
+            } else {
+                (
+                    Some(format!("{} GPON", target.vendor.to_uppercase())),
+                    Some("--".to_string()),
                 )
-                .bind(model)
-                .bind(fw)
-                .bind(olt_id)
-                .execute(pool)
-                .await;
-            }
+            };
+
+            let _ = sqlx::query(
+                "UPDATE olts SET model = COALESCE(?, model), firmware_version = COALESCE(?, firmware_version) WHERE id = ?"
+            )
+            .bind(model)
+            .bind(fw)
+            .bind(olt_id)
+            .execute(pool)
+            .await;
         }
     }
 

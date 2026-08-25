@@ -54,9 +54,10 @@ pub async fn generate_report_pdf_handler(
         // Busca todas as OLTs cadastradas para o relatório de firmware
         let olts = sqlx::query_as::<_, OltFirmwareItem>(
             "SELECT id, name, name AS hostname, ip_address, vendor,
-                    COALESCE(model, 'N/D') AS model,
-                    COALESCE(firmware_version, 'N/D') AS firmware_version,
-                    is_online, is_active
+                    COALESCE(model, '--') AS model,
+                    COALESCE(firmware_version, '--') AS firmware_version,
+                    CASE WHEN last_collection_status = 'success' THEN TRUE ELSE FALSE END AS is_online,
+                    is_active
              FROM olts
              ORDER BY vendor ASC, name ASC",
         )
