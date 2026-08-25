@@ -8,8 +8,21 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+
+#[derive(Debug, Clone, Serialize, sqlx::FromRow)]
+pub struct OltFirmwareItem {
+    pub id: u64,
+    pub name: String,
+    pub hostname: String,
+    pub ip_address: String,
+    pub vendor: String,
+    pub model: String,
+    pub firmware_version: String,
+    pub is_online: bool,
+    pub is_active: bool,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct GenerateReportParams {
@@ -33,6 +46,68 @@ pub async fn generate_report_pdf_handler(
             }),
         )
     })?;
+
+    let is_firmware = params.report_type.as_deref() == Some("firmware")
+        || params.report_type.as_deref() == Some("model_firmware");
+
+    if is_firmware {
+        // Busca todas as OLTs cadastradas para o relatório de firmware
+        let olts = sqlx::query_as::<_, OltFirmwareItem>(
+            "SELECT id, name, name AS hostname, ip_address, vendor,
+                    COALESCE(model, 'N/D') AS model,
+                    COALESCE(firmware_version, 'N/D') AS firmware_version,
+                    is_online, is_active
+             FROM olts
+             ORDER BY vendor ASC, name ASC",
+        )
+        .fetch_all(pool)
+        .await
+        .unwrap_or_default();
+
+        let tmp_path = format!(
+            "/tmp/signalhunter_firmware_{}.pdf",
+            chrono::Utc::now().timestamp()
+        );
+        PdfReportGenerator::generate_olt_firmware_report(&tmp_path, "Engenharia NOC", &olts)
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ApiResponse {
+                        success: false,
+                        message: format!("Falha ao gerar Relatório de Modelos e Firmwares: {}", e),
+                        data: None,
+                    }),
+                )
+            })?;
+
+        let pdf_bytes = std::fs::read(&tmp_path).unwrap_or_default();
+        let _ = std::fs::remove_file(&tmp_path);
+
+        crate::db::queries::log_audit_event(
+            pool,
+            Some(1),
+            "EXPORT_PDF",
+            "FIRMWARE_REPORT",
+            None,
+            Some(&format!(
+                "Exportação do Relatório de Modelos e Firmwares das OLTs ({} equipamentos)",
+                olts.len()
+            )),
+            None,
+        )
+        .await;
+
+        let mut headers = HeaderMap::new();
+        headers.insert(header::CONTENT_TYPE, "application/pdf".parse().unwrap());
+        headers.insert(
+            header::CONTENT_DISPOSITION,
+            "attachment; filename=\"inventario_modelos_firmwares_olts.pdf\""
+                .parse()
+                .unwrap(),
+        );
+
+        return Ok((headers, pdf_bytes));
+    }
 
     let search_term = params
         .q

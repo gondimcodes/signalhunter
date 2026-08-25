@@ -95,7 +95,7 @@ SignalHunter features specialized native Rust drivers for major telecom equipmen
 | Vendor | Supported Hardware Models | SNMPv2c Only | SNMPv2c + SSH | Role of SSH (When Enabled) |
 | :--- | :--- | :---: | :---: | :--- |
 | **Huawei** | SmartAX MA5800, MA5608T, MA5680T | ✅ **Exclusive** | ❌ *Disabled* | **100% via SNMPv2c**: Rx, Tx, SFP PON Tx, OLT-Rx, Metric Distance (m), Drop Alarms (Dying Gasp vs LOS), Temp, Voltage, and Names |
-| **Datacom** | DmOS DM4610, DM4615, DM4618 | ❌ | ✅ **Yes** | Distance fallback on ONUs without L2 bridge and OMCI alarm extraction |
+| **Datacom** | DmOS DM4610, DM4615, DM4618 (DmOS $\ge$ 12.6) | ✅ **Exclusive** | ❌ *Disabled* | **100% via SNMPv2c**: Rx (`.22`), Tx (`.21`), Last Down Reason (`.31`), Primary Status (`.37`), SFP PON Tx, and Names |
 | **ZTE** | ZXA10 C600, C650, C610 (Titan), C300, C320 | ✅ **Exclusive** | ❌ *Disabled* | **100% via SNMPv2c**: Rx, Tx, Computed OLT-Rx, Distance (m), Temp, Voltage, Names, and Last Down Cause (`.1012.3.28.2.1.4`) |
 | **FiberHome** | AN5516-01, AN5516-04, AN5516-06 | ✅ **Exclusive** | ❌ *Disabled* | **100% via SNMPv2c**: Rx, Tx, Real SFP Tx, Computed OLT-Rx, Temp, Voltage, Bias, Distance, and Names |
 | **Nokia / Alcatel** | ISAM 7360 FX, 7342, 7330, Lightspan FX | ✅ **Exclusive** | ❌ *Disabled* | **100% SNMPv2c**: Full DDM, Serials, `.88` Drop Alarms (Dying Gasp vs LOS), Rx, Tx, OLT-Rx, and Names |
@@ -108,7 +108,7 @@ SignalHunter features specialized native Rust drivers for major telecom equipmen
 | Vendor | Collected Parameters |
 |---|---|
 | **Huawei** | Serial (Hex/ASCII), ONU Rx, ONU Tx, Upstream OLT-Rx, OLT SFP Tx, Metric Distance (m), Drop Cause (Dying Gasp / LOS), Temperature, Voltage, Customer Name |
-| **Datacom** | Serial, ONU Rx, Decimal Distance (km/m), Customer Names, SFP PON Tx Power, OMCI Drop Alarms, Uptime |
+| **Datacom** | Serial, ONU Rx (`.22`), ONU Tx (`.21`), Customer Names (`.5`), SFP PON Tx Power, Last Down Cause (`.31`), Primary Status (`.37`) |
 | **ZTE** | Serial (ASCII/Hex), ONU Rx, ONU Tx, Upstream OLT-Rx, Optical Attenuation ($\text{dB}$), Distance (m), Temp, Voltage, Name, Last Down Cause (Dying Gasp / LOS) |
 | **FiberHome** | Serial, ONU Rx, ONU Tx, Real OLT SFP Tx (`.800.3.9.3.4.1.8`), Computed OLT-Rx, Temperature, Voltage, Bias Current, Distance (m), Customer Names, Operational Status |
 | **Nokia / Alcatel** | Serial (Hex/ALCL), ONU Rx, ONU Tx, Upstream OLT-Rx, Optical Attenuation ($\text{dB}$), Distance (m), Temp, Voltage, Bias, ONT Model, Differentiated Drop Cause (`.88`) |
@@ -135,9 +135,13 @@ Huawei telemetry polling is executed **100% via SNMPv2c**:
 ---
 
 #### 2. Datacom (DmOS DM4610 / DM4615 / DM4618)
-* **Enterprise SNMP MIBs (`DATACOM-DMOS-GPON-MIB`):**
-  * `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.22.<ifIndex>` (Exact decimal string)
-  * `Decimal Fiber Distance (km)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.21.<ifIndex>` (Decimal string, e.g., "2.35" km = 2350m)
+Datacom telemetry polling is executed **100% via SNMPv2c** (DmOS $\ge$ 12.6):
+* `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.22.<ifIndex>` (onuIfOnuPowerRx)
+* `ONU Optical Tx Power (dBm)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.21.<ifIndex>` (onuIfOnuPowerTx)
+* `Last Down Reason`: `.1.3.6.1.4.1.3709.3.6.2.1.1.31.<ifIndex>` (onuIfLastDownReason)
+* `Primary Operational Status`: `.1.3.6.1.4.1.3709.3.6.2.1.1.37.<ifIndex>` (onuIfPrimaryStatus)
+* `Customer Name / Description`: `.1.3.6.1.4.1.3709.3.6.2.1.1.5.<ifIndex>` (onuIfDescription)
+* `OLT SFP PON Tx Power (dBm)`: `.1.3.6.1.4.1.3709.3.6.8.2.1.1.3.<portIndex>`
   * `Subscriber Name / Identifier`: `.1.3.6.1.4.1.3709.3.6.2.1.1.5.<ifIndex>`
   * `OLT SFP PON Tx Power (dBm)`: `.1.3.6.1.4.1.3709.3.6.8.2.1.1.3.<portIndex>` (Raw / 100)
   * `L2 Interface Mapping`: `.1.3.6.1.4.1.3709.3.6.2.1.1.3.<ifIndex>` (e.g., "gpon-1/1/1-onu-0")

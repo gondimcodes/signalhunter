@@ -570,6 +570,146 @@ impl PdfReportGenerator {
         w.save(output_path.as_ref().to_str().unwrap_or("report.pdf"))?;
         Ok(())
     }
+
+    /// Gera o relatório técnico de Inventário de Modelos e Firmwares das OLTs
+    pub fn generate_olt_firmware_report<P: AsRef<Path>>(
+        output_path: P,
+        operator_name: &str,
+        olts: &[crate::handlers::report_handlers::OltFirmwareItem],
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let mut w = PdfWriter::new("SignalHunter - Inventario de Modelos e Firmwares OLT")?;
+        let now_str = Local::now().format("%d/%m/%Y %H:%M:%S").to_string();
+
+        w.draw_header_bar(
+            "Inventario de Hardware, Modelos e Firmwares das OLTs",
+            &now_str,
+            operator_name,
+        );
+
+        // Subtítulo descritivo
+        w.ensure_space(ROW_H * 3.0);
+        let summary_text = format!(
+            "Total de Equipamentos Mapeados: {} OLTs  |  Status Geral: {} Ativas / {} Inativas",
+            olts.len(),
+            olts.iter().filter(|o| o.is_active).count(),
+            olts.iter().filter(|o| !o.is_active).count()
+        );
+        w.text_at(&summary_text, SECTION_SIZE, MARGIN + 1.0, true);
+        w.y -= 4.0;
+        w.hline(w.y, MARGIN, PAGE_W - MARGIN);
+        w.y -= 4.0;
+
+        // Cabeçalho da Tabela
+        let col_pos = MARGIN + 1.0;
+        let col_ip = MARGIN + 8.0;
+        let col_host = MARGIN + 38.0;
+        let col_vendor = MARGIN + 76.0;
+        let col_model = MARGIN + 102.0;
+        let col_fw = MARGIN + 128.0;
+        let col_status = MARGIN + 168.0;
+
+        let draw_table_header_fw = |writer: &mut PdfWriter| {
+            writer.ensure_space(ROW_H * 2.0);
+            writer.text_at("#", TH_SIZE, col_pos, true);
+            writer.text_at("Endereco IP", TH_SIZE, col_ip, true);
+            writer.text_at("Hostname", TH_SIZE, col_host, true);
+            writer.text_at("Marca", TH_SIZE, col_vendor, true);
+            writer.text_at("Modelo OLT", TH_SIZE, col_model, true);
+            writer.text_at("Versao Firmware", TH_SIZE, col_fw, true);
+            writer.text_at("Status", TH_SIZE, col_status, true);
+            writer.y -= 1.8;
+            writer.hline(writer.y, MARGIN, PAGE_W - MARGIN);
+            writer.y -= 3.8;
+        };
+
+        draw_table_header_fw(&mut w);
+
+        for (idx, item) in olts.iter().enumerate() {
+            if w.y < MARGIN + 18.0 {
+                w.new_page();
+                w.draw_header_bar(
+                    "Inventario de Hardware, Modelos e Firmwares das OLTs (Cont.)",
+                    &now_str,
+                    operator_name,
+                );
+                draw_table_header_fw(&mut w);
+            }
+
+            let clean_host = sanitize(&item.hostname);
+            let host_display =
+                if clean_host.is_empty() || clean_host == "N/D" || clean_host == "Inacessivel" {
+                    "--"
+                } else {
+                    &clean_host
+                };
+
+            let clean_vendor = sanitize(&item.vendor.to_uppercase());
+            let vendor_display = if clean_vendor.is_empty() || clean_vendor == "N/D" {
+                "--"
+            } else {
+                &clean_vendor
+            };
+
+            let clean_model = sanitize(&item.model);
+            let model_display = if clean_model.is_empty() || clean_model == "N/D" {
+                "--"
+            } else {
+                &clean_model
+            };
+
+            let clean_fw = sanitize(&item.firmware_version);
+            let fw_display = if clean_fw.is_empty()
+                || clean_fw == "N/D"
+                || clean_fw == "Timeout / Inacessivel"
+            {
+                "--"
+            } else {
+                &clean_fw
+            };
+
+            w.text_at(&(idx + 1).to_string(), TD_SIZE, col_pos, false);
+            w.text_at(&item.ip_address, TD_SIZE, col_ip, true);
+            w.text_at(host_display, TD_SIZE, col_host, false);
+            w.text_at(vendor_display, TD_SIZE, col_vendor, false);
+            w.text_at(model_display, TD_SIZE, col_model, true);
+            w.text_at(fw_display, TD_SIZE, col_fw, false);
+
+            let status_label = if !item.is_active {
+                "Desativada"
+            } else if item.is_online {
+                "Online"
+            } else {
+                "Offline"
+            };
+            w.text_at(status_label, TD_SIZE, col_status, true);
+
+            w.y -= ROW_H;
+        }
+
+        // Rodapé
+        let total_p = w.doc.pages.len();
+        for (i, page) in w.doc.pages.iter_mut().enumerate() {
+            page.ops.push(Op::StartTextSection);
+            page.ops.push(Op::SetTextCursor {
+                pos: Point::new(Mm(MARGIN), Mm(8.0)),
+            });
+            page.ops.push(Op::SetFont {
+                font: PdfFontHandle::Builtin(BuiltinFont::Helvetica),
+                size: Pt(FOOTER_SIZE),
+            });
+            page.ops.push(Op::ShowText {
+                items: vec![TextItem::Text(format!(
+                    "SignalHunter OLT Hardware & Firmware Inventory  -  Documento Confidencial NOC  |  Pagina {} de {}",
+                    i + 1,
+                    total_p
+                ))],
+            });
+            page.ops.push(Op::EndTextSection);
+        }
+
+        w.save(output_path.as_ref().to_str().unwrap_or("report.pdf"))?;
+        Ok(())
+    }
 }
 
 fn self_y(w: &PdfWriter) -> f32 {
