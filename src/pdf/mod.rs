@@ -156,8 +156,8 @@ impl PdfWriter {
         if is_degradation {
             self.text_at("Sinal Anterior", TH_SIZE, MARGIN + 106.0, true);
             self.text_at("Sinal Atual", TH_SIZE, MARGIN + 125.0, true);
-            self.text_at("Piora (ΔdB)", TH_SIZE, MARGIN + 144.0, true);
-            self.text_at("Status", TH_SIZE, MARGIN + 163.0, true);
+            self.text_at("Piora (Delta-dB)", TH_SIZE, MARGIN + 144.0, true);
+            self.text_at("Status", TH_SIZE, MARGIN + 167.0, true);
         } else {
             self.text_at("Sinal Rx", TH_SIZE, COL_RX, true);
             self.text_at("Ultimas 5 Leituras (Historico)", TH_SIZE, COL_HISTORY, true);
@@ -383,7 +383,7 @@ impl PdfReportGenerator {
                     w.text_at(&prev_rx_str, TD_SIZE, MARGIN + 106.0, false);
                     w.text_at(&rx_str, TD_SIZE, MARGIN + 125.0, true);
                     w.text_at(&delta_str, TD_SIZE, MARGIN + 144.0, true);
-                    w.text_at(status_lbl, TD_SIZE, MARGIN + 163.0, is_bold_status);
+                    w.text_at(status_lbl, TD_SIZE, MARGIN + 167.0, is_bold_status);
                 } else {
                     w.text_at(&rx_str, TD_SIZE, COL_RX, true);
 
