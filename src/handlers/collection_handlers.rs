@@ -88,18 +88,25 @@ pub async fn sync_olt_telemetry(
             .and_then(|vb| vb.value_str)
             .unwrap_or_default();
 
-        // Para OLTs Huawei, se o sysDescr genérico não contiver versão, consulta a MIB Enterprise Huawei de Software Version:
-        // .1.3.6.1.4.1.2011.6.128.1.1.2.21.1.10 (hwGponDevSoftwareVersion) ou .1.3.6.1.4.1.2011.2.23.1.2.1.1.2
+        // Para OLTs como Huawei onde o sysDescr retorna apenas "Huawei Integrated Access Software",
+        // consulta a tabela universal padrão RFC 2737 (entPhysicalSoftwareRev - .1.3.6.1.2.1.47.1.1.1.1.10)
         if sys_desc.is_empty()
             || (!sys_desc.contains('V') && !sys_desc.contains('v') && !sys_desc.contains('.'))
         {
-            if let Ok(Some(vb)) = snmp_client
-                .get(".1.3.6.1.4.1.2011.6.128.1.1.2.21.1.10.0")
+            let ent_vbs = snmp_client
+                .bulk_walk(".1.3.6.1.2.1.47.1.1.1.1.10", 100)
                 .await
-            {
-                if let Some(s) = vb.value_str {
-                    if !s.trim().is_empty() {
-                        sys_desc = format!("{} {}", sys_desc, s.trim());
+                .unwrap_or_default();
+
+            for vb in ent_vbs {
+                if let Some(ref s) = vb.value_str {
+                    let cleaned = s.trim();
+                    if cleaned.contains('V')
+                        && cleaned.contains('R')
+                        && cleaned.chars().any(|c| c.is_ascii_digit())
+                    {
+                        sys_desc = format!("{} {}", sys_desc, cleaned);
+                        break;
                     }
                 }
             }
@@ -116,6 +123,12 @@ pub async fn sync_olt_telemetry(
                     .map(|s| s.trim())
                     .filter(|s| !s.is_empty())
                     .map(|s| s.to_string())
+            } else if let Some(pos) = desc_upper.find("V100R") {
+                let part = &sys_desc[pos..];
+                part.split_whitespace().next().map(|s| {
+                    s.trim_matches(|c: char| !c.is_alphanumeric() && c != '.' && c != '-')
+                        .to_string()
+                })
             } else {
                 sys_desc
                     .split_whitespace()

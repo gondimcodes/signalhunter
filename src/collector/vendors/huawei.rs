@@ -94,18 +94,35 @@ impl OltDriver for HuaweiDriver {
         let snmp = SnmpClient::new(&target.ip_address, target.snmp_port, comm, 3500).await?;
 
         // 1. Checagem prévia e identificação de Modelo e Firmware
-        let (_detected_model, _detected_fw) = match snmp.get(".1.3.6.1.2.1.1.1.0").await {
+        let (_detected_model, detected_fw) = match snmp.get(".1.3.6.1.2.1.1.1.0").await {
             Ok(Some(vb)) => {
                 debug!("Conexão SNMP estabelecida com Huawei '{}'", target.name);
                 let sys_desc = vb.value_str.unwrap_or_default();
-                let fw = if sys_desc.contains("SmartAX") || sys_desc.contains("MA5") {
-                    sys_desc
-                        .split_whitespace()
-                        .find(|w| w.starts_with('V') || w.starts_with('R'))
+                let fw = if let Some(pos) = sys_desc.to_uppercase().find("VERSION ") {
+                    let part = &sys_desc[pos + 8..];
+                    part.split(|c: char| c.is_whitespace() || c == ')' || c == ',' || c == ';')
+                        .next()
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
                         .map(|s| s.to_string())
                 } else {
-                    None
+                    sys_desc
+                        .split_whitespace()
+                        .find(|w| {
+                            let cleaned = w.trim_matches(|c: char| {
+                                !c.is_alphanumeric() && c != '.' && c != '-'
+                            });
+                            (cleaned.starts_with('V')
+                                || cleaned.starts_with('v')
+                                || cleaned.starts_with('R'))
+                                && cleaned.chars().any(|c| c.is_ascii_digit())
+                        })
+                        .map(|s| {
+                            s.trim_matches(|c: char| !c.is_alphanumeric() && c != '.' && c != '-')
+                                .to_string()
+                        })
                 };
+
                 let model = if sys_desc.contains("MA5800") {
                     Some("SmartAX MA5800 Series".to_string())
                 } else if sys_desc.contains("MA5608") {
@@ -129,6 +146,10 @@ impl OltDriver for HuaweiDriver {
                 .into());
             }
         };
+
+        if let Some(ref fw) = detected_fw {
+            info!("Huawei '{}': Firmware detectado: '{}'", target.name, fw);
+        }
 
         info!(
             "Huawei '{}': Coletando telemetrias ópticas via SNMP...",
