@@ -501,13 +501,25 @@ impl OltDriver for ZteDriver {
             }
         }
 
-        // 2.7 Causa da Última Desconexão via SNMP (zxAnGponOntLastDownCause):
-        // 1 = dying_gasp (energia), 2 = los (rompimento/fibra), 3 = manual_deactivate
+        // 2.7 Causa da Última Desconexão via SNMP:
+        // C300/C320: .1.3.6.1.4.1.3902.1012.3.28.2.1.4 (zxAnGponOntLastDownCause)
+        // C600/C650/C610: .1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.4 ou .1.3.6.1.4.1.3902.1082.500.20.2.1.8.1.4
+        // Mapeamento ZTE:
+        // 1 = dying-gasp (falta de energia)
+        // 2 = los / lofi (perda de sinal óptico / rompimento)
+        // 3 = manual_deactivate / disable
+        // 4 = reboot
         let mut down_cause_map = std::collections::HashMap::new();
-        let down_walk = snmp
-            .bulk_walk(".1.3.6.1.4.1.3902.1012.3.28.2.1.4", 65535)
+        let mut down_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.4", 65535)
             .await
             .unwrap_or_default();
+        if down_walk.is_empty() {
+            down_walk = snmp
+                .bulk_walk(".1.3.6.1.4.1.3902.1012.3.28.2.1.4", 65535)
+                .await
+                .unwrap_or_default();
+        }
         for vb in &down_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
@@ -517,6 +529,7 @@ impl OltDriver for ZteDriver {
                     1 => "dying_gasp",
                     2 => "los",
                     3 => "manual_deactivate",
+                    4 => "dying_gasp",
                     _ => "los",
                 };
                 down_cause_map.insert(key.clone(), reason.to_string());
