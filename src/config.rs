@@ -95,7 +95,9 @@ impl AppConfig {
         let mut config: AppConfig = toml::from_str(&content)?;
 
         // Permite sobrescrever o modo via variável de ambiente APP_MODE ou SIGNALHUNTER_MODE
-        if let Ok(env_mode) = std::env::var("APP_MODE").or_else(|_| std::env::var("SIGNALHUNTER_MODE")) {
+        if let Ok(env_mode) =
+            std::env::var("APP_MODE").or_else(|_| std::env::var("SIGNALHUNTER_MODE"))
+        {
             config.mode = env_mode.trim().to_lowercase();
         }
 

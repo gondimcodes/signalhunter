@@ -606,13 +606,13 @@ impl PdfReportGenerator {
         w.y -= 4.0;
 
         // Cabeçalho da Tabela (Ajustado para evitar sobreposição de colunas em nomes longos de hostnames/marcas)
-        let col_pos = MARGIN + 1.0;     // 16.0 mm (Largura: 6mm)
-        let col_ip = MARGIN + 7.0;      // 22.0 mm (Largura: 23mm)
-        let col_host = MARGIN + 30.0;   // 45.0 mm (Largura: 42mm)
+        let col_pos = MARGIN + 1.0; // 16.0 mm (Largura: 6mm)
+        let col_ip = MARGIN + 7.0; // 22.0 mm (Largura: 23mm)
+        let col_host = MARGIN + 30.0; // 45.0 mm (Largura: 42mm)
         let col_vendor = MARGIN + 73.0; // 88.0 mm (Largura: 21mm)
-        let col_model = MARGIN + 95.0;  // 110.0 mm (Largura: 37mm)
-        let col_fw = MARGIN + 133.0;    // 148.0 mm (Largura: 32mm)
-        let col_status = MARGIN + 166.0;// 181.0 mm (Largura: 14mm)
+        let col_model = MARGIN + 95.0; // 110.0 mm (Largura: 37mm)
+        let col_fw = MARGIN + 133.0; // 148.0 mm (Largura: 32mm)
+        let col_status = MARGIN + 166.0; // 181.0 mm (Largura: 14mm)
 
         let draw_table_header_fw = |writer: &mut PdfWriter| {
             writer.ensure_space(ROW_H * 2.0);
