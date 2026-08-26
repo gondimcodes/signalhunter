@@ -94,9 +94,9 @@ O SignalHunter possui drivers de engenharia especializados em Rust nativo para o
 
 | Fabricante | Modelos Homologados | Compatibilidade de Firmware | Protocolo | Parâmetros Coletados |
 | :--- | :--- | :---: | :---: | :--- |
-| **Huawei** | SmartAX MA5800, MA5608T, MA5680T | Todas as versões VRP | ✅ **SNMPv2c (100%)** | Rx, Tx, SFP Tx PON, OLT-Rx, Distância Métrica (m), Alarmes de Queda (Dying Gasp / LOS), Temp, Tensão e Nomes |
-| **Datacom** | DmOS DM4610, DM4615, DM4618 | **DmOS $\ge$ 12.6** | ✅ **SNMPv2c (100%)** | Rx (`.22`), Tx (`.21`), Motivo da Última Queda (`.31`), Status Primário (`.37`), SFP PON Tx, Uptime e Nomes |
-| **ZTE** | ZXA10 C600, C650, C610 (Titan), C300, C320 | Todas as versões | ✅ **SNMPv2c (100%)** | Rx, Tx, OLT-Rx Calculado, Distância (m), Temp, Tensão, Nomes e Causa de Queda (`.1012.3.28.2.1.4`) |
+| **Huawei** | SmartAX MA5800, MA5608T, MA5680T | Todas as versões VRP | ✅ **SNMPv2c (100%)** | Seriais, Rx, Tx, SFP Tx PON, OLT-Rx, Distância Métrica (m), Alarmes de Queda (Dying Gasp / LOS), Temp, Tensão e Nomes |
+| **Datacom** | DmOS DM4610, DM4615, DM4618 | **DmOS $\ge$ 12.6** | ✅ **SNMPv2c (100%)** | Serial Real (`.38`), Rx (`.22`), Tx (`.21`), Motivo da Última Queda (`.31`), Status Primário (`.37`), SFP PON Tx e Nomes (`.5`) |
+| **ZTE** | ZXA10 C600, C650, C610 (Titan), C300, C320 | Todas as versões | ✅ **SNMPv2c (100%)** | Seriais, Rx, Tx, OLT-Rx Calculado, Distância (m), Temp, Tensão, Nomes e Causa de Queda (`.1012.3.28.2.1.4`) |
 | **FiberHome** | AN5516-01, AN5516-04, AN5516-06 | Todas as versões | ✅ **SNMPv2c (100%)** | Rx, Tx, SFP Tx Real, OLT-Rx Calculado, Temp, Tensão, Bias, Distância e Nomes |
 | **Nokia / Alcatel** | ISAM 7360 FX, 7342, 7330, Lightspan FX | Todas as versões | ✅ **SNMPv2c (100%)** | DDM completo, Seriais, Alarmes `.88` (Dying Gasp vs LOS), Rx, Tx, OLT-Rx e Nomes |
 | **Parks** | Fiberlink 30028, 21000, 21016, 21008, 21004 | Todas as versões | ✅ **SNMPv2c (100%)** | Rx centi-dBm (`.15`), Temp (`.6.1.10`), Nomes (`.62`), Dying Gasp vs LOS (`.41`/`.5`) |
@@ -107,12 +107,12 @@ O SignalHunter possui drivers de engenharia especializados em Rust nativo para o
 
 | Fabricante | Parâmetros Coletados |
 |---|---|
-| **Huawei** | Serial (Hex/ASCII), Rx ONU, Tx ONU, OLT-Rx Upstream, Tx SFP PON OLT, Distância Métrica (m), Causa da Queda (Dying Gasp / LOS), Temperatura, Tensão, Nome do Cliente |
-| **Datacom** | Serial, Rx ONU (`.22`), Tx ONU (`.21`), Nomes de Clientes (`.5`), Potência Tx SFP PON, Motivo da Queda (`.31`), Status Primário (`.37`), Uptime de Conexão |
-| **ZTE** | Serial (ASCII/Hex), Rx ONU, Tx ONU, OLT-Rx Upstream, Atenuação ($\text{dB}$), Distância (m), Temp, Tensão, Nome, Causa de Queda (Dying Gasp / LOS) |
-| **FiberHome** | Serial, Rx ONU, Tx ONU, OLT SFP Tx Real (`.800.3.9.3.4.1.8`), OLT-Rx Calculado, Temperatura, Tensão, Bias Current, Distância (m), Nomes de Clientes, Status Operacional |
-| **Nokia / Alcatel** | Serial (Hex/ALCL), Rx ONU, Tx ONU, OLT-Rx Upstream, Atenuação ($\text{dB}$), Distância (m), Temp, Voltagem, Bias, Modelo ONT, Queda Diferenciada (`.88`) |
-| **Parks** | Serial (Hex/ASCII), Rx ONU centi-dBm (`.15`), Nomes de Clientes (`.62`), Temperatura do Transceiver (`.6.1.10`), Causa de Queda Dying Gasp vs LOS (`.41`/`.5`), Tx ONU Calibrado e OLT-Rx |
+| **Huawei** | Número de Série (`.43.1.3`), Nome do Cliente (`.43.1.9`), Modelo ONT (`.45.1.4`), Rx ONU (`.51.1.4`), Tx ONU (`.51.1.3`), OLT-Rx Upstream (`.51.1.6`), Tx SFP PON (`.23.1.2`), Temperatura (`.51.1.1`), Tensão (`.51.1.2`), Causa da Queda (`.47.1.3`), Distância (`.46.1.20`) |
+| **Datacom** | Número de Série Real (`.38`), Nome do Cliente (`.5`), Rx ONU (`.22`), Tx ONU (`.21`), Motivo da Queda (`.31`), Status Primário (`.37`), Potência Tx SFP PON (`.3709.3.6.8.2.1.1.3`), Mapeamento de Interface L2 (`.3`) |
+| **ZTE** | Número de Série (`.500.20.2.1.2.1.3` / `.300.20.2.1.2.1.3` / `.50.11.2.1.1`), Nome do Cliente (`.500.10.2.3.9.1.2`), Rx ONU (`.500.20.2.2.2.1.10` / `.500.1.2.4.2.1.2`), Tx ONU (`.500.20.2.2.2.1.11` / `.500.1.2.4.2.1.1`), OLT-Rx Upstream (`.500.20.2.2.2.1.12` / `.500.1.2.4.2.1.3`), Distância (`.500.10.2.3.8.1.4`), Temperatura (`.500.20.2.2.2.1.13`), Causa de Queda (`.500.10.2.3.8.1.11` / `.1012.3.28.2.1.4`) |
+| **FiberHome** | Número de Série (`.800.3.9.3.3.1.2`), Nome do Cliente (`.800.3.9.3.3.1.4`), Rx ONU (`.800.3.9.3.3.1.6`), Tx ONU (`.800.3.9.3.3.1.7`), Temperatura (`.800.3.9.3.3.1.8`), Tensão (`.800.3.9.3.3.1.9`), Bias Current (`.800.3.9.3.3.1.10`), Distância (`.800.3.9.3.3.1.11`), OLT SFP Tx Real (`.800.3.9.3.4.1.8`) |
+| **Nokia / Alcatel** | Número de Série (`.35.10.1.1.5`), Nome do Cliente (`.35.10.1.1.12`), Status Operacional (`.35.10.4.1.8`), Diagnóstico de Queda (`.35.10.1.1.88`), Rx ONU (`.35.10.14.1.2`), Tx ONU (`.35.10.14.1.3`), OLT-Rx Upstream (`.35.10.18.1.2`) |
+| **Parks** | Número de Série (`.5.1.18`), Nome / Login (`.5.1.62`), Modelo ONT (`.5.1.23`), Rx ONU (`.5.1.15`), Temperatura do Transceiver (`.6.1.10`), Diagnóstico de Queda (`.5.1.41` / `.5.1.5`) |
 
 ---
 
@@ -120,79 +120,80 @@ O SignalHunter possui drivers de engenharia especializados em Rust nativo para o
 
 #### 1. Huawei (VRP / SmartAX MA5800 & MA5600T Series)
 A coleta na Huawei opera **100% via SNMPv2c**:
-* `Distância Física da Fibra (m)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.20.<ifIndex>.<onuId>` (Inteiro em metros)
+* `Número de Série da ONU`: `.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.3.<ifIndex>.<onuId>`
+* `Nome / Descrição do Cliente`: `.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.9.<ifIndex>.<onuId>`
+* `Modelo do Equipamento ONT`: `.1.3.6.1.4.1.2011.6.128.1.1.2.45.1.4.<ifIndex>.<onuId>`
 * `Potência Óptica Rx da ONU (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.4.<ifIndex>.<onuId>` (Valor / 100)
 * `Potência Óptica Tx da ONU (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.3.<ifIndex>.<onuId>` (Valor / 100)
 * `Potência Óptica Rx OLT Upstream (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.6.<ifIndex>.<onuId>` ((Valor - 10000) / 100)
 * `Potência Tx Módulo SFP PON OLT (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.23.1.2.<ifIndex>` (Valor / 100)
-* `Serial / PON Identifier`: `.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.3.<ifIndex>.<onuId>`
-* `Nome / Descrição do Cliente`: `.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.9.<ifIndex>.<onuId>`
-* `Modelo do Equipamento ONT`: `.1.3.6.1.4.1.2011.6.128.1.1.2.45.1.4.<ifIndex>.<onuId>`
-* `Causa da Última Queda`: `.1.3.6.1.4.1.2011.6.128.1.1.2.47.1.3.<ifIndex>.<onuId>` (`1` = Dying Gasp / Energia, `2`/`3` = LOS / Fibra Rompida)
 * `Temperatura do Transceiver (°C)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.1.<ifIndex>.<onuId>`
 * `Tensão de Alimentação (V)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.2.<ifIndex>.<onuId>` (Valor / 100)
+* `Causa da Última Queda`: `.1.3.6.1.4.1.2011.6.128.1.1.2.47.1.3.<ifIndex>.<onuId>` (`1` = Dying Gasp / Energia, `2`/`3` = LOS / Fibra Rompida)
+* `Distância Física da Fibra (m)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.20.<ifIndex>.<onuId>` (Inteiro em metros)
 
 ---
 
 #### 2. Datacom (DmOS DM4610 / DM4615 / DM4618)
 A coleta na Datacom opera **100% via SNMPv2c** (requer firmware **DmOS $\ge$ 12.6**):
-
-* **Tabelas SNMP Enterprise (`DATACOM-DMOS-GPON-MIB`):**
-  * `Potência Óptica Rx da ONU (dBm)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.22.<ifIndex>` (onuIfOnuPowerRx)
-  * `Potência Óptica Tx da ONU (dBm)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.21.<ifIndex>` (onuIfOnuPowerTx)
-  * `Motivo da Última Queda`: `.1.3.6.1.4.1.3709.3.6.2.1.1.31.<ifIndex>` (onuIfLastDownReason)
-  * `Status Operacional Primário`: `.1.3.6.1.4.1.3709.3.6.2.1.1.37.<ifIndex>` (onuIfPrimaryStatus)
-  * `Nome / Identificador do Assinante`: `.1.3.6.1.4.1.3709.3.6.2.1.1.5.<ifIndex>`
-  * `Potência Tx Módulos SFP PON OLT (dBm)`: `.1.3.6.1.4.1.3709.3.6.8.2.1.1.3.<portIndex>` (Valor / 100)
-  * `Interface L2 / Mapeamento de Porta`: `.1.3.6.1.4.1.3709.3.6.2.1.1.3.<ifIndex>` (Ex: "gpon-1/1/1-onu-0")
-  * `Uptime de Conexão da ONU`: `.1.3.6.1.4.1.3709.3.6.2.1.1.26.<ifIndex>` (TimeTicks)
+* `Número de Série da ONU`: `.1.3.6.1.4.1.3709.3.6.2.1.1.38.<ifIndex>` (onuIfSerialNumber)
+* `Nome / Descrição do Cliente`: `.1.3.6.1.4.1.3709.3.6.2.1.1.5.<ifIndex>` (onuIfName)
+* `Potência Óptica Rx da ONU (dBm)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.22.<ifIndex>` (onuIfOnuPowerRx)
+* `Potência Óptica Tx da ONU (dBm)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.21.<ifIndex>` (onuIfOnuPowerTx)
+* `Motivo da Última Queda`: `.1.3.6.1.4.1.3709.3.6.2.1.1.31.<ifIndex>` (onuIfLastDownReason)
+* `Status Operacional Primário`: `.1.3.6.1.4.1.3709.3.6.2.1.1.37.<ifIndex>` (onuIfPrimaryStatus)
+* `Potência Tx Módulos SFP PON OLT (dBm)`: `.1.3.6.1.4.1.3709.3.6.8.2.1.1.3.<portIndex>` (laneTxPower - Valor / 100)
+* `Interface L2 / Mapeamento de Porta`: `.1.3.6.1.4.1.3709.3.6.2.1.1.3.<ifIndex>` (onuifDescr, Ex: "gpon-1/1/1-onu-0")
 
 ---
 
 #### 3. ZTE (ZXA10 C300 / C320 / C600 / C610 Titan Series)
 A coleta na ZTE opera **100% via SNMPv2c**:
-* `Potência Óptica Rx da ONU`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.1.<portIndex>.<onuId>` (raw / 1000 - 100 dBm)
-* `Potência Óptica Tx da ONU`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.2.<portIndex>.<onuId>`
-* `Potência Rx OLT Upstream`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.3.<portIndex>.<onuId>`
-* `Distância Física da Fibra (m)`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.10.1.2.<ifIndex>.<onuId>`
-* `Causa da Última Queda (Dying Gasp vs LOS)`: `.1.3.6.1.4.1.3902.1012.3.28.2.1.4.<ifIndex>.<onuId>` (`1` = Dying Gasp / Energia, `2` = LOS / Fibra Rompida)
+* `Número de Série da ONU`: `.1.3.6.1.4.1.3902.1082.500.20.2.1.2.1.3` (Titan C600) / `.1.3.6.1.4.1.3902.1082.300.20.2.1.2.1.3` (C300) / `.1.3.6.1.4.1.3902.1012.3.50.11.2.1.1` (C300 Legacy)
 * `Nome / Identificador do Assinante`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.9.1.2.<ifIndex>.<onuId>`
-* `Temperatura do Transceiver (°C)`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.5.<portIndex>.<onuId>` (raw / 100.0)
-* `Tensão de Alimentação (V)`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.4.<portIndex>.<onuId>` (raw / 100.0)
+* `Potência Óptica Rx da ONU (dBm)`: `.1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.10` (Titan) / `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.2` (C300)
+* `Potência Óptica Tx da ONU (dBm)`: `.1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.11` (Titan) / `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.1` (C300)
+* `Potência Rx OLT Upstream (dBm)`: `.1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.12` (Titan) / `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.3` (C300)
+* `Temperatura do Transceiver (°C)`: `.1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.13` (Titan) / `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.5` (C300)
+* `Distância Física da Fibra (m)`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.4.<ifIndex>.<onuId>`
+* `Causa da Última Queda (Dying Gasp vs LOS)`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.11` / `.1.3.6.1.4.1.3902.1012.3.28.2.1.4` (`1` = Dying Gasp / Energia, `2` = LOS / Fibra Rompida)
 
 ---
 
 #### 4. FiberHome (AN5516-01 / AN5516-04 / AN5516-06 Series)
 A coleta na FiberHome opera **100% via SNMPv2c**:
-* `Potência Tx SFP PON Real OLT (dBm)`: `.1.3.6.1.4.1.5875.800.3.9.3.4.1.8.<slot>.<port>` (raw / 100.0)
-* `Potência Óptica Rx da ONU (dBm)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.6.<slot>.<port>.<onu>` (raw / 100.0)
-* `Potência Óptica Tx da ONU (dBm)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.7.<slot>.<port>.<onu>` (raw / 100.0)
-* `Temperatura do Transceiver (°C)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.8.<slot>.<port>.<onu>` (raw / 10.0)
-* `Tensão de Alimentação (V)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.9.<slot>.<port>.<onu>` (raw / 100.0)
-* `Corrente de Bias (mA)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.10.<slot>.<port>.<onu>` (raw / 1000.0)
+* `Número de Série da ONU`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.2.<slot>.<port>.<onu>`
+* `Nome / Identificador do Assinante`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.4.<slot>.<port>.<onu>`
+* `Potência Tx SFP PON Real OLT (dBm)`: `.1.3.6.1.4.1.5875.800.3.9.3.4.1.8.<slot>.<port>` (Raw / 100.0)
+* `Potência Óptica Rx da ONU (dBm)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.6.<slot>.<port>.<onu>` (Raw / 100.0)
+* `Potência Óptica Tx da ONU (dBm)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.7.<slot>.<port>.<onu>` (Raw / 100.0)
+* `Temperatura do Transceiver (°C)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.8.<slot>.<port>.<onu>` (Raw / 10.0)
+* `Tensão de Alimentação (V)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.9.<slot>.<port>.<onu>` (Raw / 100.0)
+* `Corrente de Bias (mA)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.10.<slot>.<port>.<onu>` (Raw / 1000.0)
 * `Distância Física da Fibra (m)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.11.<slot>.<port>.<onu>`
 
 ---
 
 #### 5. Nokia / Alcatel-Lucent (ISAM 7360 FX / Lightspan FX Series)
-A coleta na Nokia opera **100% via SNMPv2c** com isolamento total de SSH:
-* `Seriais das ONUs`: `.1.3.6.1.4.1.637.61.1.35.10.1.1.5`
+A coleta na Nokia opera **100% via SNMPv2c**:
+* `Número de Série da ONU`: `.1.3.6.1.4.1.637.61.1.35.10.1.1.5`
+* `Nome / Descrição do Cliente`: `.1.3.6.1.4.1.637.61.1.35.10.1.1.12`
 * `Status Operacional da ONU`: `.1.3.6.1.4.1.637.61.1.35.10.4.1.8` (`12`/`1` = Online)
-* `Diagnóstico de Queda (Dying Gasp vs LOS)`: `.1.3.6.1.4.1.637.61.1.35.10.1.1.88` (`256` = Dying Gasp / Falta de Energia, `2` = LOS / Fibra Rompida, `1` = Online)
-* `Potência Óptica Rx da ONU (dBm)`: `.1.3.6.1.4.1.637.61.1.35.10.14.1.2` (raw * 0.002 dBm)
+* `Diagnóstico de Queda (Dying Gasp vs LOS)`: `.1.3.6.1.4.1.637.61.1.35.10.1.1.88` (`256` = Dying Gasp / Falta de Energia, `2` = LOS / Fibra Rompida)
+* `Potência Óptica Rx da ONU (dBm)`: `.1.3.6.1.4.1.637.61.1.35.10.14.1.2` (Raw * 0.002 dBm)
 * `Potência Óptica Tx da ONU (dBm)`: `.1.3.6.1.4.1.637.61.1.35.10.14.1.3`
-* `Potência Óptica Rx OLT Upstream (dBm)`: `.1.3.6.1.4.1.637.61.1.35.10.18.1.2` (raw / 10.0 dBm)
+* `Potência Óptica Rx OLT Upstream (dBm)`: `.1.3.6.1.4.1.637.61.1.35.10.18.1.2` (Raw / 10.0 dBm)
 
 ---
 
 #### 6. Parks (Fiberlink 30028 / 21000 / 21016 Series)
-A coleta na Parks opera **100% via SNMPv2c** com isolamento total de SSH:
-* `Seriais das ONUs (Hex/ASCII)`: `.1.3.6.1.4.1.6771.10.1.5.1.18.<slot>.<port>.<onu>` (Ex: `PRKS00C418A1`)
-* `Nome / Login do Assinante`: `.1.3.6.1.4.1.6771.10.1.5.1.62.<slot>.<port>.<onu>` (Ex: `NelsonAmorim`)
-* `Modelo da ONT (Hex/ASCII)`: `.1.3.6.1.4.1.6771.10.1.5.1.23.<slot>.<port>.<onu>` (Ex: `Fiberlink101`)
+A coleta na Parks opera **100% via SNMPv2c**:
+* `Número de Série da ONU (Hex/ASCII)`: `.1.3.6.1.4.1.6771.10.1.5.1.18.<slot>.<port>.<onu>` (Ex: `PRKS00C418A1`)
+* `Nome / Login do Assinante`: `.1.3.6.1.4.1.6771.10.1.5.1.62.<slot>.<port>.<onu>`
+* `Modelo da ONT (Hex/ASCII)`: `.1.3.6.1.4.1.6771.10.1.5.1.23.<slot>.<port>.<onu>`
 * `Potência Óptica Rx da ONU (dBm)`: `.1.3.6.1.4.1.6771.10.1.5.1.15.<slot>.<port>.<onu>` (Escala centi-dBm: `2638` $\rightarrow -26.38\text{ dBm}$)
-* `Temperatura do Transceiver (°C)`: `.1.3.6.1.4.1.6771.10.1.6.1.10.<slot>.<port>.<onu>.2` (raw / 10.0)
-* `Diferenciação de Queda (Dying Gasp vs LOS)`: `.1.3.6.1.4.1.6771.10.1.5.1.41` (`1` = Dying Gasp / Falta de Energia, `0` = LOS / Fibra Rompida) e `.1.3.6.1.4.1.6771.10.1.5.1.5` (`3` = Online, `1` = Dying Gasp, `0` = LOS)
+* `Temperatura do Transceiver (°C)`: `.1.3.6.1.4.1.6771.10.1.6.1.10.<slot>.<port>.<onu>.2` (Raw / 10.0)
+* `Diagnóstico de Causa de Queda`: `.1.3.6.1.4.1.6771.10.1.5.1.41` (`1` = Dying Gasp / Falta de Energia, `0` = LOS / Fibra Rompida) e `.1.3.6.1.4.1.6771.10.1.5.1.5` (`3` = Online, `1` = Dying Gasp, `0` = LOS)
 
 ---
 

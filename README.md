@@ -94,9 +94,9 @@ SignalHunter features specialized native Rust drivers for major telecom equipmen
 
 | Vendor | Supported Hardware Models | Firmware Compatibility | Protocol | Collected Parameters |
 | :--- | :--- | :---: | :---: | :--- |
-| **Huawei** | SmartAX MA5800, MA5608T, MA5680T | All VRP Versions | ✅ **SNMPv2c (100%)** | Rx, Tx, SFP PON Tx, OLT-Rx, Distance (m), Dying Gasp vs LOS, Temp, Voltage, Names |
-| **Datacom** | DmOS DM4610, DM4615, DM4618 | **DmOS $\ge$ 12.6** | ✅ **SNMPv2c (100%)** | Rx (`.22`), Tx (`.21`), Last Down Reason (`.31`), Primary Status (`.37`), SFP PON Tx, Uptime, Names |
-| **ZTE** | ZXA10 C600, C650, C610 (Titan), C300, C320 | All Versions | ✅ **SNMPv2c (100%)** | Rx, Tx, Computed OLT-Rx, Distance (m), Temp, Voltage, Names, Last Down Cause (`.1012.3.28.2.1.4`) |
+| **Huawei** | SmartAX MA5800, MA5608T, MA5680T | All VRP Versions | ✅ **SNMPv2c (100%)** | Serials, Rx, Tx, SFP PON Tx, OLT-Rx, Distance (m), Dying Gasp vs LOS, Temp, Voltage, Names |
+| **Datacom** | DmOS DM4610, DM4615, DM4618 | **DmOS $\ge$ 12.6** | ✅ **SNMPv2c (100%)** | Real Serial (`.38`), Rx (`.22`), Tx (`.21`), Last Down Reason (`.31`), Primary Status (`.37`), SFP PON Tx, Names (`.5`) |
+| **ZTE** | ZXA10 C600, C650, C610 (Titan), C300, C320 | All Versions | ✅ **SNMPv2c (100%)** | Serials, Rx, Tx, Computed OLT-Rx, Distance (m), Temp, Voltage, Names, Last Down Cause (`.1012.3.28.2.1.4`) |
 | **FiberHome** | AN5516-01, AN5516-04, AN5516-06 | All Versions | ✅ **SNMPv2c (100%)** | Rx, Tx, Real SFP Tx, Computed OLT-Rx, Temp, Voltage, Bias, Distance, Names |
 | **Nokia / Alcatel** | ISAM 7360 FX, 7342, 7330, Lightspan FX | All Versions | ✅ **SNMPv2c (100%)** | Full DDM, Serials, `.88` Drop Alarms (Dying Gasp vs LOS), Rx, Tx, OLT-Rx, Names |
 | **Parks** | Fiberlink 30028, 21000, 21016, 21008, 21004 | All Versions | ✅ **SNMPv2c (100%)** | centi-dBm Rx (`.15`), Temp (`.6.1.10`), Names (`.62`), Dying Gasp vs LOS (`.41`/`.5`) |
@@ -107,12 +107,12 @@ SignalHunter features specialized native Rust drivers for major telecom equipmen
 
 | Vendor | Collected Parameters |
 |---|---|
-| **Huawei** | Serial (Hex/ASCII), ONU Rx, ONU Tx, Upstream OLT-Rx, OLT SFP Tx, Metric Distance (m), Drop Cause (Dying Gasp / LOS), Temperature, Voltage, Customer Name |
-| **Datacom** | Serial, ONU Rx (`.22`), ONU Tx (`.21`), Customer Names (`.5`), SFP PON Tx Power, Last Down Cause (`.31`), Primary Status (`.37`), Connection Uptime |
-| **ZTE** | Serial (ASCII/Hex), ONU Rx, ONU Tx, Upstream OLT-Rx, Optical Attenuation ($\text{dB}$), Distance (m), Temp, Voltage, Name, Last Down Cause (Dying Gasp / LOS) |
-| **FiberHome** | Serial, ONU Rx, ONU Tx, Real OLT SFP Tx (`.800.3.9.3.4.1.8`), Computed OLT-Rx, Temperature, Voltage, Bias Current, Distance (m), Customer Names, Operational Status |
-| **Nokia / Alcatel** | Serial (Hex/ALCL), ONU Rx, ONU Tx, Upstream OLT-Rx, Optical Attenuation ($\text{dB}$), Distance (m), Temp, Voltage, Bias, ONT Model, Differentiated Drop Cause (`.88`) |
-| **Parks** | Serial (Hex/ASCII), centi-dBm ONU Rx (`.15`), Customer Names (`.62`), Transceiver Temperature (`.6.1.10`), Dying Gasp vs LOS Drop Cause (`.41`/`.5`), Calibrated ONU Tx, and OLT-Rx |
+| **Huawei** | Serial Number (`.43.1.3`), Customer Name (`.43.1.9`), ONT Model (`.45.1.4`), ONU Rx (`.51.1.4`), ONU Tx (`.51.1.3`), Upstream OLT-Rx (`.51.1.6`), SFP PON Tx (`.23.1.2`), Temperature (`.51.1.1`), Voltage (`.51.1.2`), Last Drop Cause (`.47.1.3`), Distance (`.46.1.20`) |
+| **Datacom** | Serial Number (`.38`), Customer Name (`.5`), ONU Rx (`.22`), ONU Tx (`.21`), Last Down Reason (`.31`), Primary Status (`.37`), SFP PON Tx Power (`.3709.3.6.8.2.1.1.3`), Interface L2 Mapping (`.3`) |
+| **ZTE** | Serial Number (`.500.20.2.1.2.1.3` / `.300.20.2.1.2.1.3` / `.50.11.2.1.1`), Customer Name (`.500.10.2.3.9.1.2`), ONU Rx (`.500.20.2.2.2.1.10` / `.500.1.2.4.2.1.2`), ONU Tx (`.500.20.2.2.2.1.11` / `.500.1.2.4.2.1.1`), Upstream OLT-Rx (`.500.20.2.2.2.1.12` / `.500.1.2.4.2.1.3`), Distance (`.500.10.2.3.8.1.4`), Temperature (`.500.20.2.2.2.1.13`), Last Down Cause (`.500.10.2.3.8.1.11` / `.1012.3.28.2.1.4`) |
+| **FiberHome** | Serial Number (`.800.3.9.3.3.1.2`), Customer Name (`.800.3.9.3.3.1.4`), ONU Rx (`.800.3.9.3.3.1.6`), ONU Tx (`.800.3.9.3.3.1.7`), Temperature (`.800.3.9.3.3.1.8`), Voltage (`.800.3.9.3.3.1.9`), Bias Current (`.800.3.9.3.3.1.10`), Distance (`.800.3.9.3.3.1.11`), Real OLT SFP Tx (`.800.3.9.3.4.1.8`) |
+| **Nokia / Alcatel** | Serial Number (`.35.10.1.1.5`), Customer Name (`.35.10.1.1.12`), ONU Operational Status (`.35.10.4.1.8`), Drop Diagnosis (`.35.10.1.1.88`), ONU Rx (`.35.10.14.1.2`), ONU Tx (`.35.10.14.1.3`), Upstream OLT-Rx (`.35.10.18.1.2`) |
+| **Parks** | Serial Number (`.5.1.18`), Customer Name / Login (`.5.1.62`), ONT Model (`.5.1.23`), ONU Rx (`.5.1.15`), Transceiver Temperature (`.6.1.10`), Drop Cause (`.5.1.41` / `.5.1.5`) |
 
 ---
 
@@ -120,77 +120,80 @@ SignalHunter features specialized native Rust drivers for major telecom equipmen
 
 #### 1. Huawei (VRP / SmartAX MA5800 & MA5600T Series)
 Huawei telemetry polling is executed **100% via SNMPv2c**:
-* `Physical Fiber Distance (m)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.20.<ifIndex>.<onuId>` (Integer in meters)
+* `ONU Serial Number`: `.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.3.<ifIndex>.<onuId>`
+* `Customer Name / Description`: `.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.9.<ifIndex>.<onuId>`
+* `ONT Equipment Model`: `.1.3.6.1.4.1.2011.6.128.1.1.2.45.1.4.<ifIndex>.<onuId>`
 * `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.4.<ifIndex>.<onuId>` (Raw / 100)
 * `ONU Optical Tx Power (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.3.<ifIndex>.<onuId>` (Raw / 100)
 * `Upstream OLT Rx Power (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.6.<ifIndex>.<onuId>` ((Raw - 10000) / 100)
 * `OLT SFP PON Tx Power (dBm)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.23.1.2.<ifIndex>` (Raw / 100)
-* `Serial / PON Identifier`: `.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.3.<ifIndex>.<onuId>`
-* `Customer Name / Description`: `.1.3.6.1.4.1.2011.6.128.1.1.2.43.1.9.<ifIndex>.<onuId>`
-* `ONT Equipment Model`: `.1.3.6.1.4.1.2011.6.128.1.1.2.45.1.4.<ifIndex>.<onuId>`
-* `Last Drop Reason`: `.1.3.6.1.4.1.2011.6.128.1.1.2.47.1.3.<ifIndex>.<onuId>` (`1` = Dying Gasp / Power, `2`/`3` = LOS / Fiber Break)
 * `Transceiver Temperature (°C)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.1.<ifIndex>.<onuId>`
 * `Supply Voltage (V)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.51.1.2.<ifIndex>.<onuId>` (Raw / 100)
+* `Last Drop Reason`: `.1.3.6.1.4.1.2011.6.128.1.1.2.47.1.3.<ifIndex>.<onuId>` (`1` = Dying Gasp / Power, `2`/`3` = LOS / Fiber Break)
+* `Physical Fiber Distance (m)`: `.1.3.6.1.4.1.2011.6.128.1.1.2.46.1.20.<ifIndex>.<onuId>` (Integer in meters)
 
 ---
 
 #### 2. Datacom (DmOS DM4610 / DM4615 / DM4618)
 Datacom telemetry polling is executed **100% via SNMPv2c** (requires firmware **DmOS $\ge$ 12.6**):
+* `ONU Serial Number`: `.1.3.6.1.4.1.3709.3.6.2.1.1.38.<ifIndex>` (onuIfSerialNumber)
+* `Customer Name / Description`: `.1.3.6.1.4.1.3709.3.6.2.1.1.5.<ifIndex>` (onuIfName)
 * `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.22.<ifIndex>` (onuIfOnuPowerRx)
 * `ONU Optical Tx Power (dBm)`: `.1.3.6.1.4.1.3709.3.6.2.1.1.21.<ifIndex>` (onuIfOnuPowerTx)
 * `Last Down Reason`: `.1.3.6.1.4.1.3709.3.6.2.1.1.31.<ifIndex>` (onuIfLastDownReason)
 * `Primary Operational Status`: `.1.3.6.1.4.1.3709.3.6.2.1.1.37.<ifIndex>` (onuIfPrimaryStatus)
-* `Customer Name / Description`: `.1.3.6.1.4.1.3709.3.6.2.1.1.5.<ifIndex>` (onuIfDescription)
-* `OLT SFP PON Tx Power (dBm)`: `.1.3.6.1.4.1.3709.3.6.8.2.1.1.3.<portIndex>` (Raw / 100)
-* `L2 Interface Mapping`: `.1.3.6.1.4.1.3709.3.6.2.1.1.3.<ifIndex>` (e.g., "gpon-1/1/1-onu-0")
-* `ONU Connection Uptime`: `.1.3.6.1.4.1.3709.3.6.2.1.1.26.<ifIndex>` (TimeTicks)
+* `OLT SFP PON Tx Power (dBm)`: `.1.3.6.1.4.1.3709.3.6.8.2.1.1.3.<portIndex>` (laneTxPower - Raw / 100)
+* `L2 Interface Mapping`: `.1.3.6.1.4.1.3709.3.6.2.1.1.3.<ifIndex>` (onuifDescr, e.g., "gpon-1/1/1-onu-0")
 
 ---
 
 #### 3. ZTE (ZXA10 C300 / C320 / C600 / C610 Titan Series)
 ZTE telemetry polling is executed **100% via SNMPv2c**:
-* `ONU Optical Rx Power`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.1.<portIndex>.<onuId>` (raw / 1000 - 100 dBm)
-* `ONU Optical Tx Power`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.2.<portIndex>.<onuId>`
-* `Upstream OLT Rx Power`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.3.<portIndex>.<onuId>`
-* `Physical Fiber Distance (m)`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.10.1.2.<ifIndex>.<onuId>`
-* `Last Down Cause (Dying Gasp vs LOS)`: `.1.3.6.1.4.1.3902.1012.3.28.2.1.4.<ifIndex>.<onuId>` (`1` = Dying Gasp / Power, `2` = LOS / Fiber Break)
-* `Subscriber Name / Description`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.9.1.2.<ifIndex>.<onuId>`
-* `Transceiver Temperature (°C)`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.5.<portIndex>.<onuId>` (raw / 100.0)
-* `Supply Voltage (V)`: `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.4.<portIndex>.<onuId>` (raw / 100.0)
+* `ONU Serial Number`: `.1.3.6.1.4.1.3902.1082.500.20.2.1.2.1.3` (Titan C600) / `.1.3.6.1.4.1.3902.1082.300.20.2.1.2.1.3` (C300) / `.1.3.6.1.4.1.3902.1012.3.50.11.2.1.1` (C300 Legacy)
+* `Customer Name / Description`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.9.1.2.<ifIndex>.<onuId>`
+* `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.10` (Titan) / `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.2` (C300)
+* `ONU Optical Tx Power (dBm)`: `.1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.11` (Titan) / `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.1` (C300)
+* `Upstream OLT Rx Power (dBm)`: `.1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.12` (Titan) / `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.3` (C300)
+* `Transceiver Temperature (°C)`: `.1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.13` (Titan) / `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.5` (C300)
+* `Physical Fiber Distance (m)`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.4.<ifIndex>.<onuId>`
+* `Last Down Cause (Dying Gasp vs LOS)`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.11` / `.1.3.6.1.4.1.3902.1012.3.28.2.1.4` (`1` = Dying Gasp / Power, `2` = LOS / Fiber Break)
 
 ---
 
 #### 4. FiberHome (AN5516-01 / AN5516-04 / AN5516-06 Series)
 FiberHome polling is executed **100% via SNMPv2c**:
-* `Real OLT SFP PON Tx Power (dBm)`: `.1.3.6.1.4.1.5875.800.3.9.3.4.1.8.<slot>.<port>` (raw / 100.0)
-* `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.6.<slot>.<port>.<onu>` (raw / 100.0)
-* `ONU Optical Tx Power (dBm)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.7.<slot>.<port>.<onu>` (raw / 100.0)
-* `Transceiver Temperature (°C)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.8.<slot>.<port>.<onu>` (raw / 10.0)
-* `Supply Voltage (V)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.9.<slot>.<port>.<onu>` (raw / 100.0)
-* `Bias Current (mA)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.10.<slot>.<port>.<onu>` (raw / 1000.0)
+* `ONU Serial Number`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.2.<slot>.<port>.<onu>`
+* `Customer Name / Description`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.4.<slot>.<port>.<onu>`
+* `Real OLT SFP PON Tx Power (dBm)`: `.1.3.6.1.4.1.5875.800.3.9.3.4.1.8.<slot>.<port>` (Raw / 100.0)
+* `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.6.<slot>.<port>.<onu>` (Raw / 100.0)
+* `ONU Optical Tx Power (dBm)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.7.<slot>.<port>.<onu>` (Raw / 100.0)
+* `Transceiver Temperature (°C)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.8.<slot>.<port>.<onu>` (Raw / 10.0)
+* `Supply Voltage (V)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.9.<slot>.<port>.<onu>` (Raw / 100.0)
+* `Bias Current (mA)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.10.<slot>.<port>.<onu>` (Raw / 1000.0)
 * `Physical Fiber Distance (m)`: `.1.3.6.1.4.1.5875.800.3.9.3.3.1.11.<slot>.<port>.<onu>`
 
 ---
 
 #### 5. Nokia / Alcatel-Lucent (ISAM 7360 FX / Lightspan FX Series)
-Nokia polling is executed **100% via SNMPv2c** with complete SSH isolation:
-* `ONU Serial Numbers`: `.1.3.6.1.4.1.637.61.1.35.10.1.1.5`
+Nokia polling is executed **100% via SNMPv2c**:
+* `ONU Serial Number`: `.1.3.6.1.4.1.637.61.1.35.10.1.1.5`
+* `Customer Name / Description`: `.1.3.6.1.4.1.637.61.1.35.10.1.1.12`
 * `ONU Operational Status`: `.1.3.6.1.4.1.637.61.1.35.10.4.1.8` (`12`/`1` = Online)
-* `Drop Diagnosis (Dying Gasp vs LOS)`: `.1.3.6.1.4.1.637.61.1.35.10.1.1.88` (`256` = Dying Gasp / Power Outage, `2` = LOS / Fiber Break, `1` = Online)
-* `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.637.61.1.35.10.14.1.2` (raw * 0.002 dBm)
+* `Drop Diagnosis (Dying Gasp vs LOS)`: `.1.3.6.1.4.1.637.61.1.35.10.1.1.88` (`256` = Dying Gasp / Power Outage, `2` = LOS / Fiber Break)
+* `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.637.61.1.35.10.14.1.2` (Raw * 0.002 dBm)
 * `ONU Optical Tx Power (dBm)`: `.1.3.6.1.4.1.637.61.1.35.10.14.1.3`
-* `Upstream OLT Rx Power (dBm)`: `.1.3.6.1.4.1.637.61.1.35.10.18.1.2` (raw / 10.0 dBm)
+* `Upstream OLT Rx Power (dBm)`: `.1.3.6.1.4.1.637.61.1.35.10.18.1.2` (Raw / 10.0 dBm)
 
 ---
 
 #### 6. Parks (Fiberlink 30028 / 21000 / 21016 Series)
-Parks polling is executed **100% via SNMPv2c** with complete SSH isolation:
-* `ONU Serial Numbers (Hex/ASCII)`: `.1.3.6.1.4.1.6771.10.1.5.1.18.<slot>.<port>.<onu>` (e.g., `PRKS00C418A1`)
-* `Subscriber Name / Login`: `.1.3.6.1.4.1.6771.10.1.5.1.62.<slot>.<port>.<onu>` (e.g., `NelsonAmorim`)
-* `ONT Model (Hex/ASCII)`: `.1.3.6.1.4.1.6771.10.1.5.1.23.<slot>.<port>.<onu>` (e.g., `Fiberlink101`)
+Parks polling is executed **100% via SNMPv2c**:
+* `ONU Serial Number (Hex/ASCII)`: `.1.3.6.1.4.1.6771.10.1.5.1.18.<slot>.<port>.<onu>` (e.g., `PRKS00C418A1`)
+* `Customer Name / Login`: `.1.3.6.1.4.1.6771.10.1.5.1.62.<slot>.<port>.<onu>`
+* `ONT Model (Hex/ASCII)`: `.1.3.6.1.4.1.6771.10.1.5.1.23.<slot>.<port>.<onu>`
 * `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.6771.10.1.5.1.15.<slot>.<port>.<onu>` (centi-dBm scale: `2638` $\rightarrow -26.38\text{ dBm}$)
-* `Transceiver Temperature (°C)`: `.1.3.6.1.4.1.6771.10.1.6.1.10.<slot>.<port>.<onu>.2` (raw / 10.0)
-* `Differentiated Drop Cause`: `.1.3.6.1.4.1.6771.10.1.5.1.41` (`1` = Dying Gasp / Power Outage, `0` = LOS / Fiber Break) and `.1.3.6.1.4.1.6771.10.1.5.1.5` (`3` = Online, `1` = Dying Gasp, `0` = LOS)
+* `Transceiver Temperature (°C)`: `.1.3.6.1.4.1.6771.10.1.6.1.10.<slot>.<port>.<onu>.2` (Raw / 10.0)
+* `Drop Cause Diagnosis`: `.1.3.6.1.4.1.6771.10.1.5.1.41` (`1` = Dying Gasp / Power Outage, `0` = LOS / Fiber Break) and `.1.3.6.1.4.1.6771.10.1.5.1.5` (`3` = Online, `1` = Dying Gasp, `0` = LOS)
 
 ---
 
