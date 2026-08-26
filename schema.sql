@@ -27,15 +27,9 @@ CREATE TABLE IF NOT EXISTS olts (
     model VARCHAR(64) NULL,
     firmware_version VARCHAR(64) NULL,
     
-    -- Parâmetros SNMP (Credenciais cifradas com AES-256-GCM)
-    snmp_version ENUM('v2c', 'v3') NOT NULL DEFAULT 'v2c',
+    -- Parâmetros SNMPv2c (Credenciais cifradas com AES-256-GCM)
     snmp_port INT UNSIGNED NOT NULL DEFAULT 161,
     snmp_community_encrypted TEXT NULL,
-    snmp_v3_user VARCHAR(64) NULL,
-    snmp_v3_auth_proto ENUM('MD5', 'SHA', 'SHA256') NULL,
-    snmp_v3_auth_pass_encrypted TEXT NULL,
-    snmp_v3_priv_proto ENUM('DES', 'AES', 'AES128', 'AES256') NULL,
-    snmp_v3_priv_pass_encrypted TEXT NULL,
     
     -- Parâmetros de Proteção e Agendamento
     is_active BOOLEAN NOT NULL DEFAULT TRUE,

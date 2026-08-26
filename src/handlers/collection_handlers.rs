@@ -21,8 +21,7 @@ pub async fn sync_olt_telemetry(
 
     let olt_row = sqlx::query_as::<_, crate::db::queries::OltWithCredentials>(
         "SELECT id, name, ip_address, vendor, model, firmware_version,
-                snmp_version, snmp_port, snmp_community_encrypted, snmp_v3_user, snmp_v3_auth_proto,
-                snmp_v3_auth_pass_encrypted, snmp_v3_priv_proto, snmp_v3_priv_pass_encrypted,
+                snmp_port, snmp_community_encrypted,
                 is_active, collection_interval_mins, max_concurrent_requests, pon_delay_ms,
                 last_collected_at, last_collection_status, last_error_message, created_at
          FROM olts WHERE id = ?",
@@ -51,7 +50,7 @@ pub async fn sync_olt_telemetry(
         ip_address: olt_row.ip_address.clone(),
         vendor: olt_row.vendor.clone(),
         model: olt_row.model,
-        snmp_version: olt_row.snmp_version,
+        snmp_version: "v2c".to_string(),
         snmp_port: olt_row.snmp_port as u16,
         snmp_community: decrypted_community,
         max_concurrent_requests: olt_row.max_concurrent_requests as usize,

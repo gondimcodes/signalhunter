@@ -145,14 +145,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 vendor ENUM('huawei', 'zte', 'datacom', 'fiberhome', 'nokia', 'parks', 'generic') NOT NULL,
                 model VARCHAR(64) NULL,
                 firmware_version VARCHAR(64) NULL,
-                snmp_version ENUM('v2c', 'v3') NOT NULL DEFAULT 'v2c',
                 snmp_port INT UNSIGNED NOT NULL DEFAULT 161,
                 snmp_community_encrypted TEXT NULL,
-                snmp_v3_user VARCHAR(64) NULL,
-                snmp_v3_auth_proto ENUM('MD5', 'SHA', 'SHA256') NULL,
-                snmp_v3_auth_pass_encrypted TEXT NULL,
-                snmp_v3_priv_proto ENUM('DES', 'AES', 'AES128', 'AES256') NULL,
-                snmp_v3_priv_pass_encrypted TEXT NULL,
                 is_active BOOLEAN NOT NULL DEFAULT TRUE,
                 collection_interval_mins INT UNSIGNED NOT NULL DEFAULT 60,
                 max_concurrent_requests TINYINT UNSIGNED NOT NULL DEFAULT 2,
@@ -166,7 +160,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
         ).execute(pool).await;
 
-        // Migração suave e segura: remove colunas legadas de SSH / Netconf caso existam na base de dados
+        // Migração suave e segura: remove colunas legadas de SSH, Netconf e SNMPv3 caso existam na base de dados
         let _ = sqlx::query("ALTER TABLE olts DROP COLUMN IF EXISTS primary_protocol")
             .execute(pool)
             .await;
@@ -186,6 +180,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .execute(pool)
             .await;
         let _ = sqlx::query("ALTER TABLE olts DROP COLUMN IF EXISTS mgmt_ssh_key_encrypted")
+            .execute(pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE olts DROP COLUMN IF EXISTS snmp_version")
+            .execute(pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE olts DROP COLUMN IF EXISTS snmp_v3_user")
+            .execute(pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE olts DROP COLUMN IF EXISTS snmp_v3_auth_proto")
+            .execute(pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE olts DROP COLUMN IF EXISTS snmp_v3_auth_pass_encrypted")
+            .execute(pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE olts DROP COLUMN IF EXISTS snmp_v3_priv_proto")
+            .execute(pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE olts DROP COLUMN IF EXISTS snmp_v3_priv_pass_encrypted")
             .execute(pool)
             .await;
 

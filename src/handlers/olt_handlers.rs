@@ -16,7 +16,6 @@ pub struct CreateOltPayload {
     pub vendor: String,
     pub model: Option<String>,
     pub firmware_version: Option<String>,
-    pub snmp_version: Option<String>,
     pub snmp_port: Option<u32>,
     pub snmp_community: Option<String>,
     pub collection_interval_mins: Option<u32>,
@@ -244,16 +243,15 @@ pub async fn create_olt_handler(
     let res = sqlx::query(
         "INSERT INTO olts (
             name, ip_address, vendor, model, firmware_version,
-            snmp_version, snmp_port, snmp_community_encrypted,
+            snmp_port, snmp_community_encrypted,
             collection_interval_mins, max_concurrent_requests, pon_delay_ms
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(payload.name.trim())
     .bind(payload.ip_address.trim())
     .bind(payload.vendor.trim().to_lowercase())
     .bind(payload.model.as_deref())
     .bind(payload.firmware_version.as_deref())
-    .bind(payload.snmp_version.as_deref().unwrap_or("v2c"))
     .bind(payload.snmp_port.unwrap_or(161))
     .bind(snmp_community_encrypted.as_deref())
     .bind(payload.collection_interval_mins.unwrap_or(60))
