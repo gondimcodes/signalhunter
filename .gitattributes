@@ -1,0 +1,3 @@
+# Linguist overrides to ensure GitHub/Codeberg language stats are 100% accurate
+*.py linguist-vendored=true
+src/web/index.html linguist-detectable=true
