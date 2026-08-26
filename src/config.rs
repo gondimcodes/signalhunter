@@ -4,11 +4,17 @@ use std::path::Path;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AppConfig {
+    #[serde(default = "default_app_mode")]
+    pub mode: String,
     pub server: ServerConfig,
     pub database: DatabaseConfig,
     pub security: SecurityConfig,
     pub collector: CollectorConfig,
     pub thresholds: ThresholdsConfig,
+}
+
+fn default_app_mode() -> String {
+    "production".to_string()
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -86,7 +92,18 @@ impl AppConfig {
         path: P,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let content = fs::read_to_string(path)?;
-        let config: AppConfig = toml::from_str(&content)?;
+        let mut config: AppConfig = toml::from_str(&content)?;
+
+        // Permite sobrescrever o modo via variável de ambiente APP_MODE ou SIGNALHUNTER_MODE
+        if let Ok(env_mode) = std::env::var("APP_MODE").or_else(|_| std::env::var("SIGNALHUNTER_MODE")) {
+            config.mode = env_mode.trim().to_lowercase();
+        }
+
         Ok(config)
+    }
+
+    /// Retorna verdadeiro se o sistema estiver operando em modo de demonstração ("demo")
+    pub fn is_demo(&self) -> bool {
+        self.mode.eq_ignore_ascii_case("demo")
     }
 }

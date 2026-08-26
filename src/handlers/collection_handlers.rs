@@ -17,6 +17,11 @@ pub async fn sync_olt_telemetry(
     state: &AppState,
     olt_id: u64,
 ) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
+    if state.config.is_demo() {
+        info!("MODO DEMO ATIVO: Coleta ignorada para a OLT ID {}", olt_id);
+        return Ok(0);
+    }
+
     let pool = state.db.as_ref().ok_or("Banco de dados não disponível")?;
 
     let olt_row = sqlx::query_as::<_, crate::db::queries::OltWithCredentials>(
@@ -394,6 +399,14 @@ pub async fn trigger_olt_collection_handler(
                 data: None,
             }),
         ));
+    }
+
+    if state.config.is_demo() {
+        return Ok(Json(ApiResponse {
+            success: true,
+            message: "Modo de Demonstração ativo: Coletas SNMP desabilitadas para preservar o dataset fictício.".to_string(),
+            data: Some("Modo Demo Ativo".to_string()),
+        }));
     }
 
     match sync_olt_telemetry(&state, olt_id).await {

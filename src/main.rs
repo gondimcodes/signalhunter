@@ -331,6 +331,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Worker assíncrono em background para auto-coleta contínua e agendamento periódico
     let background_state = app_state.clone();
     tokio::spawn(async move {
+        if background_state.config.is_demo() {
+            info!("MODO DEMO ATIVO: O agendador automático de telemetria e coletas periódicas está completamente desativado.");
+            return;
+        }
+
         // Pausa breve para o servidor HTTP subir antes da 1ª coleta
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         info!("Iniciando ciclo inicial de telemetria para OLTs ativas...");

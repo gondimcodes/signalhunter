@@ -2,6 +2,12 @@
 # SignalHunter - Configuração Principal do Sistema
 # ==============================================================================
 
+# Modo de operação do sistema: "production" (padrão) ou "demo"
+# Quando definido como "demo", todas as coletas automáticas e manuais são desabilitadas,
+# preservando a integridade do dataset de demonstração para apresentações/NOCs.
+# Também pode ser sobrescrito via variável de ambiente: APP_MODE=demo
+mode = "production"
+
 [server]
 # Endereço IP e porta para o serviço web
 # Exemplo: "0.0.0.0" para escutar em todas as interfaces
