@@ -145,6 +145,8 @@ A coleta na Datacom opera **100% via SNMPv2c** (requer firmware **DmOS $\ge$ 12.
 * `Potência Tx Módulos SFP PON OLT (dBm)`: `.1.3.6.1.4.1.3709.3.6.8.2.1.1.3.<portIndex>` (laneTxPower - Valor / 100)
 * `Interface L2 / Mapeamento de Porta`: `.1.3.6.1.4.1.3709.3.6.2.1.1.3.<ifIndex>` (onuifDescr, Ex: "gpon-1/1/1-onu-0")
 
+> **Agradecimento Especial**: Um reconhecimento especial e agradecimento a **Tatiane Figueiredo** (`tatiane.figueiredo@gmail.com`) por ajudar o projeto fornecendo a referência oficial de MIBs e auxiliando no mapeamento correto dos OIDs para equipamentos Datacom.
+
 ---
 
 #### 3. ZTE (ZXA10 C300 / C320 / C600 / C610 Titan Series)

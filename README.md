@@ -145,6 +145,8 @@ Datacom telemetry polling is executed **100% via SNMPv2c** (requires firmware **
 * `OLT SFP PON Tx Power (dBm)`: `.1.3.6.1.4.1.3709.3.6.8.2.1.1.3.<portIndex>` (laneTxPower - Raw / 100)
 * `L2 Interface Mapping`: `.1.3.6.1.4.1.3709.3.6.2.1.1.3.<ifIndex>` (onuifDescr, e.g., "gpon-1/1/1-onu-0")
 
+> **Special Thanks**: A heartfelt acknowledgment to **Tatiane Figueiredo** (`tatiane.figueiredo@gmail.com`) for collaborating with the project by providing the official Datacom MIB Reference and guiding the precise OID mappings.
+
 ---
 
 #### 3. ZTE (ZXA10 C300 / C320 / C600 / C610 Titan Series)
