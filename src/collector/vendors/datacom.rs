@@ -234,7 +234,27 @@ impl OltDriver for DatacomDriver {
             }
         }
 
-        // 7. Potência Tx dos módulos SFP PON da OLT (.1.3.6.1.4.1.3709.3.6.8.2.1.1.3)
+        // 7. Números de Série Reais das ONUs (.1.3.6.1.4.1.3709.3.6.2.1.1.38 - onuIfSerialNumber)
+        let mut snmp_serial_map: HashMap<String, String> = HashMap::new();
+        let serial_vbs = client
+            .walk(
+                ".1.3.6.1.4.1.3709.3.6.2.1.1.38",
+                1000,
+                Duration::from_millis(5),
+            )
+            .await
+            .unwrap_or_default();
+
+        for vb in serial_vbs {
+            if let (Some(ifindex_str), Some(serial_val)) = (vb.oid.split('.').last(), vb.value_str) {
+                let cleaned = serial_val.trim();
+                if !cleaned.is_empty() && cleaned != "N/A" {
+                    snmp_serial_map.insert(ifindex_str.to_string(), cleaned.to_string());
+                }
+            }
+        }
+
+        // 8. Potência Tx dos módulos SFP PON da OLT (.1.3.6.1.4.1.3709.3.6.8.2.1.1.3)
         let mut snmp_sfp_tx_map: HashMap<i32, f64> = HashMap::new();
         let sfp_vbs = client
             .walk(
@@ -263,7 +283,7 @@ impl OltDriver for DatacomDriver {
 
         let mut results = Vec::new();
 
-        // 8. Montagem do inventário consolidado de ONUs
+        // 9. Montagem do inventário consolidado de ONUs
         for (ifindex_str, (slot, port, onu_id)) in &ifindex_map {
             let rx_power_dbm = snmp_rx_map.get(ifindex_str).copied();
             let tx_power_dbm = snmp_tx_map.get(ifindex_str).copied();
@@ -301,8 +321,12 @@ impl OltDriver for DatacomDriver {
 
             let customer_name = snmp_name_map.get(ifindex_str).cloned();
 
-            // Serial sintético determinístico com base em slot/port/onu_id caso não venha serial puro
-            let serial_number = format!("DACM{:02X}{:02X}{:04X}", slot, port, onu_id);
+            // Serial Real lido via OID oficial .38 (com fallback determinístico caso vazio)
+            let serial_number = snmp_serial_map
+                .get(ifindex_str)
+                .cloned()
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| format!("DACM{:02X}{:02X}{:04X}", slot, port, onu_id));
 
             results.push(OnuOpticalData {
                 slot: *slot,
