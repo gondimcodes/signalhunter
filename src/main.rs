@@ -237,14 +237,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         ).execute(pool).await;
 
         let _ = sqlx::query(
-            "ALTER TABLE onu_signal_history MODIFY COLUMN signal_quality ENUM('excellent', 'good', 'warning', 'critical', 'offline') NOT NULL DEFAULT 'good'"
-        ).execute(pool).await;
-
-        let _ = sqlx::query(
-            "ALTER TABLE onu_signal_history MODIFY COLUMN collection_protocol ENUM('snmp') NOT NULL DEFAULT 'snmp'"
-        ).execute(pool).await;
-
-        let _ = sqlx::query(
             "CREATE INDEX IF NOT EXISTS idx_onu_latest_id ON onu_signal_history (onu_id, id DESC)",
         )
         .execute(pool)
