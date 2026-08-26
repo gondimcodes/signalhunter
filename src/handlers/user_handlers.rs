@@ -2,12 +2,13 @@ use crate::auth::AuthManager;
 use crate::handlers::olt_handlers::ApiResponse;
 use crate::AppState;
 use axum::{
-    extract::{Path, State},
+    extract::{ConnectInfo, Path, State},
     http::{header, HeaderMap, StatusCode},
     response::IntoResponse,
     Json,
 };
 use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 #[derive(Debug, Serialize, sqlx::FromRow)]
@@ -94,7 +95,50 @@ fn extract_admin_session(
     Ok(claims)
 }
 
-/// GET /api/users - Listar usuários
+/// Helper seguro para extrair e validar sessão de qualquer usuário autenticado
+fn extract_authenticated_session(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Result<crate::auth::Claims, (StatusCode, Json<ApiResponse<()>>)> {
+    let cookie_hdr = headers
+        .get(header::COOKIE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    let mut auth_token = "";
+    for part in cookie_hdr.split(';') {
+        let trimmed = part.trim();
+        if trimmed.starts_with("sh_auth=") {
+            auth_token = &trimmed["sh_auth=".len()..];
+            break;
+        }
+    }
+
+    if auth_token.is_empty() {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(ApiResponse {
+                success: false,
+                message: "Sessão não encontrada ou expirada. Faça login novamente.".to_string(),
+                data: None,
+            }),
+        ));
+    }
+
+    let claims = state.auth.verify_token(auth_token).map_err(|_| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(ApiResponse {
+                success: false,
+                message: "Token de sessão inválido ou expirado.".to_string(),
+                data: None,
+            }),
+        )
+    })?;
+
+    Ok(claims)
+}
+
+/// GET /api/users - Listar usuários (Visível para admin e operadores)
 pub async fn list_users_handler(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
@@ -110,8 +154,8 @@ pub async fn list_users_handler(
         )
     })?;
 
-    // Apenas admins podem gerenciar/listar usuários
-    let _ = extract_admin_session(&state, &headers)?;
+    // Permite visualização para qualquer usuário autenticado (admin e operadores)
+    let _ = extract_authenticated_session(&state, &headers)?;
 
     let users = sqlx::query_as::<_, UserDto>(
         "SELECT id, username, full_name, email, role, is_active, created_at FROM users ORDER BY id ASC"
@@ -139,6 +183,7 @@ pub async fn list_users_handler(
 /// POST /api/users - Cadastrar novo usuário (Login imutável)
 pub async fn create_user_handler(
     State(state): State<Arc<AppState>>,
+    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
     Json(payload): Json<CreateUserPayload>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
@@ -153,7 +198,11 @@ pub async fn create_user_handler(
         )
     })?;
 
-    let _admin = extract_admin_session(&state, &headers)?;
+    let admin = extract_admin_session(&state, &headers)?;
+    let mut client_ip = crate::handlers::auth_handlers::extract_client_ip(&headers);
+    if client_ip == "--" {
+        client_ip = peer_addr.ip().to_string();
+    }
 
     let username = payload.username.trim().to_lowercase();
     if username.is_empty() || username.len() < 3 {
@@ -228,7 +277,7 @@ pub async fn create_user_handler(
     let new_user_id = res.last_insert_id();
     crate::db::queries::log_audit_event(
         pool,
-        Some(1),
+        Some(admin.sub),
         "CREATE",
         "USER",
         Some(&new_user_id.to_string()),
@@ -236,7 +285,7 @@ pub async fn create_user_handler(
             "Cadastro do usuário '{}' ({}) com perfil '{}'",
             username, full_name, role
         )),
-        None,
+        Some(&client_ip),
     )
     .await;
 
@@ -253,6 +302,7 @@ pub async fn create_user_handler(
 /// PUT /api/users/:id - Alterar dados do usuário (Login protegido e imutável)
 pub async fn update_user_handler(
     State(state): State<Arc<AppState>>,
+    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
     Path(user_id): Path<u64>,
     headers: HeaderMap,
     Json(payload): Json<UpdateUserPayload>,
@@ -306,31 +356,64 @@ pub async fn update_user_handler(
 
     // Se for operador, só pode editar sua própria conta e não pode alterar perfil nem status
     let is_admin = session_user.role == "admin";
-    if !is_admin && session_user.sub != user_id {
-        return Err((
-            StatusCode::FORBIDDEN,
-            Json(ApiResponse {
-                success: false,
-                message: "Acesso negado: operadores só podem editar sua própria conta.".to_string(),
-                data: None,
-            }),
-        ));
+    if !is_admin {
+        if state.config.is_demo() {
+            return Err((
+                StatusCode::FORBIDDEN,
+                Json(ApiResponse {
+                    success: false,
+                    message: "Acesso negado: o ambiente de demonstração (Demo) não permite alterações de senha ou cadastro por operadores.".to_string(),
+                    data: None,
+                }),
+            ));
+        }
+
+        if session_user.sub != user_id {
+            return Err((
+                StatusCode::FORBIDDEN,
+                Json(ApiResponse {
+                    success: false,
+                    message:
+                        "Acesso negado: operadores só podem editar os dados da sua própria conta."
+                            .to_string(),
+                    data: None,
+                }),
+            ));
+        }
+
+        if payload.role.is_some()
+            || payload.is_active.is_some()
+            || payload.full_name.is_some()
+            || payload.email.is_some()
+        {
+            return Err((
+                StatusCode::FORBIDDEN,
+                Json(ApiResponse {
+                    success: false,
+                    message: "Acesso negado: operadores só possuem permissão para alterar a sua própria senha.".to_string(),
+                    data: None,
+                }),
+            ));
+        }
     }
 
-    if let Some(ref name) = payload.full_name {
-        let _ = sqlx::query("UPDATE users SET full_name = ? WHERE id = ?")
-            .bind(name.trim())
-            .bind(user_id)
-            .execute(pool)
-            .await;
-    }
+    // Apenas admin pode alterar Nome Completo e E-mail de usuários
+    if is_admin {
+        if let Some(ref name) = payload.full_name {
+            let _ = sqlx::query("UPDATE users SET full_name = ? WHERE id = ?")
+                .bind(name.trim())
+                .bind(user_id)
+                .execute(pool)
+                .await;
+        }
 
-    if let Some(ref email) = payload.email {
-        let _ = sqlx::query("UPDATE users SET email = ? WHERE id = ?")
-            .bind(email.trim())
-            .bind(user_id)
-            .execute(pool)
-            .await;
+        if let Some(ref email) = payload.email {
+            let _ = sqlx::query("UPDATE users SET email = ? WHERE id = ?")
+                .bind(email.trim())
+                .bind(user_id)
+                .execute(pool)
+                .await;
+        }
     }
 
     // Apenas admin pode alterar Perfil de acesso
@@ -413,6 +496,11 @@ pub async fn update_user_handler(
         }
     }
 
+    let mut client_ip = crate::handlers::auth_handlers::extract_client_ip(&headers);
+    if client_ip == "--" {
+        client_ip = peer_addr.ip().to_string();
+    }
+
     // Registra Log de Auditoria
     crate::db::queries::log_audit_event(
         pool,
@@ -424,7 +512,7 @@ pub async fn update_user_handler(
             "Alteração de dados cadastrais/senha do usuário #{}",
             user_id
         )),
-        None,
+        Some(&client_ip),
     )
     .await;
 
@@ -438,6 +526,7 @@ pub async fn update_user_handler(
 /// DELETE /api/users/:id - Excluir usuário
 pub async fn delete_user_handler(
     State(state): State<Arc<AppState>>,
+    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
     Path(user_id): Path<u64>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
@@ -453,6 +542,10 @@ pub async fn delete_user_handler(
     })?;
 
     let admin = extract_admin_session(&state, &headers)?;
+    let mut client_ip = crate::handlers::auth_handlers::extract_client_ip(&headers);
+    if client_ip == "--" {
+        client_ip = peer_addr.ip().to_string();
+    }
 
     if admin.sub == user_id {
         return Err((
@@ -501,7 +594,7 @@ pub async fn delete_user_handler(
             "Exclusão da conta do usuário '{}' (ID: {})",
             username_str, user_id
         )),
-        None,
+        Some(&client_ip),
     )
     .await;
 

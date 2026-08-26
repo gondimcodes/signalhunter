@@ -91,7 +91,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     info!("Iniciando SignalHunter v{}...", env!("CARGO_PKG_VERSION"));
 
-    let config_path = std::env::var("CONFIG_FILE").unwrap_or_else(|_| "config.toml".to_string());
+    let config_path = std::env::var("CONFIG_FILE").unwrap_or_else(|_| {
+        if std::path::Path::new("/etc/signalhunter/config.toml").exists() {
+            "/etc/signalhunter/config.toml".to_string()
+        } else {
+            "config.toml".to_string()
+        }
+    });
     info!("Carregando configurações de: {}", config_path);
     let config = AppConfig::load_from_file(&config_path)?;
 
@@ -515,12 +521,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
         info!("Servidor HTTPS ativo na porta {}", config.server.port);
         axum_server::bind_rustls(addr, tls_config)
-            .serve(app.into_make_service())
+            .serve(app.into_make_service_with_connect_info::<SocketAddr>())
             .await?;
     } else {
         info!("Servidor HTTP ativo na porta {}", config.server.port);
         let listener = tokio::net::TcpListener::bind(addr).await?;
-        axum::serve(listener, app.into_make_service()).await?;
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .await?;
     }
 
     Ok(())

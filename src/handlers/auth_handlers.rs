@@ -1,7 +1,7 @@
 use crate::auth::AuthManager;
 use crate::AppState;
 use axum::{
-    extract::State,
+    extract::{ConnectInfo, State},
     http::{header, HeaderMap, StatusCode},
     response::IntoResponse,
     Json,
@@ -10,6 +10,7 @@ use chrono::Utc;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 #[derive(Debug, Deserialize)]
@@ -36,6 +37,7 @@ pub struct UserInfo {
     pub username: String,
     pub full_name: String,
     pub role: String,
+    pub is_demo: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -139,6 +141,104 @@ pub fn extract_auth_token(headers: &HeaderMap) -> Option<String> {
     None
 }
 
+/// Normaliza um endereço IP (IPv4 ou IPv6), removendo colchetes, portas e prefixos de encaminhamento
+fn normalize_ip_candidate(raw: &str) -> Option<String> {
+    let mut s = raw.trim();
+    if s.is_empty() {
+        return None;
+    }
+
+    // Se vier no formato de quote (ex: "::1" ou "[2001:db8::1]:443")
+    s = s.trim_matches('"').trim_matches('\'');
+
+    // Remove prefixo de Forwarded (ex: for=[2001:db8::1] ou for=192.0.2.60)
+    if let Some(stripped) = s.strip_prefix("for=") {
+        s = stripped.trim().trim_matches('"');
+    }
+
+    // Se estiver entre colchetes [2001:db8::1] ou [2001:db8::1]:port
+    if s.starts_with('[') {
+        if let Some(end_bracket) = s.find(']') {
+            let inner = &s[1..end_bracket];
+            if inner.parse::<std::net::IpAddr>().is_ok() {
+                return Some(inner.to_string());
+            }
+        }
+    }
+
+    // Tenta parse direto como IpAddr puro (IPv4 ou IPv6)
+    if let Ok(ip) = s.parse::<std::net::IpAddr>() {
+        return Some(ip.to_string());
+    }
+
+    // Se for IPv4 com porta (ex: 192.168.1.10:54321)
+    if let Ok(sock) = s.parse::<std::net::SocketAddr>() {
+        return Some(sock.ip().to_string());
+    }
+
+    // Tenta remover :porta se tiver apenas um dois-pontos (IPv4 com porta)
+    if let Some((host, _port)) = s.rsplit_once(':') {
+        if let Ok(ip) = host.parse::<std::net::IpAddr>() {
+            return Some(ip.to_string());
+        }
+    }
+
+    None
+}
+
+/// Extrai o endereço IP real do cliente (IPv4 ou IPv6) a partir dos headers HTTP
+pub fn extract_client_ip(headers: &HeaderMap) -> String {
+    // 1. Inspeciona X-Forwarded-For (pega o primeiro IP da cadeia de proxies)
+    if let Some(xff) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
+        for candidate in xff.split(',') {
+            if let Some(valid_ip) = normalize_ip_candidate(candidate) {
+                return valid_ip;
+            }
+        }
+    }
+
+    // 2. Inspeciona X-Real-IP
+    if let Some(x_real_ip) = headers.get("x-real-ip").and_then(|v| v.to_str().ok()) {
+        if let Some(valid_ip) = normalize_ip_candidate(x_real_ip) {
+            return valid_ip;
+        }
+    }
+
+    // 3. Inspeciona CF-Connecting-IP (Cloudflare)
+    if let Some(cf_ip) = headers
+        .get("cf-connecting-ip")
+        .and_then(|v| v.to_str().ok())
+    {
+        if let Some(valid_ip) = normalize_ip_candidate(cf_ip) {
+            return valid_ip;
+        }
+    }
+
+    // 4. Inspeciona RFC 7239 padrão Forwarded (ex: Forwarded: for=192.0.2.60; proto=https ou for="[2001:db8:cafe::17]")
+    if let Some(forwarded) = headers.get("forwarded").and_then(|v| v.to_str().ok()) {
+        for part in forwarded.split(';') {
+            let part_trimmed = part.trim();
+            if part_trimmed.starts_with("for=") {
+                if let Some(valid_ip) = normalize_ip_candidate(part_trimmed) {
+                    return valid_ip;
+                }
+            }
+        }
+    }
+
+    // 5. Inspeciona X-Client-IP / True-Client-IP
+    for header_name in &["x-client-ip", "true-client-ip"] {
+        if let Some(val) = headers.get(*header_name).and_then(|v| v.to_str().ok()) {
+            if let Some(valid_ip) = normalize_ip_candidate(val) {
+                return valid_ip;
+            }
+        }
+    }
+
+    // Fallback limpo: se não foi possível extrair o IP de origem por nenhum header
+    "--".to_string()
+}
+
 /// SHA-256 real via crate sha2 (CWE-327 fix — substituiu hash XOR/rotação)
 fn crypto_hash_sha256(data: &[u8]) -> [u8; 32] {
     let mut hasher = Sha256::new();
@@ -188,6 +288,8 @@ fn verify_captcha(expected_token: &str, user_code: &str, secret: &str) -> bool {
 
 pub async fn login_handler(
     State(state): State<Arc<AppState>>,
+    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
     Json(payload): Json<LoginPayload>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<LoginResponse>)> {
     // 1. Validação do Desafio CAPTCHA Visual
@@ -253,6 +355,11 @@ pub async fn login_handler(
         )
     })?;
 
+    let mut client_ip = extract_client_ip(&headers);
+    if client_ip == "--" {
+        client_ip = peer_addr.ip().to_string();
+    }
+
     let user = match user_row {
         Some(u) => u,
         None => {
@@ -260,7 +367,7 @@ pub async fn login_handler(
                 StatusCode::UNAUTHORIZED,
                 Json(LoginResponse {
                     success: false,
-                    message: "Usuário ou senha incorretos".to_string(),
+                    message: "Credenciais inválidas. Verifique seu login e senha.".to_string(),
                     token: None,
                     user: None,
                 }),
@@ -273,19 +380,19 @@ pub async fn login_handler(
             StatusCode::FORBIDDEN,
             Json(LoginResponse {
                 success: false,
-                message: "Usuário desativado pelo administrador".to_string(),
+                message: "Esta conta de usuário foi desativada pelo administrador.".to_string(),
                 token: None,
                 user: None,
             }),
         ));
     }
 
-    if !AuthManager::verify_password(&payload.password, &user.password_hash) {
+    if !AuthManager::verify_password(payload.password.trim(), &user.password_hash) {
         return Err((
             StatusCode::UNAUTHORIZED,
             Json(LoginResponse {
                 success: false,
-                message: "Usuário ou senha incorretos".to_string(),
+                message: "Credenciais inválidas. Verifique seu login e senha.".to_string(),
                 token: None,
                 user: None,
             }),
@@ -307,7 +414,19 @@ pub async fn login_handler(
             )
         })?;
 
-    let mut headers = HeaderMap::new();
+    // Registra Log de Auditoria do Login com IP do cliente
+    crate::db::queries::log_audit_event(
+        pool,
+        Some(user.id),
+        "USER_LOGIN",
+        "auth",
+        Some(&user.id.to_string()),
+        Some("Login efetuado com sucesso via Web SPA"),
+        Some(&client_ip),
+    )
+    .await;
+
+    let mut resp_headers = HeaderMap::new();
     // Adiciona flag Secure quando TLS está habilitado (CWE-614 fix)
     let secure_flag = if state.config.server.use_tls {
         "; Secure"
@@ -322,20 +441,22 @@ pub async fn login_handler(
     );
     // parse().map_err — não usa unwrap() em produção
     if let Ok(hv) = cookie_val.parse() {
-        headers.insert(header::SET_COOKIE, hv);
+        resp_headers.insert(header::SET_COOKIE, hv);
     } else {
         log::error!("[login] Falha ao construir header Set-Cookie");
     }
 
+    let is_demo = state.config.is_demo();
     let user_info = UserInfo {
         id: user.id,
         username: user.username,
         full_name: user.full_name,
         role: user.role,
+        is_demo,
     };
 
     Ok((
-        headers,
+        resp_headers,
         Json(LoginResponse {
             success: true,
             message: "Login realizado com sucesso".to_string(),
@@ -443,6 +564,7 @@ pub async fn me_handler(
         ));
     }
 
+    let is_demo = state.config.is_demo();
     Ok(Json(LoginResponse {
         success: true,
         message: "Sessão válida".to_string(),
@@ -452,6 +574,7 @@ pub async fn me_handler(
             username: user.username,
             full_name: user.full_name,
             role: user.role,
+            is_demo,
         }),
     }))
 }

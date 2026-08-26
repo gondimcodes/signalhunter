@@ -3,12 +3,13 @@ use crate::handlers::olt_handlers::ApiResponse;
 use crate::pdf::PdfReportGenerator;
 use crate::AppState;
 use axum::{
-    extract::{Query, State},
+    extract::{ConnectInfo, Query, State},
     http::{header, HeaderMap, StatusCode},
     response::IntoResponse,
     Json,
 };
 use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, sqlx::FromRow)]
@@ -34,6 +35,8 @@ pub struct GenerateReportParams {
 
 pub async fn generate_report_pdf_handler(
     State(state): State<Arc<AppState>>,
+    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
     Query(params): Query<GenerateReportParams>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
     let pool = state.db.as_ref().ok_or_else(|| {
@@ -47,6 +50,14 @@ pub async fn generate_report_pdf_handler(
         )
     })?;
 
+    let mut client_ip = crate::handlers::auth_handlers::extract_client_ip(&headers);
+    if client_ip == "--" {
+        client_ip = peer_addr.ip().to_string();
+    }
+    let session_user_id = crate::handlers::auth_handlers::extract_auth_token(&headers)
+        .and_then(|tok| state.auth.verify_token(&tok).ok())
+        .map(|c| c.sub);
+
     let is_firmware = params.report_type.as_deref() == Some("firmware")
         || params.report_type.as_deref() == Some("model_firmware");
 
@@ -59,6 +70,7 @@ pub async fn generate_report_pdf_handler(
                     CASE WHEN last_collection_status = 'success' THEN TRUE ELSE FALSE END AS is_online,
                     is_active
              FROM olts
+             WHERE is_active = TRUE
              ORDER BY vendor ASC, name ASC",
         )
         .fetch_all(pool)
@@ -67,7 +79,7 @@ pub async fn generate_report_pdf_handler(
 
         let tmp_path = format!(
             "/tmp/signalhunter_firmware_{}.pdf",
-            chrono::Utc::now().timestamp()
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
         );
         PdfReportGenerator::generate_olt_firmware_report(&tmp_path, "Engenharia NOC", &olts)
             .map_err(|e| {
@@ -86,7 +98,7 @@ pub async fn generate_report_pdf_handler(
 
         crate::db::queries::log_audit_event(
             pool,
-            Some(1),
+            session_user_id,
             "EXPORT_PDF",
             "FIRMWARE_REPORT",
             None,
@@ -94,7 +106,7 @@ pub async fn generate_report_pdf_handler(
                 "Exportação do Relatório de Modelos e Firmwares das OLTs ({} equipamentos)",
                 olts.len()
             )),
-            None,
+            Some(&client_ip),
         )
         .await;
 
@@ -182,7 +194,7 @@ pub async fn generate_report_pdf_handler(
         // Registra Log de Auditoria
         crate::db::queries::log_audit_event(
             pool,
-            Some(1),
+            session_user_id,
             "EXPORT_PDF",
             "DIAGNOSTICS",
             None,
@@ -190,7 +202,7 @@ pub async fn generate_report_pdf_handler(
                 "Exportação do Laudo de Diagnóstico Óptico & RCA ({} incidentes)",
                 diag_summary.total_incidents
             )),
-            None,
+            Some(&client_ip),
         )
         .await;
 
@@ -454,7 +466,7 @@ pub async fn generate_report_pdf_handler(
     // Registra Log de Auditoria
     crate::db::queries::log_audit_event(
         pool,
-        Some(1),
+        session_user_id,
         "EXPORT_PDF",
         "REPORTS",
         None,
@@ -463,7 +475,7 @@ pub async fn generate_report_pdf_handler(
             module_name,
             critical_onus.len()
         )),
-        None,
+        Some(&client_ip),
     )
     .await;
 

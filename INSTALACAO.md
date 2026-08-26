@@ -82,15 +82,16 @@ Por questões de segurança, o daemon do SignalHunter deve rodar sob um usuário
 # 1. Criar usuário e grupo de sistema
 sudo adduser --system --group --no-create-home --shell /bin/false signalhunter
 
-# 2. Criar diretórios de instalação, certificados e relatórios
-sudo mkdir -p /opt/signalhunter/certs
+# 2. Criar diretórios de instalação, configuração, certificados e relatórios
 sudo mkdir -p /opt/signalhunter/reports
+sudo mkdir -p /etc/signalhunter/certs
 sudo mkdir -p /var/log/signalhunter
 
 # 3. Ajustar permissões
-sudo chown -R signalhunter:signalhunter /opt/signalhunter /var/log/signalhunter
+sudo chown -R signalhunter:signalhunter /opt/signalhunter /etc/signalhunter /var/log/signalhunter
 sudo chmod 750 /opt/signalhunter
-sudo chmod 700 /opt/signalhunter/certs
+sudo chmod 750 /etc/signalhunter
+sudo chmod 700 /etc/signalhunter/certs
 ```
 
 ---
@@ -100,7 +101,7 @@ sudo chmod 700 /opt/signalhunter/certs
 Execute o assistente de segurança inicial do MariaDB:
 
 ```bash
-sudo mysql_secure_installation
+sudo mariadb-secure-installation
 ```
 
 Em seguida, crie a base de dados, usuário e aplique o esquema relacional:
@@ -134,19 +135,20 @@ mariadb -u signalhunter_user -p signalhunter < /opt/signalhunter/schema.sql
 
 ---
 
-## 5. Transferência dos Arquivos para o Servidor
-
-Copie os arquivos do ambiente de desenvolvimento para o servidor remoto:
-
+## 5. Transferência de Arquivos para o Servidor
+ 
+Transfira os arquivos gerados no build para o servidor remoto:
+ 
 ```bash
 # Exemplo de comando executado a partir da sua máquina de desenvolvimento:
-scp target/x86_64-unknown-linux-musl/release/signalhunter config.toml schema.sql logo.png usuario@ip-do-servidor:/tmp/
+scp target/x86_64-unknown-linux-musl/release/signalhunter config.toml schema.sql usuario@ip-do-servidor:/tmp/
 
-# No servidor remoto, mova para /opt/signalhunter:
+# No servidor remoto, mova o binário e assets para /opt/signalhunter:
 sudo mv /tmp/signalhunter /opt/signalhunter/
-sudo mv /tmp/config.toml /opt/signalhunter/
 sudo mv /tmp/schema.sql /opt/signalhunter/
-sudo mv /tmp/logo.png /opt/signalhunter/
+
+# Mova o arquivo de configuração para /etc/signalhunter:
+sudo mv /tmp/config.toml /etc/signalhunter/
 
 # Dar permissão de execução ao binário
 sudo chmod +x /opt/signalhunter/signalhunter
@@ -154,20 +156,20 @@ sudo chmod +x /opt/signalhunter/signalhunter
 # Hardening e Proteção de Credenciais Sensíveis:
 # O config.toml contém senhas de banco, JWT secret e chaves AES. 
 # Deve ter permissão estrita 600 (leitura/escrita exclusiva do usuário do serviço)
-sudo chmod 600 /opt/signalhunter/config.toml
+sudo chmod 600 /etc/signalhunter/config.toml
 
 # Ajustar propriedade de todos os arquivos para o usuário isolado
-sudo chown -R signalhunter:signalhunter /opt/signalhunter
+sudo chown -R signalhunter:signalhunter /opt/signalhunter /etc/signalhunter
 ```
 
 ---
 
 ## 6. Configuração de Segurança e Arquivo `config.toml`
 
-Edite o arquivo `/opt/signalhunter/config.toml`:
+Edite o arquivo `/etc/signalhunter/config.toml`:
 
 ```bash
-sudo nano /opt/signalhunter/config.toml
+sudo nano /etc/signalhunter/config.toml
 ```
 
 ### 6.1. Gerar Chave Mestra de Criptografia AES-256-GCM
@@ -183,21 +185,23 @@ Para autenticar os usuários no frontend via token JWT com segurança criptográ
 # Gerar chave aleatória forte de 64 bytes codificada em Base64:
 openssl rand -base64 48
 ```
-*Copie a string gerada e cole no campo `jwt_secret` do arquivo `/opt/signalhunter/config.toml`.*
+*Copie a string gerada e cole no campo `jwt_secret` do arquivo `/etc/signalhunter/config.toml`.*
 
 Você também pode configurar o tempo de expiração do token de sessão de acordo com a política de segurança da sua empresa:
 - `jwt_expiration_hours = 24` (padrão: sessão válida por 24 horas).
 - Para maior segurança em ambientes corporativos sensíveis, você pode reduzir para `8` ou `12` horas.
 
-### 6.3. Exemplo de `/opt/signalhunter/config.toml` ajustado para produção:
+### 6.3. Exemplo de `/etc/signalhunter/config.toml` ajustado para produção:
 
 ```toml
+mode = "production"
+
 [server]
 host = "0.0.0.0"
 port = 8443
 use_tls = true
-tls_cert_path = "certs/cert.pem"
-tls_key_path = "certs/key.pem"
+tls_cert_path = "/etc/signalhunter/certs/cert.pem"
+tls_key_path = "/etc/signalhunter/certs/key.pem"
 
 [database]
 host = "127.0.0.1"
@@ -241,22 +245,22 @@ degradation_alert_delta_db = 3.0
 sudo apt install -y certbot
 sudo certbot certonly --standalone -d signalhunter.seudominio.com.br
 
-# Criar links simbólicos ou copiar para /opt/signalhunter/certs:
-sudo cp /etc/letsencrypt/live/signalhunter.seudominio.com.br/fullchain.pem /opt/signalhunter/certs/cert.pem
-sudo cp /etc/letsencrypt/live/signalhunter.seudominio.com.br/privkey.pem /opt/signalhunter/certs/key.pem
-sudo chown -R signalhunter:signalhunter /opt/signalhunter/certs
-sudo chmod 600 /opt/signalhunter/certs/*.pem
+# Criar links simbólicos ou copiar para /etc/signalhunter/certs:
+sudo cp /etc/letsencrypt/live/signalhunter.seudominio.com.br/fullchain.pem /etc/signalhunter/certs/cert.pem
+sudo cp /etc/letsencrypt/live/signalhunter.seudominio.com.br/privkey.pem /etc/signalhunter/certs/key.pem
+sudo chown -R signalhunter:signalhunter /etc/signalhunter/certs
+sudo chmod 600 /etc/signalhunter/certs/*.pem
 ```
 
 ### Opção B: Certificado Autoassinado (Para Testes / Rede Interna)
 ```bash
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-    -keyout /opt/signalhunter/certs/key.pem \
-    -out /opt/signalhunter/certs/cert.pem \
+    -keyout /etc/signalhunter/certs/key.pem \
+    -out /etc/signalhunter/certs/cert.pem \
     -subj "/C=BR/ST=SP/L=SaoPaulo/O=ISP/OU=NOC/CN=signalhunter.local"
 
-sudo chown -R signalhunter:signalhunter /opt/signalhunter/certs
-sudo chmod 600 /opt/signalhunter/certs/*.pem
+sudo chown -R signalhunter:signalhunter /etc/signalhunter/certs
+sudo chmod 600 /etc/signalhunter/certs/*.pem
 ```
 
 ---
@@ -397,10 +401,10 @@ sudo ufw status
 
 Antes de liberar para a equipe de operação, certifique-se de que:
 - [x] O serviço foi iniciado pela primeira vez e a senha gerada do `admin` foi capturada nos logs.
-- [x] O arquivo `/opt/signalhunter/config.toml` possui permissão estrita `600` (`chmod 600`) e pertence exclusivamente ao usuário `signalhunter:signalhunter`.
+- [x] O arquivo `/etc/signalhunter/config.toml` possui permissão estrita `600` (`chmod 600`) e pertence exclusivamente ao usuário `signalhunter:signalhunter`.
 - [x] A chave mestra `master_encryption_key` foi gerada via `openssl rand -hex 32` e está protegida.
 - [x] O segredo `jwt_secret` foi gerado via `openssl rand -base64 48`.
-- [x] Os certificados TLS em `/opt/signalhunter/certs/` possuem permissão `600`.
+- [x] Os certificados TLS em `/etc/signalhunter/certs/` possuem permissão `600`.
 - [x] O serviço roda sob o usuário sem privilégios `signalhunter` com proteções de kernel ativas no systemd.
 
 ---

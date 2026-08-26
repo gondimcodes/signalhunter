@@ -17,8 +17,8 @@ port = 8443
 # Configuração de TLS / HTTPS (Recomendado para produção)
 # Se use_tls = false, o servidor iniciará em HTTP simples na porta configurada
 use_tls = false
-tls_cert_path = "certs/cert.pem"
-tls_key_path = "certs/key.pem"
+tls_cert_path = "/etc/signalhunter/certs/cert.pem"
+tls_key_path = "/etc/signalhunter/certs/key.pem"
 
 [database]
 # Configurações de Conexão com o MySQL / MariaDB

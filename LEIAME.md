@@ -6,6 +6,16 @@
 
 ---
 
+## 🚀 Demonstração Online (Live Demo)
+
+Experimente o SignalHunter em funcionamento agora mesmo através do nosso ambiente oficial de demonstração com dataset simulado multi-vendor:
+
+| 🌐 Link de Acesso | 👤 Usuário | 🔑 Senha |
+| :--- | :--- | :--- |
+| [**https://signalhunter.ispfocus.net.br:8443**](https://signalhunter.ispfocus.net.br:8443) | `demo` | `demo123` |
+
+---
+
 ## 🌐 Visão Geral
 
 O **SignalHunter** é uma plataforma de classe corporativa desenvolvida integralmente em **Rust** assíncrono sobre o runtime `tokio`. Ele foi projetado para resolver o maior gargalo operacional dos provedores de internet: **a degradação silenciosa da rede passiva de fibra óptica (ODN)**.

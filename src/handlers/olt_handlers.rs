@@ -1,12 +1,13 @@
 use crate::db::queries::{list_olts, OltRecord};
 use crate::AppState;
 use axum::{
-    extract::{Path, State},
+    extract::{ConnectInfo, Path, State},
     http::StatusCode,
     response::IntoResponse,
     Json,
 };
 use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 #[derive(Debug, Deserialize)]
@@ -172,10 +173,15 @@ fn validate_olt_fields(
 
 pub async fn create_olt_handler(
     State(state): State<Arc<AppState>>,
+    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
     headers: axum::http::HeaderMap,
     Json(payload): Json<CreateOltPayload>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
-    let _ = require_admin_permission(&state, &headers)?;
+    let admin = require_admin_permission(&state, &headers)?;
+    let mut client_ip = crate::handlers::auth_handlers::extract_client_ip(&headers);
+    if client_ip == "--" {
+        client_ip = peer_addr.ip().to_string();
+    }
 
     let pool = state.db.as_ref().ok_or_else(|| {
         (
@@ -249,11 +255,11 @@ pub async fn create_olt_handler(
     )
     .bind(payload.name.trim())
     .bind(payload.ip_address.trim())
-    .bind(payload.vendor.trim().to_lowercase())
-    .bind(payload.model.as_deref())
-    .bind(payload.firmware_version.as_deref())
+    .bind(payload.vendor.trim())
+    .bind(payload.model.as_deref().map(|s| s.trim()))
+    .bind(payload.firmware_version.as_deref().map(|s| s.trim()))
     .bind(payload.snmp_port.unwrap_or(161))
-    .bind(snmp_community_encrypted.as_deref())
+    .bind(snmp_community_encrypted)
     .bind(payload.collection_interval_mins.unwrap_or(60))
     .bind(payload.max_concurrent_requests.unwrap_or(2))
     .bind(payload.pon_delay_ms.unwrap_or(50))
@@ -275,7 +281,7 @@ pub async fn create_olt_handler(
     // Registra Log de Auditoria
     crate::db::queries::log_audit_event(
         pool,
-        Some(1),
+        Some(admin.sub),
         "CREATE",
         "OLT",
         Some(&inserted_id.to_string()),
@@ -285,7 +291,7 @@ pub async fn create_olt_handler(
             payload.ip_address.trim(),
             payload.vendor.trim()
         )),
-        None,
+        Some(&client_ip),
     )
     .await;
 
@@ -308,11 +314,16 @@ pub struct UpdateOltPayload {
 
 pub async fn update_olt_handler(
     State(state): State<Arc<AppState>>,
+    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
     Path(id): Path<u64>,
     headers: axum::http::HeaderMap,
     Json(payload): Json<UpdateOltPayload>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
-    let _ = require_admin_permission(&state, &headers)?;
+    let admin = require_admin_permission(&state, &headers)?;
+    let mut client_ip = crate::handlers::auth_handlers::extract_client_ip(&headers);
+    if client_ip == "--" {
+        client_ip = peer_addr.ip().to_string();
+    }
 
     if let Err(msg) = validate_olt_fields(
         payload.name.as_deref(),
@@ -341,6 +352,7 @@ pub async fn update_olt_handler(
         )
     })?;
 
+    // Criptografar community SNMP se fornecida
     let snmp_community_encrypted = match payload.snmp_community {
         Some(ref comm) if !comm.trim().is_empty() => {
             Some(state.crypto.encrypt(comm.trim()).map_err(|e| {
@@ -348,7 +360,7 @@ pub async fn update_olt_handler(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(ApiResponse {
                         success: false,
-                        message: format!("Erro ao criptografar community SNMP: {}", e),
+                        message: format!("Falha ao criptografar community SNMP: {}", e),
                         data: None,
                     }),
                 )
@@ -357,8 +369,8 @@ pub async fn update_olt_handler(
         _ => None,
     };
 
-    let mut sets = Vec::new();
     let mut query_builder = String::from("UPDATE olts SET ");
+    let mut sets = Vec::new();
 
     if payload.name.is_some() {
         sets.push("name = ?");
@@ -421,12 +433,12 @@ pub async fn update_olt_handler(
             // Registra Log de Auditoria
             crate::db::queries::log_audit_event(
                 pool,
-                Some(1),
+                Some(admin.sub),
                 "UPDATE",
                 "OLT",
                 Some(&id.to_string()),
                 Some(&format!("Atualização cadastral da OLT #{}", id)),
-                None,
+                Some(&client_ip),
             )
             .await;
 
@@ -449,10 +461,16 @@ pub async fn update_olt_handler(
 
 pub async fn delete_olt_handler(
     State(state): State<Arc<AppState>>,
+    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
     Path(id): Path<u64>,
     headers: axum::http::HeaderMap,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
-    let _ = require_admin_permission(&state, &headers)?;
+    let admin = require_admin_permission(&state, &headers)?;
+    let mut client_ip = crate::handlers::auth_handlers::extract_client_ip(&headers);
+    if client_ip == "--" {
+        client_ip = peer_addr.ip().to_string();
+    }
+
     let pool = state.db.as_ref().ok_or_else(|| {
         (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -507,12 +525,12 @@ pub async fn delete_olt_handler(
     let name_str = olt_name.map(|n| n.0).unwrap_or_else(|| format!("#{}", id));
     crate::db::queries::log_audit_event(
         pool,
-        Some(1),
+        Some(admin.sub),
         "DELETE",
         "OLT",
         Some(&id.to_string()),
         Some(&format!("Exclusão da OLT '{}' (ID: {})", name_str, id)),
-        None,
+        Some(&client_ip),
     )
     .await;
 
@@ -525,10 +543,16 @@ pub async fn delete_olt_handler(
 
 pub async fn clear_olt_telemetry_handler(
     State(state): State<Arc<AppState>>,
+    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
     Path(id): Path<u64>,
     headers: axum::http::HeaderMap,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
-    let _ = require_admin_permission(&state, &headers)?;
+    let admin = require_admin_permission(&state, &headers)?;
+    let mut client_ip = crate::handlers::auth_handlers::extract_client_ip(&headers);
+    if client_ip == "--" {
+        client_ip = peer_addr.ip().to_string();
+    }
+
     let pool = state.db.as_ref().ok_or_else(|| {
         (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -590,7 +614,7 @@ pub async fn clear_olt_telemetry_handler(
     let name_str = olt_name.map(|n| n.0).unwrap_or_else(|| format!("#{}", id));
     crate::db::queries::log_audit_event(
         pool,
-        Some(1),
+        Some(admin.sub),
         "PURGE",
         "OLT_TELEMETRY",
         Some(&id.to_string()),
@@ -598,7 +622,7 @@ pub async fn clear_olt_telemetry_handler(
             "Limpeza total das coletas e ONUs da OLT '{}' (ID: {})",
             name_str, id
         )),
-        None,
+        Some(&client_ip),
     )
     .await;
 

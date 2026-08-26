@@ -6,6 +6,16 @@
 
 ---
 
+## 🚀 Live Online Demo
+
+Experience SignalHunter in action right now through our official live demonstration environment with an active multi-vendor GPON dataset:
+
+| 🌐 Live URL | 👤 Username | 🔑 Password |
+| :--- | :--- | :--- |
+| [**https://signalhunter.ispfocus.net.br:8443**](https://signalhunter.ispfocus.net.br:8443) | `demo` | `demo123` |
+
+---
+
 ## 🌐 Overview
 
 **SignalHunter** is an enterprise-grade platform developed entirely in asynchronous **Rust** on top of the `tokio` runtime. It was specifically architected to solve the primary operational bottleneck of telecom operators: **silent optical distribution network (ODN) degradation**.

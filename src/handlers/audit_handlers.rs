@@ -2,11 +2,12 @@ use crate::db::queries::{log_audit_event, AuditLogRecord};
 use crate::handlers::olt_handlers::ApiResponse;
 use crate::AppState;
 use axum::{
-    extract::{Query, State},
-    http::StatusCode,
+    extract::{ConnectInfo, Query, State},
+    http::{HeaderMap, StatusCode},
     Json,
 };
 use serde::Deserialize;
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 #[derive(Debug, Deserialize)]
@@ -15,10 +16,63 @@ pub struct AuditParams {
     pub limit: Option<u64>,
 }
 
+/// Helper para validar permissão de visualização/gerenciamento de auditoria:
+/// Permitido apenas para administradores, exceto quando o sistema estiver em modo de demonstração (demo).
+fn check_audit_permission(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Result<Option<crate::auth::Claims>, (StatusCode, Json<ApiResponse<()>>)> {
+    if state.config.is_demo() {
+        // Em modo Demo, permite visualização para qualquer usuário ou visitante
+        let token_opt = crate::handlers::auth_handlers::extract_auth_token(headers);
+        let claims = token_opt.and_then(|t| state.auth.verify_token(&t).ok());
+        return Ok(claims);
+    }
+
+    let token = crate::handlers::auth_handlers::extract_auth_token(headers).ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(ApiResponse {
+                success: false,
+                message: "Sessão não encontrada ou expirada. Faça login novamente.".to_string(),
+                data: None,
+            }),
+        )
+    })?;
+
+    let claims = state.auth.verify_token(&token).map_err(|_| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(ApiResponse {
+                success: false,
+                message: "Token de sessão inválido ou expirado.".to_string(),
+                data: None,
+            }),
+        )
+    })?;
+
+    if claims.role != "admin" {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(ApiResponse {
+                success: false,
+                message: "Acesso negado: logs de auditoria são restritos a administradores."
+                    .to_string(),
+                data: None,
+            }),
+        ));
+    }
+
+    Ok(Some(claims))
+}
+
 pub async fn list_audit_logs_handler(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Query(params): Query<AuditParams>,
 ) -> Result<Json<ApiResponse<Vec<AuditLogRecord>>>, (StatusCode, Json<ApiResponse<()>>)> {
+    let claims_opt = check_audit_permission(&state, &headers)?;
+
     let pool = state.db.as_ref().ok_or_else(|| {
         (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -58,7 +112,28 @@ pub async fn list_audit_logs_handler(
         q_builder = q_builder.bind(s).bind(s).bind(s).bind(s).bind(s);
     }
 
-    let logs = q_builder.fetch_all(pool).await.unwrap_or_default();
+    let mut logs = q_builder.fetch_all(pool).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse {
+                success: false,
+                message: format!("Erro ao buscar logs de auditoria: {}", e),
+                data: None,
+            }),
+        )
+    })?;
+
+    // No modo Demo, anonimiza o IP de origem para visitantes e operadores.
+    // Administradores autenticados podem ver os IPs mesmo em ambiente Demo.
+    let is_admin = claims_opt
+        .as_ref()
+        .map(|c| c.role == "admin")
+        .unwrap_or(false);
+    if state.config.is_demo() && !is_admin {
+        for log in &mut logs {
+            log.ip_address = Some("--".to_string());
+        }
+    }
 
     Ok(Json(ApiResponse {
         success: true,
@@ -69,7 +144,16 @@ pub async fn list_audit_logs_handler(
 
 pub async fn clear_audit_logs_handler(
     State(state): State<Arc<AppState>>,
+    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
 ) -> Result<Json<ApiResponse<()>>, (StatusCode, Json<ApiResponse<()>>)> {
+    let claims_opt = check_audit_permission(&state, &headers)?;
+    let mut client_ip = crate::handlers::auth_handlers::extract_client_ip(&headers);
+    if client_ip == "--" {
+        client_ip = peer_addr.ip().to_string();
+    }
+    let user_id = claims_opt.map(|c| c.sub).unwrap_or(1);
+
     let pool = state.db.as_ref().ok_or_else(|| {
         (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -87,12 +171,12 @@ pub async fn clear_audit_logs_handler(
     // Registra imediatamente o log de limpeza pelo Administrador
     log_audit_event(
         pool,
-        Some(1),
+        Some(user_id),
         "PURGE",
         "AUDIT_LOGS",
         None,
         Some("Histórico de logs de auditoria expurgado pelo Administrador"),
-        Some("127.0.0.1"),
+        Some(&client_ip),
     )
     .await;
 

@@ -82,14 +82,15 @@ For system isolation and security hardening, SignalHunter runs under a dedicated
 sudo adduser --system --group --no-create-home --shell /bin/false signalhunter
 
 # 2. Create production directories
-sudo mkdir -p /opt/signalhunter/certs
 sudo mkdir -p /opt/signalhunter/reports
+sudo mkdir -p /etc/signalhunter/certs
 sudo mkdir -p /var/log/signalhunter
 
 # 3. Apply ownership and strict file permissions
-sudo chown -R signalhunter:signalhunter /opt/signalhunter /var/log/signalhunter
+sudo chown -R signalhunter:signalhunter /opt/signalhunter /etc/signalhunter /var/log/signalhunter
 sudo chmod 750 /opt/signalhunter
-sudo chmod 700 /opt/signalhunter/certs
+sudo chmod 750 /etc/signalhunter
+sudo chmod 700 /etc/signalhunter/certs
 ```
 
 ---
@@ -99,7 +100,7 @@ sudo chmod 700 /opt/signalhunter/certs
 Run the initial MariaDB security script:
 
 ```bash
-sudo mysql_secure_installation
+sudo mariadb-secure-installation
 ```
 
 Log in to MariaDB and provision the dedicated database and user credentials:
@@ -139,29 +140,31 @@ Deploy release artifacts from your build machine to `/opt/signalhunter`:
 # Example scp command from development host:
 scp target/x86_64-unknown-linux-musl/release/signalhunter config.toml schema.sql user@server-ip:/tmp/
 
-# On the server host, move files into place:
+# On the server host, move binary and database schema to /opt/signalhunter:
 sudo mv /tmp/signalhunter /opt/signalhunter/
-sudo mv /tmp/config.toml /opt/signalhunter/
 sudo mv /tmp/schema.sql /opt/signalhunter/
+
+# Move configuration file to /etc/signalhunter:
+sudo mv /tmp/config.toml /etc/signalhunter/
 
 # Grant executable permissions to binary
 sudo chmod +x /opt/signalhunter/signalhunter
 
 # Restrict config.toml permissions (contains AES keys and DB credentials)
-sudo chmod 600 /opt/signalhunter/config.toml
+sudo chmod 600 /etc/signalhunter/config.toml
 
 # Set proper ownership
-sudo chown -R signalhunter:signalhunter /opt/signalhunter
+sudo chown -R signalhunter:signalhunter /opt/signalhunter /etc/signalhunter
 ```
 
 ---
 
 ## 6. Security Configuration (`config.toml`)
 
-Edit `/opt/signalhunter/config.toml`:
+Edit `/etc/signalhunter/config.toml`:
 
 ```bash
-sudo nano /opt/signalhunter/config.toml
+sudo nano /etc/signalhunter/config.toml
 ```
 
 ### 6.1. Generate AES-256-GCM Master Encryption Key
@@ -178,15 +181,17 @@ To sign user session tokens securely:
 openssl rand -base64 48
 ```
 
-### 6.3. Sample Production `/opt/signalhunter/config.toml`:
+### 6.3. Sample Production `/etc/signalhunter/config.toml`:
 
 ```toml
+mode = "production"
+
 [server]
 host = "0.0.0.0"
 port = 8443
 use_tls = true
-tls_cert_path = "certs/cert.pem"
-tls_key_path = "certs/key.pem"
+tls_cert_path = "/etc/signalhunter/certs/cert.pem"
+tls_key_path = "/etc/signalhunter/certs/key.pem"
 
 [database]
 host = "127.0.0.1"
@@ -230,22 +235,22 @@ degradation_alert_delta_db = 3.0
 sudo apt install -y certbot
 sudo certbot certonly --standalone -d signalhunter.yourdomain.com
 
-# Copy certificates to /opt/signalhunter/certs:
-sudo cp /etc/letsencrypt/live/signalhunter.yourdomain.com/fullchain.pem /opt/signalhunter/certs/cert.pem
-sudo cp /etc/letsencrypt/live/signalhunter.yourdomain.com/privkey.pem /opt/signalhunter/certs/key.pem
-sudo chown -R signalhunter:signalhunter /opt/signalhunter/certs
-sudo chmod 600 /opt/signalhunter/certs/*.pem
+# Copy certificates to /etc/signalhunter/certs:
+sudo cp /etc/letsencrypt/live/signalhunter.yourdomain.com/fullchain.pem /etc/signalhunter/certs/cert.pem
+sudo cp /etc/letsencrypt/live/signalhunter.yourdomain.com/privkey.pem /etc/signalhunter/certs/key.pem
+sudo chown -R signalhunter:signalhunter /etc/signalhunter/certs
+sudo chmod 600 /etc/signalhunter/certs/*.pem
 ```
 
 ### Option B: Self-Signed Certificate (Internal Lab / Testing)
 ```bash
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-    -keyout /opt/signalhunter/certs/key.pem \
-    -out /opt/signalhunter/certs/cert.pem \
+    -keyout /etc/signalhunter/certs/key.pem \
+    -out /etc/signalhunter/certs/cert.pem \
     -subj "/C=BR/ST=SP/L=SaoPaulo/O=ISP/OU=NOC/CN=signalhunter.local"
 
-sudo chown -R signalhunter:signalhunter /opt/signalhunter/certs
-sudo chmod 600 /opt/signalhunter/certs/*.pem
+sudo chown -R signalhunter:signalhunter /etc/signalhunter/certs
+sudo chmod 600 /etc/signalhunter/certs/*.pem
 ```
 
 ---
@@ -376,21 +381,21 @@ sudo ufw status
 
 ---
 
-## 11. Production Hardening Checklist
+## 11. Security Checklist (Production Hardening)
 
-Before releasing to NOC operations:
-- [x] Initial run performed and `admin` generated password captured.
-- [x] `/opt/signalhunter/config.toml` permissions restricted to `600` owned by `signalhunter:signalhunter`.
-- [x] Master key `master_encryption_key` generated via `openssl rand -hex 32`.
-- [x] JWT secret `jwt_secret` generated via `openssl rand -base64 48`.
-- [x] TLS certificates placed in `/opt/signalhunter/certs/` with `600` permissions.
-- [x] Service running as unprivileged `signalhunter` account with systemd kernel protections.
+Before operational handover:
+- [x] Initial service execution captured generated `admin` setup password.
+- [x] `/etc/signalhunter/config.toml` permissions restricted to `600` owned by `signalhunter:signalhunter`.
+- [x] Master encryption key generated via `openssl rand -hex 32` and safely stored.
+- [x] JWT secret key generated via `openssl rand -base64 48`.
+- [x] TLS certificates under `/etc/signalhunter/certs/` restricted to `600`.
+- [x] Service running under isolated `signalhunter` account with Linux kernel protection enabled in systemd.
 
 ---
 
 ## 12. Application Access
 
 Open your web browser and navigate to:
-- **URL:** `https://server-ip:8443`
-- **Username:** `admin`
-- **Password:** *(The random 20-character password captured during the first execution)*
+- **URL:** `https://your-server-ip:8443` (or configured port)
+- **User:** `admin`
+- **Password:** *(The random 20-character secret printed to log on first startup)*

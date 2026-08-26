@@ -3225,6 +3225,13 @@
             var tbody = document.getElementById('usersTableBody');
             if (!tbody) return;
 
+            // Habilita ou esconde botão "+ Novo Usuário" conforme perfil de Administrador
+            var isAdmin = currentUserSession && currentUserSession.role === 'admin';
+            var btnAdd = document.getElementById('btnAddUserBtn');
+            if (btnAdd) {
+                btnAdd.style.display = isAdmin ? 'inline-block' : 'none';
+            }
+
             try {
                 var res = await fetch('/api/users');
                 var json = await res.json();
@@ -3233,8 +3240,6 @@
                     renderUsersTable(allLoadedUsers);
                 } else if (res.status === 403) {
                     tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #F59E0B; padding: 20px;">Acesso restrito: seu perfil de Operador permite apenas visualização dos dados.</td></tr>';
-                    var btnAdd = document.getElementById('btnAddUserBtn');
-                    if (btnAdd) btnAdd.style.display = 'none';
                 } else {
                     tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #F43F5E; padding: 20px;">' + (json.message || 'Erro ao carregar usuários') + '</td></tr>';
                 }
@@ -3255,6 +3260,7 @@
 
             var currentUserId = currentUserSession ? Number(currentUserSession.id) : null;
             var isAdmin = currentUserSession && currentUserSession.role === 'admin';
+            var isDemo = currentUserSession && currentUserSession.is_demo === true;
 
             tbody.innerHTML = usersList.map(function(u) {
                 var isActive = (u.is_active !== 0 && u.is_active !== false);
@@ -3271,10 +3277,12 @@
 
                 // Regras de Ações:
                 // - Admin pode editar qualquer um.
-                // - Operador só pode editar a si mesmo.
+                // - Operador só pode editar a si mesmo (apenas a senha), DESDE QUE NÃO ESTEJA EM MODO DEMO.
                 // - Admin pode excluir qualquer um, MENOS ele mesmo.
-                var editBtn = (isAdmin || isSelf)
-                    ? `<button class="btn-action-small" onclick="openEditUserModal(${u.id})">Editar</button>`
+                // - Operadores NÃO podem excluir ninguém nem se autoexcluir.
+                var canOperatorEdit = isSelf && !isAdmin && !isDemo;
+                var editBtn = (isAdmin || canOperatorEdit)
+                    ? `<button class="btn-action-small" onclick="openEditUserModal(${u.id})">${isSelf && !isAdmin ? 'Alterar Minha Senha' : 'Editar'}</button>`
                     : ``;
 
                 var deleteBtn = (isAdmin && !isSelf)
@@ -3283,7 +3291,7 @@
 
                 var actionsContent = (editBtn || deleteBtn)
                     ? `<div style="display: flex; gap: 6px; justify-content: flex-end; align-items: center;">${editBtn}${deleteBtn}</div>`
-                    : `<span style="font-size:0.72rem; color:var(--text-dim);">Somente Leitura</span>`;
+                    : `<span style="font-size:0.72rem; color:var(--text-dim);">${isSelf && isDemo ? 'Protegido (Demo)' : 'Somente Leitura'}</span>`;
 
                 return `
                 <tr>
@@ -3317,11 +3325,14 @@
             document.getElementById('btnSaveUserText').textContent = 'Salvar Usuário';
             document.getElementById('userEditId').value = '';
             document.getElementById('userFullName').value = '';
+            document.getElementById('userFullName').disabled = false;
             document.getElementById('userLogin').value = '';
             document.getElementById('userLogin').disabled = false;
             document.getElementById('userLoginHint').style.display = 'none';
             document.getElementById('userEmail').value = '';
+            document.getElementById('userEmail').disabled = false;
             document.getElementById('userRole').value = 'operator';
+            document.getElementById('userRole').disabled = false;
             document.getElementById('userPassword').value = '';
             document.getElementById('userPassword').required = true;
             document.getElementById('userPasswordLabel').textContent = 'Senha de Acesso (Obrigatória)';
@@ -3341,24 +3352,34 @@
                 return;
             }
 
-            document.getElementById('userModalTitle').textContent = 'Editar Usuário - ' + u.username;
-            document.getElementById('btnSaveUserText').textContent = 'Atualizar Usuário';
+            var isAdmin = currentUserSession && currentUserSession.role === 'admin';
+
+            document.getElementById('userModalTitle').textContent = isAdmin 
+                ? ('Editar Usuário - ' + u.username)
+                : ('Alterar Senha de Acesso - ' + u.username);
+
+            document.getElementById('btnSaveUserText').textContent = isAdmin ? 'Atualizar Usuário' : 'Alterar Minha Senha';
             document.getElementById('userEditId').value = u.id;
             document.getElementById('userFullName').value = u.full_name;
+            document.getElementById('userFullName').disabled = !isAdmin;
             document.getElementById('userLogin').value = u.username;
             document.getElementById('userLogin').disabled = true;
             document.getElementById('userLoginHint').style.display = 'block';
             document.getElementById('userEmail').value = u.email || '';
+            document.getElementById('userEmail').disabled = !isAdmin;
             document.getElementById('userRole').value = u.role;
+            document.getElementById('userRole').disabled = !isAdmin;
             document.getElementById('userPassword').value = '';
-            document.getElementById('userPassword').required = false;
-            document.getElementById('userPasswordLabel').textContent = 'Nova Senha (Deixe em branco para manter a atual)';
+            document.getElementById('userPassword').required = !isAdmin; // Para operador, senha é obrigatória na edição
+            document.getElementById('userPasswordLabel').textContent = isAdmin 
+                ? 'Nova Senha (Deixe em branco para manter a atual)'
+                : 'Nova Senha de Acesso (Obrigatória)';
             document.getElementById('userPasswordConfirm').value = '';
-            document.getElementById('userPasswordConfirm').required = false;
+            document.getElementById('userPasswordConfirm').required = !isAdmin;
             document.getElementById('userPasswordConfirmLabel').textContent = 'Repetir Nova Senha';
             document.getElementById('userPasswordMismatchWarn').style.display = 'none';
             document.getElementById('userActive').value = (u.is_active !== 0 && u.is_active !== false) ? 'true' : 'false';
-            document.getElementById('userActiveGroup').style.display = 'block';
+            document.getElementById('userActiveGroup').style.display = isAdmin ? 'block' : 'none';
             document.getElementById('userModal').style.display = 'flex';
         }
 
@@ -3759,17 +3780,24 @@
 
             try {
                 var res = await fetch('/api/audit-logs?limit=1000');
-                var json = await res.json();
+                var text = await res.text();
+                var json = null;
+                try {
+                    json = JSON.parse(text);
+                } catch(pe) {
+                    console.error("Falha ao interpretar resposta de audit-logs:", text);
+                }
 
-                if (res.ok && json.success && json.data) {
+                if (res.ok && json && json.success && json.data) {
                     allLoadedAuditLogs = json.data;
                     renderAuditLogsTable(allLoadedAuditLogs);
                 } else {
-                    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #F43F5E; padding: 20px;">' + (json.message || 'Falha ao carregar logs de auditoria') + '</td></tr>';
+                    var errorMsg = (json && json.message) ? json.message : `HTTP ${res.status}: ${res.statusText || 'Erro ao consultar auditoria.'}`;
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #F43F5E; padding: 20px;">' + errorMsg + '</td></tr>';
                 }
             } catch(e) {
                 console.error("Erro ao carregar logs:", e);
-                if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #F43F5E; padding: 20px;">Erro de conexão com o servidor.</td></tr>';
+                if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #F43F5E; padding: 20px;">Erro de conexão com o servidor: ' + (e.message || e) + '</td></tr>';
             }
         }
 
@@ -3808,7 +3836,10 @@
                 }
 
                 var userDisplay = log.username ? `<strong style="color:var(--accent);">${log.username}</strong>` : '<span style="color:#64748B;">Sistema</span>';
-                var ipDisplay = log.ip_address || '<span style="color:#64748B;">--</span>';
+                var isAdmin = currentUserSession && currentUserSession.role === 'admin';
+                var isDemo = currentUserSession && currentUserSession.is_demo === true;
+                // No modo demo, se for operador/visitante oculta o IP com '--'. Administrador sempre visualiza os IPs.
+                var ipDisplay = ((isDemo && !isAdmin) || !log.ip_address) ? '<span style="color:#64748B;">--</span>' : log.ip_address;
                 var detailsDisplay = log.details || '--';
 
                 return `
@@ -3913,10 +3944,17 @@
                         loggedUserEl.innerHTML = `${currentUserSession.full_name} <span style="font-size:0.75rem; color:var(--text-dim);">(${roleLabel})</span>`;
                     }
 
-                    // Se não for admin, oculta a aba de Usuários e botões de adicionar
+                    // A aba de Usuários é visível para todos (operadores visualizam a lista e editam sua própria senha)
                     var tabUsersBtn = document.getElementById('tab-btn-users');
-                    if (tabUsersBtn && currentUserSession.role !== 'admin') {
-                        tabUsersBtn.style.display = 'none';
+                    if (tabUsersBtn) {
+                        tabUsersBtn.style.display = 'inline-block';
+                    }
+
+                    // A aba de Logs de Auditoria é restrita para Admin, a menos que esteja em modo Demo
+                    var tabAuditBtn = document.getElementById('tab-btn-audit');
+                    if (tabAuditBtn) {
+                        var canSeeAudit = currentUserSession.role === 'admin' || currentUserSession.is_demo === true;
+                        tabAuditBtn.style.display = canSeeAudit ? 'inline-block' : 'none';
                     }
 
                     var btnAddOlt = document.getElementById('btnAddNewOltHeader');
