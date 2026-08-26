@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS onus (
     custom_name VARCHAR(128) NULL,
     customer_identifier VARCHAR(128) NULL, -- ID do cliente / Login PPPoE / Contrato
     distance_meters INT NULL,
-    status ENUM('online', 'offline', 'dying_gasp', 'unknown') NOT NULL DEFAULT 'unknown',
+    status ENUM('online', 'los', 'dying_gasp', 'offline', 'unknown') NOT NULL DEFAULT 'unknown',
     
     first_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -98,12 +98,12 @@ CREATE TABLE IF NOT EXISTS onu_signal_history (
     temperature_c DECIMAL(4,1) NULL,
     
     -- Classificação e Variação Histórica
-    signal_quality ENUM('excellent', 'good', 'warning', 'critical', 'offline') NOT NULL,
-    delta_prev_rx_db DECIMAL(5,2) NULL, -- Diferença em dB em relação à última leitura
+    signal_quality ENUM('excellent', 'good', 'warning', 'critical', 'offline') NOT NULL DEFAULT 'good',
+    delta_prev_rx_db DECIMAL(4,2) NULL, -- Diferença em dB em relação à última leitura
     is_degraded BOOLEAN NOT NULL DEFAULT FALSE,
     
-    -- Metadados da Coleta
-    collection_protocol ENUM('snmp', 'netconf', 'ssh') NOT NULL,
+    -- Metadados da Coleta (100% SNMPv2c)
+    collection_protocol ENUM('snmp') NOT NULL DEFAULT 'snmp',
     response_time_ms INT UNSIGNED NULL,
     
     FOREIGN KEY (onu_id) REFERENCES onus(id) ON DELETE CASCADE,

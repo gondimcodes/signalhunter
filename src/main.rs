@@ -229,7 +229,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 signal_quality ENUM('excellent', 'good', 'warning', 'critical', 'offline') NOT NULL DEFAULT 'good',
                 delta_prev_rx_db DECIMAL(4,2) NULL,
                 is_degraded BOOLEAN NOT NULL DEFAULT FALSE,
-                collection_protocol ENUM('snmp', 'netconf', 'ssh') NOT NULL DEFAULT 'snmp',
+                collection_protocol ENUM('snmp') NOT NULL DEFAULT 'snmp',
                 FOREIGN KEY (onu_id) REFERENCES onus(id) ON DELETE CASCADE,
                 INDEX idx_onu_history_time (onu_id, collected_at),
                 INDEX idx_history_collected_at (collected_at)
@@ -238,6 +238,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
         let _ = sqlx::query(
             "ALTER TABLE onu_signal_history MODIFY COLUMN signal_quality ENUM('excellent', 'good', 'warning', 'critical', 'offline') NOT NULL DEFAULT 'good'"
+        ).execute(pool).await;
+
+        let _ = sqlx::query(
+            "ALTER TABLE onu_signal_history MODIFY COLUMN collection_protocol ENUM('snmp') NOT NULL DEFAULT 'snmp'"
         ).execute(pool).await;
 
         let _ = sqlx::query(
