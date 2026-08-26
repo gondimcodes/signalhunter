@@ -246,7 +246,8 @@ impl OltDriver for DatacomDriver {
             .unwrap_or_default();
 
         for vb in serial_vbs {
-            if let (Some(ifindex_str), Some(serial_val)) = (vb.oid.split('.').last(), vb.value_str) {
+            if let (Some(ifindex_str), Some(serial_val)) = (vb.oid.split('.').last(), vb.value_str)
+            {
                 let cleaned = serial_val.trim();
                 if !cleaned.is_empty() && cleaned != "N/A" {
                     snmp_serial_map.insert(ifindex_str.to_string(), cleaned.to_string());
