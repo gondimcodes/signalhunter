@@ -609,16 +609,26 @@
         .onu-row-selected:first-child td:first-child { border-left: 2px solid #00F0FF; }
 
         /* Tabelas dedicadas calibradas com altura compacta sem scroll */
-        .onus-table th, .hist-table th, .audit-table th, .dashboard-table th, .olts-table th, .users-table th {
+        .onus-table th, .hist-table th, .audit-table th, .dashboard-table th, .olts-table th, .users-table th, .degradation-table th {
             font-size: 0.70rem;
-            padding: 0.22rem 0.5rem;
+            padding: 0.25rem 0.5rem;
             white-space: nowrap;
         }
-        .onus-table td, .hist-table td, .audit-table td, .dashboard-table td, .olts-table td, .users-table td {
+        .onus-table td, .hist-table td, .audit-table td, .dashboard-table td, .olts-table td, .users-table td, .degradation-table td {
             font-size: 0.74rem;
-            padding: 0.16rem 0.5rem;
+            padding: 0.12rem 0.5rem;
             line-height: 1.15;
             white-space: nowrap;
+        }
+        .dashboard-table .btn-action-small, .onus-table .btn-action-small, .olts-table .btn-action-small, .degradation-table .btn-action-small {
+            padding: 0.1rem 0.45rem;
+            font-size: 0.68rem;
+            line-height: 1.1;
+        }
+        .dashboard-table .signal-pill, .onus-table .signal-pill, .degradation-table .signal-pill {
+            padding: 1px 5px;
+            font-size: 0.68rem;
+            line-height: 1.1;
         }
 
         th {
@@ -1884,8 +1894,8 @@
         function calculateDashboardPageSize() {
             var container = document.getElementById('dashboardTableContainer');
             if (container && container.clientHeight > 80) {
-                var availableHeight = container.clientHeight - 36;
-                dashboardPageSize = Math.max(4, Math.min(Math.floor(availableHeight / 24), 100));
+                var availableHeight = container.clientHeight - 40;
+                dashboardPageSize = Math.max(3, Math.min(Math.floor(availableHeight / 26.5), 100));
             } else {
                 dashboardPageSize = 20;
             }
@@ -1898,8 +1908,8 @@
         function calculateOnusPageSize() {
             var container = document.getElementById('onusTableContainer');
             if (container && container.clientHeight > 80) {
-                var availableHeight = container.clientHeight - 36;
-                onusPageSize = Math.max(4, Math.min(Math.floor(availableHeight / 24), 100));
+                var availableHeight = container.clientHeight - 40;
+                onusPageSize = Math.max(3, Math.min(Math.floor(availableHeight / 26.5), 100));
             } else {
                 onusPageSize = 20;
             }
@@ -1916,8 +1926,8 @@
         function calculateHistoryPageSize() {
             var container = document.getElementById('historyTableContainer');
             if (container && container.clientHeight > 80) {
-                var availableHeight = container.clientHeight - 36;
-                historyPageSize = Math.max(4, Math.min(Math.floor(availableHeight / 24), 100));
+                var availableHeight = container.clientHeight - 40;
+                historyPageSize = Math.max(3, Math.min(Math.floor(availableHeight / 26.5), 100));
             } else {
                 historyPageSize = 20;
             }
@@ -3709,8 +3719,8 @@
         function calculateDegradationPageSize() {
             var container = document.getElementById('degradationTableContainer');
             if (container && container.clientHeight > 80) {
-                var availableHeight = container.clientHeight - 36;
-                degradationPageSize = Math.max(4, Math.min(Math.floor(availableHeight / 24), 100));
+                var availableHeight = container.clientHeight - 40;
+                degradationPageSize = Math.max(3, Math.min(Math.floor(availableHeight / 26.5), 100));
             } else {
                 degradationPageSize = 20;
             }
@@ -4044,10 +4054,10 @@
         function calculateAuditPageSize() {
             var container = document.getElementById('auditTableContainer');
             if (container && container.clientHeight > 80) {
-                // Desconta altura do cabeçalho da tabela (th ~36px) e calcula com linha compacta (~24px)
-                var availableHeight = container.clientHeight - 36;
-                var calculatedRows = Math.floor(availableHeight / 24);
-                auditPageSize = Math.max(4, Math.min(calculatedRows, 100));
+                // Desconta altura do cabeçalho da tabela (th ~40px) e calcula com linha precisa (~26.5px)
+                var availableHeight = container.clientHeight - 40;
+                var calculatedRows = Math.floor(availableHeight / 26.5);
+                auditPageSize = Math.max(3, Math.min(calculatedRows, 100));
             } else {
                 auditPageSize = 20;
             }
