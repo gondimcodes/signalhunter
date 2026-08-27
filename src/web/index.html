@@ -1261,43 +1261,45 @@
 
 
             <!-- ABA 4: Piora de Sinal (Atenuação Súbita) -->
-            <div class="tab-content-panel" id="content-degradation" style="display: none;">
-                <div class="search-add-bar">
-                    <div class="search-input-wrap">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        <input type="text" class="search-input" id="searchDegradationInput" placeholder="Filtrar ONUs com piora de sinal por Serial, Cliente, OLT ou Porta..." oninput="applyDegradationFilter()">
+            <div class="tab-content-panel" id="content-degradation" style="display: none; flex-direction: column; gap: 0.5rem;">
+                <div style="max-width: 1100px; width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 0.5rem;">
+                    <div class="search-add-bar" style="margin-bottom: 0;">
+                        <div class="search-input-wrap">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" class="search-input" id="searchDegradationInput" placeholder="Filtrar ONUs com piora de sinal por Serial, Cliente, OLT ou Porta..." oninput="applyDegradationFilter()">
+                        </div>
+                        <button class="btn-cyan" onclick="refreshAllData()">Atualizar</button>
+                        <button class="btn-cyan" onclick="downloadDegradationPdfReport()">Exportar PDF</button>
                     </div>
-                    <button class="btn-cyan" onclick="refreshAllData()">Atualizar</button>
-                    <button class="btn-cyan" onclick="downloadDegradationPdfReport()">Exportar PDF</button>
-                </div>
-                <div class="table-responsive" id="degradationTableContainer" style="flex: 1; min-height: 0; overflow: hidden;">
-                    <table class="degradation-table">
-                        <thead>
-                            <tr>
-                                <th>Serial ONU</th>
-                                <th>Cliente / Identificador</th>
-                                <th>OLT</th>
-                                <th>Porta PON</th>
-                                <th>Sinal Anterior</th>
-                                <th>Sinal Rx Atual</th>
-                                <th>Piora Registrada (ΔdB)</th>
-                                <th>Últimas 5 Coletas (Rx)</th>
-                                <th>Status</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="degradationTableBody">
-                            <tr><td colspan="10" style="text-align: center; color: var(--text-dim); padding: 20px;">Carregando histórico de piora de sinal dos últimos 30 dias...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <!-- Barra de Paginação Dinâmica na aba Piora de Sinal -->
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: rgba(15, 23, 42, 0.6); border-top: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.72rem; flex-shrink: 0;">
-                    <span style="color: #94A3B8;" id="degradationPaginationInfo">Mostrando 0 de 0 registros</span>
-                    <div style="display: flex; gap: 6px; align-items: center;">
-                        <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnDegradationPrevPage" onclick="prevDegradationPage()" disabled>&larr; Anterior</button>
-                        <span style="color: #FFF; font-weight: 600;" id="degradationPageIndicator">Pág 1 / 1</span>
-                        <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnDegradationNextPage" onclick="nextDegradationPage()" disabled>Próxima &rarr;</button>
+                    <div class="table-responsive" id="degradationTableContainer" style="flex: 1; min-height: 0; overflow: hidden;">
+                        <table class="degradation-table">
+                            <thead>
+                                <tr>
+                                    <th>Serial ONU</th>
+                                    <th>Cliente / Identificador</th>
+                                    <th>OLT</th>
+                                    <th>Porta PON</th>
+                                    <th>Sinal Anterior</th>
+                                    <th>Sinal Rx Atual</th>
+                                    <th>Piora Registrada (ΔdB)</th>
+                                    <th>Últimas 5 Coletas (Rx)</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="degradationTableBody">
+                                <tr><td colspan="10" style="text-align: center; color: var(--text-dim); padding: 20px;">Carregando histórico de piora de sinal dos últimos 30 dias...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Barra de Paginação Dinâmica na aba Piora de Sinal -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: rgba(15, 23, 42, 0.6); border-top: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.72rem; flex-shrink: 0;">
+                        <span style="color: #94A3B8;" id="degradationPaginationInfo">Mostrando 0 de 0 registros</span>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnDegradationPrevPage" onclick="prevDegradationPage()" disabled>&larr; Anterior</button>
+                            <span style="color: #FFF; font-weight: 600;" id="degradationPageIndicator">Pág 1 / 1</span>
+                            <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnDegradationNextPage" onclick="nextDegradationPage()" disabled>Próxima &rarr;</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1393,7 +1395,7 @@
 
             <!-- ABA 8: Logs de Auditoria do Sistema -->
             <div class="tab-content-panel" id="content-audit" style="display: none; flex-direction: column; gap: 0.4rem;">
-                <div style="max-width: 960px; width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 0.4rem;">
+                <div style="max-width: 1200px; width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 0.4rem;">
                     <div class="search-add-bar" style="margin-bottom: 0;">
                         <div class="search-input-wrap">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -1407,12 +1409,12 @@
                         <table class="audit-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 17%;">Data / Hora (Servidor)</th>
-                                    <th style="width: 13%;">Usuário / Login</th>
-                                    <th style="width: 12%;">Ação</th>
-                                    <th style="width: 14%;">Módulo / Recurso</th>
-                                    <th style="width: 32%;">Detalhes da Operação</th>
-                                    <th style="width: 12%;">IP Origem</th>
+                                    <th style="width: 15%;">Data / Hora (Servidor)</th>
+                                    <th style="width: 11%;">Usuário / Login</th>
+                                    <th style="width: 10%;">Ação</th>
+                                    <th style="width: 13%;">Módulo / Recurso</th>
+                                    <th style="width: 35%;">Detalhes da Operação</th>
+                                    <th style="width: 16%;">IP Origem</th>
                                 </tr>
                             </thead>
                             <tbody id="auditLogsTableBody">
@@ -3828,7 +3830,7 @@
                                 el.innerHTML = history.slice(0, 5).map(function(h, idx) {
                                     var rxN = h.rx_power_dbm;
                                     var isOff = rxN == null || rxN < -45.0;
-                                    var rxTxt = isOff ? 'LOS' : rxN.toFixed(1);
+                                    var rxTxt = isOff ? 'LOS' : rxN.toFixed(2);
                                     var c = isOff ? '#f43f5e' : (rxN < -27.0 ? '#f43f5e' : (rxN < -23.0 ? '#f59e0b' : '#38BDF8'));
                                     var bg = isOff ? 'rgba(244,63,94,0.15)' : (rxN < -27.0 ? 'rgba(244,63,94,0.15)' : (rxN < -23.0 ? 'rgba(245,158,11,0.15)' : 'rgba(56,189,248,0.15)'));
                                     var border = isOff ? 'rgba(244,63,94,0.3)' : (rxN < -27.0 ? 'rgba(244,63,94,0.3)' : (rxN < -23.0 ? 'rgba(245,158,11,0.3)' : 'rgba(56,189,248,0.3)'));
