@@ -11,13 +11,14 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ### 🚀 Funcionalidades & Interface (UI/UX)
 - **Paginação Dinâmica Adaptativa Universal Sem Scroll**: Implementado cálculo automático e responsivo da quantidade ideal de registros por página em todas as tabelas da aplicação, eliminando barras de rolagem verticais:
-  - **Dashboard Geral (`#onuAlertsTableBody`)**: cálculo dinâmico (`calculateDashboardPageSize`) preenchendo a altura disponível da tela.
-  - **ONUs & Sinais (`#onusFullTableBody` e `#onuHistoryTableBody`)**: cálculo independente para ambos os lados (Lista de ONUs e Histórico de Sinais via `calculateOnusPageSize` e `calculateHistoryPageSize`).
+  - **Dashboard Geral (`#onuAlertsTableBody`)**: cálculo dinâmico (`calculateDashboardPageSize`) preenchendo a altura da tela, distribuição por 100% da largura do card e ampliação da coluna OLT (24%).
+  - **ONUs & Sinais (`#onusFullTableBody` e `#onuHistoryTableBody`)**: cálculo independente para ambos os lados (Lista de ONUs e Histórico de Sinais via `calculateOnusPageSize` e `calculateHistoryPageSize`), com ampliação do painel de listagem para 52% da largura.
   - **OLTs / Equipamentos (`#oltsFullTableBody`)**: paginação dinâmica adaptativa (`calculateOltsPageSize`) integrada ao painel de showcase de hardware.
-  - **Piora de Sinal (`#degradationTableBody`)**: paginação dinâmica (`calculateDegradationPageSize`) com exibição inline das 5 últimas coletas de potência óptica Rx de cada ONU.
+  - **Piora de Sinal (`#degradationTableBody`)**: layout 100% de largura e paginação dinâmica (`calculateDegradationPageSize`) com exibição inline das 5 últimas coletas de potência óptica Rx formatadas com 2 casas decimais (`{:.2}`).
   - **Usuários / RBAC (`#usersTableBody`)**: paginação dinâmica (`calculateUsersPageSize`) e card otimizado (`max-width: 960px`).
-  - **Logs de Auditoria (`#auditLogsTableBody`)**: dimensionamento automático (`calculateAuditPageSize`) e card compacto padronizado (`max-width: 960px`).
+  - **Logs de Auditoria (`#auditLogsTableBody`)**: dimensionamento automático (`calculateAuditPageSize`), layout 100% de largura e ampliação da coluna IP Origem (20%) para endereços IPv6 completos.
 - **Controles Interativos Padronizados**: Barras de paginação com indicador `Pág X / Y`, totalizador dinâmico `Mostrando X a Y de Z registros (N/pág)` e botões `← Anterior` / `Próxima →`.
+- **Eliminação de Cortes no Rodapé & Otimização de Espaço Útil**: Calibração precisa da altura de linha (24.2px) e margem de cabeçalho (28px), acomodando de +2 a +3 registros extras por página sem transbordamento visual.
 - **Listener Global de Redimensionamento em Tempo Real**: Atualização instantânea com debounce no evento de `resize` do navegador recalculando o espaço de cada tabela sem perda de filtros ou estados de busca.
 
 ---

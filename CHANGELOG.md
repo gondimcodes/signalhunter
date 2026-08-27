@@ -11,13 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🚀 Features & UI/UX
 - **Universal Viewport-Adaptive Dynamic Pagination**: Implemented automatic, responsive calculation of records per page across all application tables without vertical scrollbars:
-  - **Dashboard Geral (`#onuAlertsTableBody`)**: dynamic calculation (`calculateDashboardPageSize`) ensuring alerts fit the viewport height.
-  - **ONUs & Sinais (`#onusFullTableBody` & `#onuHistoryTableBody`)**: independent height calculation for both ONU list and signal history panels (`calculateOnusPageSize`, `calculateHistoryPageSize`).
+  - **Dashboard Geral (`#onuAlertsTableBody`)**: dynamic calculation (`calculateDashboardPageSize`) ensuring alerts fit the viewport height, with expanded OLT column width (24%) and full-card distribution.
+  - **ONUs & Sinais (`#onusFullTableBody` & `#onuHistoryTableBody`)**: independent height calculation for both ONU list and signal history panels (`calculateOnusPageSize`, `calculateHistoryPageSize`) with expanded 52% list panel width.
   - **OLTs (Equipamentos) (`#oltsFullTableBody`)**: dynamic pagination (`calculateOltsPageSize`) seamlessly fitting the hardware showcase view.
-  - **Piora de Sinal (`#degradationTableBody`)**: adaptive pagination (`calculateDegradationPageSize`) with inline real-time visualization of the last 5 collected optical Rx power readings for each ONU.
+  - **Piora de Sinal (`#degradationTableBody`)**: adaptive pagination (`calculateDegradationPageSize`) with 100% full-width layout and inline real-time visualization of the last 5 collected optical Rx power readings formatted with 2 decimal places (`{:.2}`).
   - **Usuários / RBAC (`#usersTableBody`)**: dynamic pagination (`calculateUsersPageSize`) and optimized card layout (`max-width: 960px`).
-  - **Logs de Auditoria (`#auditLogsTableBody`)**: dynamic pagination (`calculateAuditPageSize`) fitting audit events perfectly in a cohesive card container (`max-width: 960px`).
+  - **Logs de Auditoria (`#auditLogsTableBody`)**: dynamic pagination (`calculateAuditPageSize`) and full-width layout with expanded 20% column width for IPv6 addresses and detailed event logs.
 - **Interactive Navigation Controls**: Standardized pagination bars featuring dynamic totalizers (`Showing X to Y of Z records (N/page)`), page indicators (`Page X / Y`), and adaptive navigation buttons (`← Prev` / `Next →`).
+- **Elimination of Bottom Row Clipping & Whitespace Optimization**: Precise calibration of table row heights (24.2px) and header offsets (28px), fitting +2/3 additional records per page while preventing footer overflow.
 - **Unified Real-Time Window Resize & Search Listener**: Global resize debouncing dynamically recalculates table capacities and re-renders active tabs without losing search filters.
 
 ---
