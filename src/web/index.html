@@ -524,7 +524,7 @@
         .onus-list-panel {
             display: flex;
             flex-direction: column;
-            flex: 0 0 46%;
+            flex: 0 0 52%;
             min-width: 0;
             min-height: 0;
             overflow: hidden;
@@ -1182,17 +1182,17 @@
                     <!-- PAINEL ESQUERDO: lista de ONUs (clicáveis) -->
                     <div class="onus-list-panel">
                         <div class="table-responsive" id="onusTableContainer" style="overflow: hidden;">
-                            <table class="onus-table">
+                            <table class="onus-table" style="width: 100%;">
                                 <thead>
                                     <tr>
-                                        <th>Serial ONU</th>
-                                        <th>Cliente</th>
-                                        <th>OLT</th>
-                                        <th>Porta PON</th>
-                                        <th>Sinal Rx ONU</th>
-                                        <th>Variação (ΔdB)</th>
-                                        <th>Status</th>
-                                        <th>Ações</th>
+                                        <th style="width: 14%;">Serial ONU</th>
+                                        <th style="width: 14%;">Cliente</th>
+                                        <th style="width: 24%;">OLT</th>
+                                        <th style="width: 10%;">Porta PON</th>
+                                        <th style="width: 13%;">Sinal Rx ONU</th>
+                                        <th style="width: 10%;">Variação (ΔdB)</th>
+                                        <th style="width: 8%;">Status</th>
+                                        <th style="width: 7%; text-align: right;">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="onusFullTableBody">
@@ -1405,7 +1405,7 @@
 
             <!-- ABA 8: Logs de Auditoria do Sistema -->
             <div class="tab-content-panel" id="content-audit" style="display: none; flex-direction: column; gap: 0.4rem;">
-                <div style="max-width: 1200px; width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 0.4rem;">
+                <div style="width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 0.4rem;">
                     <div class="search-add-bar" style="margin-bottom: 0;">
                         <div class="search-input-wrap">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -1416,15 +1416,15 @@
                     </div>
 
                     <div class="table-responsive" id="auditTableContainer" style="flex: 1; min-height: 0; overflow: hidden;">
-                        <table class="audit-table">
+                        <table class="audit-table" style="width: 100%;">
                             <thead>
                                 <tr>
-                                    <th style="width: 15%;">Data / Hora (Servidor)</th>
-                                    <th style="width: 11%;">Usuário / Login</th>
-                                    <th style="width: 10%;">Ação</th>
-                                    <th style="width: 13%;">Módulo / Recurso</th>
+                                    <th style="width: 14%;">Data / Hora (Servidor)</th>
+                                    <th style="width: 10%;">Usuário / Login</th>
+                                    <th style="width: 9%;">Ação</th>
+                                    <th style="width: 12%;">Módulo / Recurso</th>
                                     <th style="width: 35%;">Detalhes da Operação</th>
-                                    <th style="width: 16%;">IP Origem</th>
+                                    <th style="width: 20%;">IP Origem</th>
                                 </tr>
                             </thead>
                             <tbody id="auditLogsTableBody">
