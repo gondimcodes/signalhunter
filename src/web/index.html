@@ -1398,6 +1398,16 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Barra de Paginação dos Logs de Auditoria (23 por página) -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(0, 240, 255, 0.15); border-radius: 6px; font-size: 0.75rem;">
+                    <span style="color: #94A3B8;" id="auditPaginationInfo">Mostrando 0 de 0 registros</span>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button class="btn-cyan" style="padding: 4px 10px; font-size: 0.72rem;" id="btnAuditPrevPage" onclick="prevAuditPage()" disabled>&larr; Anterior (23)</button>
+                        <span style="color: #FFF; font-weight: 600; min-width: 85px; text-align: center;" id="auditPageIndicator">Pág 1 / 1</span>
+                        <button class="btn-cyan" style="padding: 4px 10px; font-size: 0.72rem;" id="btnAuditNextPage" onclick="nextAuditPage()" disabled>Próxima (23) &rarr;</button>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -3764,6 +3774,9 @@
         // ABA: LOGS DE AUDITORIA DO SISTEMA
         // ==========================================
         var allLoadedAuditLogs = [];
+        var filteredAuditLogs = [];
+        var auditCurrentPage = 1;
+        var auditPageSize = 23;
 
         async function loadAuditLogs() {
             var tbody = document.getElementById('auditLogsTableBody');
@@ -3779,7 +3792,7 @@
             }
 
             try {
-                var res = await fetch('/api/audit-logs?limit=1000');
+                var res = await fetch('/api/audit-logs?limit=5000');
                 var text = await res.text();
                 var json = null;
                 try {
@@ -3790,34 +3803,62 @@
 
                 if (res.ok && json && json.success && json.data) {
                     allLoadedAuditLogs = json.data;
-                    renderAuditLogsTable(allLoadedAuditLogs);
+                    filterAuditLogs();
                 } else {
                     var errorMsg = (json && json.message) ? json.message : `HTTP ${res.status}: ${res.statusText || 'Erro ao consultar auditoria.'}`;
                     if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #F43F5E; padding: 20px;">' + errorMsg + '</td></tr>';
+                    updateAuditPaginationControls(0, 1, 1);
                 }
             } catch(e) {
                 console.error("Erro ao carregar logs:", e);
                 if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #F43F5E; padding: 20px;">Erro de conexão com o servidor: ' + (e.message || e) + '</td></tr>';
+                updateAuditPaginationControls(0, 1, 1);
             }
         }
 
-        function renderAuditLogsTable(logs) {
+        function updateAuditPaginationControls(totalItems, currentPage, totalPages) {
+            var pagInfo = document.getElementById('auditPaginationInfo');
+            var pageInd = document.getElementById('auditPageIndicator');
+            var btnPrev = document.getElementById('btnAuditPrevPage');
+            var btnNext = document.getElementById('btnAuditNextPage');
+
+            var startIdx = totalItems > 0 ? (currentPage - 1) * auditPageSize + 1 : 0;
+            var endIdx = Math.min(currentPage * auditPageSize, totalItems);
+
+            if (pagInfo) pagInfo.textContent = `Mostrando ${startIdx} a ${endIdx} de ${totalItems} registros`;
+            if (pageInd) pageInd.textContent = `Pág ${currentPage} / ${totalPages}`;
+            if (btnPrev) btnPrev.disabled = (currentPage <= 1);
+            if (btnNext) btnNext.disabled = (currentPage >= totalPages);
+        }
+
+        function renderAuditLogsPage() {
             var tbody = document.getElementById('auditLogsTableBody');
             if (!tbody) return;
 
-            if (logs.length === 0) {
+            var totalItems = filteredAuditLogs.length;
+            var totalPages = Math.max(1, Math.ceil(totalItems / auditPageSize));
+
+            if (auditCurrentPage > totalPages) auditCurrentPage = totalPages;
+            if (auditCurrentPage < 1) auditCurrentPage = 1;
+
+            updateAuditPaginationControls(totalItems, auditCurrentPage, totalPages);
+
+            if (totalItems === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 20px;">Nenhum registro de auditoria encontrado.</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = logs.map(function(log) {
+            var startIdx = (auditCurrentPage - 1) * auditPageSize;
+            var endIdx = Math.min(startIdx + auditPageSize, totalItems);
+            var pageItems = filteredAuditLogs.slice(startIdx, endIdx);
+
+            tbody.innerHTML = pageItems.map(function(log) {
                 // Formatação da data/hora no horário local do servidor/navegador
                 var d = new Date(log.created_at + 'Z');
                 var dateStr = !isNaN(d.getTime()) 
                     ? d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'medium' })
                     : log.created_at;
 
-                var actionClass = 'badge';
                 var actionBg = 'rgba(56, 189, 248, 0.15)';
                 var actionColor = '#38BDF8';
 
@@ -3858,20 +3899,35 @@
         function filterAuditLogs() {
             var q = (document.getElementById('searchAuditInput')?.value || '').toLowerCase().trim();
             if (!q) {
-                renderAuditLogsTable(allLoadedAuditLogs);
-                return;
+                filteredAuditLogs = allLoadedAuditLogs.slice();
+            } else {
+                filteredAuditLogs = allLoadedAuditLogs.filter(function(log) {
+                    var u = (log.username || '').toLowerCase();
+                    var a = (log.action || '').toLowerCase();
+                    var r = (log.resource_type || '').toLowerCase();
+                    var d = (log.details || '').toLowerCase();
+                    var ip = (log.ip_address || '').toLowerCase();
+                    return u.includes(q) || a.includes(q) || r.includes(q) || d.includes(q) || ip.includes(q);
+                });
             }
 
-            var filtered = allLoadedAuditLogs.filter(function(log) {
-                var u = (log.username || '').toLowerCase();
-                var a = (log.action || '').toLowerCase();
-                var r = (log.resource_type || '').toLowerCase();
-                var d = (log.details || '').toLowerCase();
-                var ip = (log.ip_address || '').toLowerCase();
-                return u.includes(q) || a.includes(q) || r.includes(q) || d.includes(q) || ip.includes(q);
-            });
+            auditCurrentPage = 1;
+            renderAuditLogsPage();
+        }
 
-            renderAuditLogsTable(filtered);
+        function prevAuditPage() {
+            if (auditCurrentPage > 1) {
+                auditCurrentPage--;
+                renderAuditLogsPage();
+            }
+        }
+
+        function nextAuditPage() {
+            var totalPages = Math.max(1, Math.ceil(filteredAuditLogs.length / auditPageSize));
+            if (auditCurrentPage < totalPages) {
+                auditCurrentPage++;
+                renderAuditLogsPage();
+            }
         }
 
         async function clearAuditLogs() {
