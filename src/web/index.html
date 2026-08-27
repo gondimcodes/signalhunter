@@ -1022,17 +1022,17 @@
                                 <span style="font-size: 0.68rem; color: #94A3B8; font-weight: normal;">ONUs críticas e em atenção</span>
                             </div>
                             <div class="table-responsive" id="dashboardTableContainer" style="flex: 1; min-height: 0; overflow: hidden;">
-                                <table class="dashboard-table">
+                                <table class="dashboard-table" style="width: 100%; table-layout: fixed;">
                                     <thead>
                                         <tr>
-                                            <th>Serial ONU</th>
-                                            <th>Cliente / Identificador</th>
-                                            <th>OLT</th>
-                                            <th>Porta PON</th>
-                                            <th>ONU Sinal Rx</th>
-                                            <th>Variação</th>
-                                            <th>Status</th>
-                                            <th>Ações</th>
+                                            <th style="width: 14%;">Serial ONU</th>
+                                            <th style="width: 16%;">Cliente / Identificador</th>
+                                            <th style="width: 24%;">OLT</th>
+                                            <th style="width: 11%;">Porta PON</th>
+                                            <th style="width: 12%;">ONU Sinal Rx</th>
+                                            <th style="width: 8%;">Variação</th>
+                                            <th style="width: 8%;">Status</th>
+                                            <th style="width: 7%; text-align: right;">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody id="onuAlertsTableBody">
@@ -1262,7 +1262,7 @@
 
             <!-- ABA 4: Piora de Sinal (Atenuação Súbita) -->
             <div class="tab-content-panel" id="content-degradation" style="display: none; flex-direction: column; gap: 0.5rem;">
-                <div style="max-width: 1100px; width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 0.5rem;">
+                <div style="width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 0.5rem;">
                     <div class="search-add-bar" style="margin-bottom: 0;">
                         <div class="search-input-wrap">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -1272,19 +1272,19 @@
                         <button class="btn-cyan" onclick="downloadDegradationPdfReport()">Exportar PDF</button>
                     </div>
                     <div class="table-responsive" id="degradationTableContainer" style="flex: 1; min-height: 0; overflow: hidden;">
-                        <table class="degradation-table">
+                        <table class="degradation-table" style="width: 100%;">
                             <thead>
                                 <tr>
-                                    <th>Serial ONU</th>
-                                    <th>Cliente / Identificador</th>
-                                    <th>OLT</th>
-                                    <th>Porta PON</th>
-                                    <th>Sinal Anterior</th>
-                                    <th>Sinal Rx Atual</th>
-                                    <th>Piora Registrada (ΔdB)</th>
-                                    <th>Últimas 5 Coletas (Rx)</th>
-                                    <th>Status</th>
-                                    <th>Ações</th>
+                                    <th style="width: 12%;">Serial ONU</th>
+                                    <th style="width: 14%;">Cliente / Identificador</th>
+                                    <th style="width: 15%;">OLT</th>
+                                    <th style="width: 9%;">Porta PON</th>
+                                    <th style="width: 9%;">Sinal Anterior</th>
+                                    <th style="width: 9%;">Sinal Rx Atual</th>
+                                    <th style="width: 9%;">Piora Registrada (ΔdB)</th>
+                                    <th style="width: 13%;">Últimas 5 Coletas (Rx)</th>
+                                    <th style="width: 7%;">Status</th>
+                                    <th style="width: 6%; text-align: right;">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="degradationTableBody">
@@ -1884,8 +1884,8 @@
         function calculateDashboardPageSize() {
             var container = document.getElementById('dashboardTableContainer');
             if (container && container.clientHeight > 80) {
-                var availableHeight = container.clientHeight - 28;
-                dashboardPageSize = Math.max(5, Math.min(Math.floor(availableHeight / 22), 100));
+                var availableHeight = container.clientHeight - 36;
+                dashboardPageSize = Math.max(4, Math.min(Math.floor(availableHeight / 24), 100));
             } else {
                 dashboardPageSize = 20;
             }
@@ -1898,8 +1898,8 @@
         function calculateOnusPageSize() {
             var container = document.getElementById('onusTableContainer');
             if (container && container.clientHeight > 80) {
-                var availableHeight = container.clientHeight - 28;
-                onusPageSize = Math.max(5, Math.min(Math.floor(availableHeight / 22), 100));
+                var availableHeight = container.clientHeight - 36;
+                onusPageSize = Math.max(4, Math.min(Math.floor(availableHeight / 24), 100));
             } else {
                 onusPageSize = 20;
             }
@@ -1916,8 +1916,8 @@
         function calculateHistoryPageSize() {
             var container = document.getElementById('historyTableContainer');
             if (container && container.clientHeight > 80) {
-                var availableHeight = container.clientHeight - 28;
-                historyPageSize = Math.max(5, Math.min(Math.floor(availableHeight / 22), 100));
+                var availableHeight = container.clientHeight - 36;
+                historyPageSize = Math.max(4, Math.min(Math.floor(availableHeight / 24), 100));
             } else {
                 historyPageSize = 20;
             }
@@ -3709,8 +3709,8 @@
         function calculateDegradationPageSize() {
             var container = document.getElementById('degradationTableContainer');
             if (container && container.clientHeight > 80) {
-                var availableHeight = container.clientHeight - 28;
-                degradationPageSize = Math.max(5, Math.min(Math.floor(availableHeight / 22), 100));
+                var availableHeight = container.clientHeight - 36;
+                degradationPageSize = Math.max(4, Math.min(Math.floor(availableHeight / 24), 100));
             } else {
                 degradationPageSize = 20;
             }
@@ -4044,10 +4044,10 @@
         function calculateAuditPageSize() {
             var container = document.getElementById('auditTableContainer');
             if (container && container.clientHeight > 80) {
-                // Desconta altura do cabeçalho da tabela (th ~28px) e calcula com linha compacta (~22px)
-                var availableHeight = container.clientHeight - 28;
-                var calculatedRows = Math.floor(availableHeight / 22);
-                auditPageSize = Math.max(5, Math.min(calculatedRows, 100));
+                // Desconta altura do cabeçalho da tabela (th ~36px) e calcula com linha compacta (~24px)
+                var availableHeight = container.clientHeight - 36;
+                var calculatedRows = Math.floor(availableHeight / 24);
+                auditPageSize = Math.max(4, Math.min(calculatedRows, 100));
             } else {
                 auditPageSize = 20;
             }
