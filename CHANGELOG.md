@@ -10,9 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.4] — (In Development)
 
 ### 🚀 Features & UI/UX
-- **Audit Logs 23-Record Pagination**: Implemented fixed 23-records-per-page pagination in the system audit logs tab (`content-audit`), eliminating the vertical scrollbar and ensuring a compact, static layout.
-- **Interactive Navigation Controls**: Added pagination bar featuring a dynamic totalizer (`Showing X to Y of Z records`), page indicator (`Page X / Y`), and interactive navigation buttons (`← Prev (23)` / `Next (23) →`).
-- **Real-Time Search Retention**: Instant textual search across audit logs continues filtering against the full dataset loaded from the server, automatically recalculating pages starting from page 1.
+- **Dynamic Viewport-Adaptive Audit Pagination**: Implemented automatic calculation of records per page (`calculateAuditPageSize`) based on available screen height, perfectly fitting rows without any vertical scrollbars.
+- **Interactive Navigation Controls**: Added responsive pagination bar featuring a dynamic totalizer (`Showing X to Y of Z records (N/page)`), page indicator (`Page X / Y`), and adaptive navigation buttons (`← Prev` / `Next →`).
+- **Real-Time Search & Resize Handling**: Instant textual search filters across the full dataset from the server and dynamically adjusts if the browser window is resized.
 
 ---
 

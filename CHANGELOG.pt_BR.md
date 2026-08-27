@@ -10,9 +10,9 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [1.0.4] — (Em Desenvolvimento)
 
 ### 🚀 Funcionalidades & Interface (UI/UX)
-- **Paginação de 23 em 23 nos Logs de Auditoria**: Implementada paginação de exatamente 23 registros por página na aba de auditoria (`content-audit`), eliminando a barra de rolagem lateral e mantendo layout compacto e estático.
-- **Controles Interativos de Navegação**: Adicionada barra de paginação com indicador `Pág X / Y`, totalizador dinâmico `Mostrando X a Y de Z registros` e botões de `← Anterior (23)` / `Próxima (23) →`.
-- **Preservação de Busca em Tempo Real**: O mecanismo de busca instantânea nos logs de auditoria continua pesquisando sobre toda a base carregada do servidor, recalculando as páginas em tempo real a partir da página 1.
+- **Paginação Dinâmica Adaptativa nos Logs de Auditoria**: Implementado cálculo automático da quantidade ideal de registros por página (`calculateAuditPageSize`) baseado na altura disponível da tela, preenchendo o espaço exato sem barra de rolagem vertical.
+- **Controles Interativos de Navegação**: Adicionada barra de paginação com indicador `Pág X / Y`, totalizador dinâmico `Mostrando X a Y de Z registros (N/pág)` e botões de `← Anterior` / `Próxima →`.
+- **Preservação de Busca e Responsividade ao Redimensionar**: O mecanismo de busca instantânea continua filtrando sobre toda a base e se reajusta automaticamente caso o usuário redimensione o navegador.
 
 ---
 
