@@ -627,6 +627,19 @@
             font-size: 0.8rem;
         }
 
+        /* Tabela dedicada de Logs de Auditoria calibrada para 23 linhas sem scroll */
+        .audit-table th {
+            font-size: 0.70rem;
+            padding: 0.22rem 0.5rem;
+            white-space: nowrap;
+        }
+        .audit-table td {
+            font-size: 0.74rem;
+            padding: 0.16rem 0.5rem;
+            line-height: 1.15;
+            white-space: nowrap;
+        }
+
         th {
             background-color: rgba(17, 24, 39, 0.85);
             color: var(--accent);
@@ -1371,8 +1384,8 @@
             </div>
 
             <!-- ABA 8: Logs de Auditoria do Sistema -->
-            <div class="tab-content-panel" id="content-audit" style="display: none; flex-direction: column; gap: 1rem;">
-                <div class="search-add-bar">
+            <div class="tab-content-panel" id="content-audit" style="display: none; flex-direction: column; gap: 0.4rem;">
+                <div class="search-add-bar" style="margin-bottom: 0;">
                     <div class="search-input-wrap">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         <input type="text" class="search-input" id="searchAuditInput" placeholder="Buscar nos logs por Usuário, Ação, Módulo ou Detalhes..." oninput="filterAuditLogs()">
@@ -1381,31 +1394,31 @@
                     <button class="btn-cyan" id="btnClearAuditLogsBtn" style="background: rgba(244, 63, 94, 0.2); border-color: #F43F5E; color: #F43F5E;" onclick="clearAuditLogs()">🗑️ Limpar Logs</button>
                 </div>
 
-                <div class="table-responsive" style="flex: 1; min-height: 0;">
-                    <table>
+                <div class="table-responsive" style="flex: 1; min-height: 0; overflow-y: hidden;">
+                    <table class="audit-table">
                         <thead>
                             <tr>
-                                <th style="width: 18%;">Data / Hora (Servidor)</th>
-                                <th style="width: 14%;">Usuário / Login</th>
+                                <th style="width: 17%;">Data / Hora (Servidor)</th>
+                                <th style="width: 13%;">Usuário / Login</th>
                                 <th style="width: 12%;">Ação</th>
                                 <th style="width: 14%;">Módulo / Recurso</th>
-                                <th style="width: 30%;">Detalhes da Operação</th>
+                                <th style="width: 32%;">Detalhes da Operação</th>
                                 <th style="width: 12%;">IP Origem</th>
                             </tr>
                         </thead>
                         <tbody id="auditLogsTableBody">
-                            <tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 20px;">Carregando trilha de auditoria do sistema...</td></tr>
+                            <tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 12px;">Carregando trilha de auditoria do sistema...</td></tr>
                         </tbody>
                     </table>
                 </div>
 
                 <!-- Barra de Paginação dos Logs de Auditoria (23 por página) -->
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(0, 240, 255, 0.15); border-radius: 6px; font-size: 0.75rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(0, 240, 255, 0.15); border-radius: 6px; font-size: 0.73rem; flex-shrink: 0;">
                     <span style="color: #94A3B8;" id="auditPaginationInfo">Mostrando 0 de 0 registros</span>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        <button class="btn-cyan" style="padding: 4px 10px; font-size: 0.72rem;" id="btnAuditPrevPage" onclick="prevAuditPage()" disabled>&larr; Anterior (23)</button>
-                        <span style="color: #FFF; font-weight: 600; min-width: 85px; text-align: center;" id="auditPageIndicator">Pág 1 / 1</span>
-                        <button class="btn-cyan" style="padding: 4px 10px; font-size: 0.72rem;" id="btnAuditNextPage" onclick="nextAuditPage()" disabled>Próxima (23) &rarr;</button>
+                        <button class="btn-cyan" style="padding: 3px 9px; font-size: 0.70rem;" id="btnAuditPrevPage" onclick="prevAuditPage()" disabled>&larr; Anterior (23)</button>
+                        <span style="color: #FFF; font-weight: 600; min-width: 80px; text-align: center;" id="auditPageIndicator">Pág 1 / 1</span>
+                        <button class="btn-cyan" style="padding: 3px 9px; font-size: 0.70rem;" id="btnAuditNextPage" onclick="nextAuditPage()" disabled>Próxima (23) &rarr;</button>
                     </div>
                 </div>
             </div>
@@ -3885,12 +3898,12 @@
 
                 return `
                 <tr>
-                    <td><span class="font-mono" style="color: #CBD5E1; font-size: 0.78rem;">${dateStr}</span></td>
+                    <td><span class="font-mono" style="color: #CBD5E1; font-size: 0.73rem;">${dateStr}</span></td>
                     <td>${userDisplay}</td>
-                    <td><span class="badge" style="background: ${actionBg}; color: ${actionColor}; border: 1px solid ${actionColor}; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">${log.action}</span></td>
-                    <td><span style="color: var(--accent-cyan); font-weight: 600; font-size: 0.78rem;">${log.resource_type}</span></td>
-                    <td><span style="color: #FFF; font-size: 0.8rem;">${detailsDisplay}</span></td>
-                    <td><span class="font-mono" style="color: #94A3B8; font-size: 0.75rem;">${ipDisplay}</span></td>
+                    <td><span class="badge" style="background: ${actionBg}; color: ${actionColor}; border: 1px solid ${actionColor}; font-size: 0.66rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; display: inline-block;">${log.action}</span></td>
+                    <td><span style="color: var(--accent-cyan); font-weight: 600; font-size: 0.74rem;">${log.resource_type}</span></td>
+                    <td><span style="color: #FFF; font-size: 0.75rem;">${detailsDisplay}</span></td>
+                    <td><span class="font-mono" style="color: #94A3B8; font-size: 0.72rem;">${ipDisplay}</span></td>
                 </tr>
                 `;
             }).join('');
