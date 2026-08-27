@@ -609,12 +609,12 @@
         .onu-row-selected:first-child td:first-child { border-left: 2px solid #00F0FF; }
 
         /* Tabelas dedicadas calibradas com altura compacta sem scroll */
-        .onus-table th, .hist-table th, .audit-table th, .dashboard-table th, .olts-table th, .degradation-table th, .users-table th {
+        .onus-table th, .hist-table th, .audit-table th, .dashboard-table th, .olts-table th, .users-table th {
             font-size: 0.70rem;
             padding: 0.22rem 0.5rem;
             white-space: nowrap;
         }
-        .onus-table td, .hist-table td, .audit-table td, .dashboard-table td, .olts-table td, .degradation-table td, .users-table td {
+        .onus-table td, .hist-table td, .audit-table td, .dashboard-table td, .olts-table td, .users-table td {
             font-size: 0.74rem;
             padding: 0.16rem 0.5rem;
             line-height: 1.15;
@@ -1854,6 +1854,8 @@
             }
         }
 
+        var currentKpiFilter = '';
+        var currentPage = 1;
         var currentDashboardPage = 1;
         var dashboardPageSize = 20;
 
