@@ -10,9 +10,14 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [1.0.4] — (Em Desenvolvimento)
 
 ### 🚀 Funcionalidades & Interface (UI/UX)
-- **Paginação Dinâmica Adaptativa nos Logs de Auditoria**: Implementado cálculo automático da quantidade ideal de registros por página (`calculateAuditPageSize`) baseado na altura disponível da tela, preenchendo o espaço exato sem barra de rolagem vertical.
-- **Controles Interativos de Navegação**: Adicionada barra de paginação com indicador `Pág X / Y`, totalizador dinâmico `Mostrando X a Y de Z registros (N/pág)` e botões de `← Anterior` / `Próxima →`.
-- **Preservação de Busca e Responsividade ao Redimensionar**: O mecanismo de busca instantânea continua filtrando sobre toda a base e se reajusta automaticamente caso o usuário redimensione o navegador.
+- **Paginação Dinâmica Adaptativa Universal Sem Scroll**: Implementado cálculo automático e responsivo da quantidade ideal de registros por página em todas as tabelas da aplicação, eliminando barras de rolagem verticais:
+  - **Dashboard Geral (`#onuAlertsTableBody`)**: cálculo dinâmico (`calculateDashboardPageSize`) preenchendo a altura disponível da tela.
+  - **ONUs & Sinais (`#onusFullTableBody` e `#onuHistoryTableBody`)**: cálculo independente para ambos os lados (Lista de ONUs e Histórico de Sinais via `calculateOnusPageSize` e `calculateHistoryPageSize`).
+  - **OLTs / Equipamentos (`#oltsFullTableBody`)**: paginação dinâmica adaptativa (`calculateOltsPageSize`) integrada ao painel de showcase de hardware.
+  - **Piora de Sinal (`#degradationTableBody`)**: paginação dinâmica (`calculateDegradationPageSize`) sem transbordamento de tela.
+  - **Logs de Auditoria (`#auditLogsTableBody`)**: dimensionamento automático (`calculateAuditPageSize`) perfeitamente calibrado.
+- **Controles Interativos Padronizados**: Barras de paginação com indicador `Pág X / Y`, totalizador dinâmico `Mostrando X a Y de Z registros (N/pág)` e botões `← Anterior` / `Próxima →`.
+- **Listener Global de Redimensionamento em Tempo Real**: Atualização instantânea com debounce no evento de `resize` do navegador recalculando o espaço de cada tabela sem perda de filtros ou estados de busca.
 
 ---
 

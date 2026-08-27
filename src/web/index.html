@@ -608,32 +608,13 @@
         }
         .onu-row-selected:first-child td:first-child { border-left: 2px solid #00F0FF; }
 
-        /* Tabela compacta do histórico */
-        .hist-table th {
-            font-size: 0.70rem;
-            padding: 5px 8px;
-            white-space: nowrap;
-        }
-        .hist-table td {
-            font-size: 0.76rem;
-            padding: 4px 8px;
-            white-space: nowrap;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-            font-size: 0.8rem;
-        }
-
-        /* Tabela dedicada de Logs de Auditoria calibrada para 23 linhas sem scroll */
-        .audit-table th {
+        /* Tabelas dedicadas calibradas com altura compacta sem scroll */
+        .onus-table th, .hist-table th, .audit-table th, .dashboard-table th, .olts-table th, .degradation-table th, .users-table th {
             font-size: 0.70rem;
             padding: 0.22rem 0.5rem;
             white-space: nowrap;
         }
-        .audit-table td {
+        .onus-table td, .hist-table td, .audit-table td, .dashboard-table td, .olts-table td, .degradation-table td, .users-table td {
             font-size: 0.74rem;
             padding: 0.16rem 0.5rem;
             line-height: 1.15;
@@ -1036,12 +1017,12 @@
                     <div style="height: 100%; display: flex; flex-direction: column; min-height: 0;">
                         <!-- ONU SINAL RX (100% de altura) -->
                         <div class="panel-inner" style="flex: 1; min-height: 0; display: flex; flex-direction: column;">
-                            <div class="panel-title-text" style="display: flex; justify-content: space-between; align-items: center;">
+                            <div class="panel-title-text" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                                 <span>ONU SINAL RX</span>
                                 <span style="font-size: 0.68rem; color: #94A3B8; font-weight: normal;">ONUs críticas e em atenção</span>
                             </div>
-                            <div class="table-responsive" style="flex: 1; min-height: 0;">
-                                <table>
+                            <div class="table-responsive" id="dashboardTableContainer" style="flex: 1; min-height: 0; overflow: hidden;">
+                                <table class="dashboard-table">
                                     <thead>
                                         <tr>
                                             <th>Serial ONU</th>
@@ -1059,13 +1040,13 @@
                                     </tbody>
                                 </table>
                             </div>
-                            <!-- Barra de Paginação de 1000 em 1000 -->
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 10px; background: rgba(15, 23, 42, 0.6); border-top: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.72rem;">
+                            <!-- Barra de Paginação Dinâmica do Dashboard -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: rgba(15, 23, 42, 0.6); border-top: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.72rem; flex-shrink: 0;">
                                 <span style="color: #94A3B8;" id="paginationInfo">Mostrando 0 de 0 registros</span>
                                 <div style="display: flex; gap: 6px; align-items: center;">
-                                    <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnPrevPage" onclick="prevPage()" disabled>&larr; Ant (1.000)</button>
-                                    <span style="color: #FFF; font-weight: 600;" id="pageIndicator">Pág 1/1</span>
-                                    <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnNextPage" onclick="nextPage()" disabled>Próx (1.000) &rarr;</button>
+                                    <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnPrevPage" onclick="prevPage()" disabled>&larr; Anterior</button>
+                                    <span style="color: #FFF; font-weight: 600;" id="pageIndicator">Pág 1 / 1</span>
+                                    <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnNextPage" onclick="nextPage()" disabled>Próxima &rarr;</button>
                                 </div>
                             </div>
                         </div>
@@ -1095,8 +1076,8 @@
                             <span>Equipamentos OLT Cadastrados</span>
                             <span style="font-size: 0.7rem; color: #94A3B8;">Passe o mouse para inspecionar</span>
                         </div>
-                        <div class="table-responsive" style="flex: 1; min-height: 0;">
-                            <table>
+                        <div class="table-responsive" id="oltsTableContainer" style="flex: 1; min-height: 0; overflow: hidden;">
+                            <table class="olts-table">
                                 <thead>
                                     <tr>
                                         <th style="width: 20%;">Nome da OLT</th>
@@ -1112,6 +1093,15 @@
                                     <tr><td colspan="7" style="text-align: center; color: var(--text-dim); padding: 16px;">Carregando OLTs cadastradas...</td></tr>
                                 </tbody>
                             </table>
+                        </div>
+                        <!-- Barra de Paginação da Tabela de OLTs -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: rgba(15, 23, 42, 0.6); border-top: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.72rem; flex-shrink: 0; margin-top: 4px;">
+                            <span style="color: #94A3B8;" id="oltsPaginationInfo">Mostrando 0 de 0 registros</span>
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnOltsPrevPage" onclick="prevOltsPage()" disabled>&larr; Anterior</button>
+                                <span style="color: #FFF; font-weight: 600;" id="oltsPageIndicator">Pág 1 / 1</span>
+                                <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnOltsNextPage" onclick="nextOltsPage()" disabled>Próxima &rarr;</button>
+                            </div>
                         </div>
                     </div>
 
@@ -1179,10 +1169,10 @@
                 <!-- Layout dividido: lista (topo) + histórico (baixo) -->
                 <div class="onus-split-wrap">
 
-                    <!-- PAINEL SUPERIOR: lista de ONUs (clicáveis) -->
+                    <!-- PAINEL ESQUERDO: lista de ONUs (clicáveis) -->
                     <div class="onus-list-panel">
-                        <div class="table-responsive">
-                            <table>
+                        <div class="table-responsive" id="onusTableContainer" style="overflow: hidden;">
+                            <table class="onus-table">
                                 <thead>
                                     <tr>
                                         <th>Serial ONU</th>
@@ -1204,21 +1194,21 @@
                         <div class="onus-list-pagination-bar">
                             <span style="color: #94A3B8;" id="onusPaginationInfo">Mostrando 0 de 0 registros</span>
                             <div style="display: flex; gap: 6px; align-items: center;">
-                                <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnOnusPrevPage" onclick="prevOnusPage()" disabled>&larr; Ant (1.000)</button>
-                                <span style="color: #FFF; font-weight: 600;" id="onusPageIndicator">Pág 1/1</span>
-                                <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnOnusNextPage" onclick="nextOnusPage()" disabled>Próx (1.000) &rarr;</button>
+                                <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnOnusPrevPage" onclick="prevOnusPage()" disabled>&larr; Anterior</button>
+                                <span style="color: #FFF; font-weight: 600;" id="onusPageIndicator">Pág 1 / 1</span>
+                                <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnOnusNextPage" onclick="nextOnusPage()" disabled>Próxima &rarr;</button>
                             </div>
-                            <span style="color: #475569; font-size: 0.68rem;">Clique em uma linha para ver o histórico</span>
+                            <span style="color: #475569; font-size: 0.68rem;">Clique para ver histórico</span>
                         </div>
                     </div>
 
-                    <!-- PAINEL INFERIOR: histórico de sinais da ONU selecionada -->
+                    <!-- PAINEL DIREITO: histórico de sinais da ONU selecionada -->
                     <div class="onu-history-panel" id="onuHistoryPanel">
 
                         <!-- Placeholder (exibido enquanto nenhuma ONU estiver selecionada) -->
                         <div id="onuHistoryPlaceholder" class="history-placeholder">
                             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#334155" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                            <span>Selecione uma ONU da lista acima para visualizar o histórico completo de sinais</span>
+                            <span>Selecione uma ONU da lista à esquerda para visualizar o histórico completo de sinais</span>
                         </div>
 
                         <!-- Conteúdo do histórico (exibido após seleção) -->
@@ -1235,7 +1225,7 @@
                                 <button onclick="closeOnuHistory()" style="background: rgba(244,63,94,0.1); border: 1px solid rgba(244,63,94,0.3); color: #f43f5e; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 0.70rem; margin-left: 4px;">✕ Fechar</button>
                             </div>
                             <!-- Tabela de histórico -->
-                            <div style="flex: 1; min-height: 0; overflow-y: auto;">
+                            <div id="historyTableContainer" style="flex: 1; min-height: 0; overflow: hidden;">
                                 <table class="hist-table">
                                     <thead>
                                         <tr>
@@ -1257,9 +1247,9 @@
                             <div class="onus-list-pagination-bar">
                                 <span style="color: #94A3B8;" id="onuHistoryPaginationInfo">0 registros</span>
                                 <div style="display: flex; gap: 6px; align-items: center;">
-                                    <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnHistoryPrevPage" onclick="prevHistoryPage()" disabled>&larr; Ant (1.000)</button>
-                                    <span style="color: #FFF; font-weight: 600;" id="onuHistoryPageIndicator">Pág 1/1</span>
-                                    <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnHistoryNextPage" onclick="nextHistoryPage()" disabled>Próx (1.000) &rarr;</button>
+                                    <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnHistoryPrevPage" onclick="prevHistoryPage()" disabled>&larr; Anterior</button>
+                                    <span style="color: #FFF; font-weight: 600;" id="onuHistoryPageIndicator">Pág 1 / 1</span>
+                                    <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnHistoryNextPage" onclick="nextHistoryPage()" disabled>Próxima &rarr;</button>
                                 </div>
                                 <span></span>
                             </div>
@@ -1270,7 +1260,7 @@
             </div>
 
 
-            <!-- ABA 4: Piora de Sinal (ΔdB - Últimos 30 Dias) -->
+            <!-- ABA 4: Piora de Sinal (Atenuação Súbita) -->
             <div class="tab-content-panel" id="content-degradation" style="display: none;">
                 <div class="search-add-bar">
                     <div class="search-input-wrap">
@@ -1280,8 +1270,8 @@
                     <button class="btn-cyan" onclick="refreshAllData()">Atualizar</button>
                     <button class="btn-cyan" onclick="downloadDegradationPdfReport()">Exportar PDF</button>
                 </div>
-                <div class="table-responsive" style="flex: 1; min-height: 0;">
-                    <table>
+                <div class="table-responsive" id="degradationTableContainer" style="flex: 1; min-height: 0; overflow: hidden;">
+                    <table class="degradation-table">
                         <thead>
                             <tr>
                                 <th>Serial ONU</th>
@@ -1300,13 +1290,13 @@
                         </tbody>
                     </table>
                 </div>
-                <!-- Barra de Paginação de 1000 em 1000 na aba Piora de Sinal -->
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(15, 23, 42, 0.6); border-top: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.72rem;">
+                <!-- Barra de Paginação Dinâmica na aba Piora de Sinal -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: rgba(15, 23, 42, 0.6); border-top: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.72rem; flex-shrink: 0;">
                     <span style="color: #94A3B8;" id="degradationPaginationInfo">Mostrando 0 de 0 registros</span>
                     <div style="display: flex; gap: 6px; align-items: center;">
-                        <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnDegradationPrevPage" onclick="prevDegradationPage()" disabled>&larr; Ant (1.000)</button>
-                        <span style="color: #FFF; font-weight: 600;" id="degradationPageIndicator">Pág 1/1</span>
-                        <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnDegradationNextPage" onclick="nextDegradationPage()" disabled>Próx (1.000) &rarr;</button>
+                        <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnDegradationPrevPage" onclick="prevDegradationPage()" disabled>&larr; Anterior</button>
+                        <span style="color: #FFF; font-weight: 600;" id="degradationPageIndicator">Pág 1 / 1</span>
+                        <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnDegradationNextPage" onclick="nextDegradationPage()" disabled>Próxima &rarr;</button>
                     </div>
                 </div>
             </div>
@@ -1864,8 +1854,51 @@
             }
         }
 
-        var currentKpiFilter = '';
-        var currentPage = 1;
+        var currentDashboardPage = 1;
+        var dashboardPageSize = 20;
+
+        function calculateDashboardPageSize() {
+            var container = document.getElementById('dashboardTableContainer');
+            if (container && container.clientHeight > 80) {
+                var availableHeight = container.clientHeight - 28;
+                dashboardPageSize = Math.max(5, Math.min(Math.floor(availableHeight / 22), 100));
+            } else {
+                dashboardPageSize = 20;
+            }
+            return dashboardPageSize;
+        }
+
+        var currentOnusPage = 1;
+        var onusPageSize = 20;
+
+        function calculateOnusPageSize() {
+            var container = document.getElementById('onusTableContainer');
+            if (container && container.clientHeight > 80) {
+                var availableHeight = container.clientHeight - 28;
+                onusPageSize = Math.max(5, Math.min(Math.floor(availableHeight / 22), 100));
+            } else {
+                onusPageSize = 20;
+            }
+            return onusPageSize;
+        }
+
+        // ── Estado do painel de histórico ──
+        var selectedOnuId = null;
+        var historyCurrentPage = 1;
+        var historyTotalRecords = 0;
+        var historyPageSize = 20;
+        var historySelectedOnu = null;
+
+        function calculateHistoryPageSize() {
+            var container = document.getElementById('historyTableContainer');
+            if (container && container.clientHeight > 80) {
+                var availableHeight = container.clientHeight - 28;
+                historyPageSize = Math.max(5, Math.min(Math.floor(availableHeight / 22), 100));
+            } else {
+                historyPageSize = 20;
+            }
+            return historyPageSize;
+        }
 
         function prevPage() {
             if (currentPage > 1) {
@@ -1875,8 +1908,28 @@
         }
 
         function nextPage() {
-            currentPage++;
-            applyDashboardFilter();
+            calculateDashboardPageSize();
+            var totalPages = Math.max(1, Math.ceil((globalAllOnus ? globalAllOnus.length : 0) / dashboardPageSize));
+            if (currentPage < totalPages) {
+                currentPage++;
+                applyDashboardFilter();
+            }
+        }
+
+        function prevOnusPage() {
+            if (currentOnusPage > 1) {
+                currentOnusPage--;
+                applyOnusFullFilter();
+            }
+        }
+
+        function nextOnusPage() {
+            calculateOnusPageSize();
+            var totalPages = Math.max(1, Math.ceil((globalAllOnus ? globalAllOnus.length : 0) / onusPageSize));
+            if (currentOnusPage < totalPages) {
+                currentOnusPage++;
+                applyOnusFullFilter();
+            }
         }
 
         function filterByKpi(category) {
@@ -2048,14 +2101,14 @@
                     return (a.serial_number || '').localeCompare(b.serial_number || '');
                 });
 
-                var pageSize = 1000;
+                calculateDashboardPageSize();
                 var totalItems = priorityOnus.length;
-                var totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+                var totalPages = Math.max(1, Math.ceil(totalItems / dashboardPageSize));
                 if (currentPage > totalPages) currentPage = totalPages;
                 if (currentPage < 1) currentPage = 1;
 
-                var startIdx = (currentPage - 1) * pageSize;
-                var endIdx = Math.min(startIdx + pageSize, totalItems);
+                var startIdx = (currentPage - 1) * dashboardPageSize;
+                var endIdx = Math.min(startIdx + dashboardPageSize, totalItems);
                 var pageItems = priorityOnus.slice(startIdx, endIdx);
 
                 // Atualiza controles de paginação
@@ -2064,8 +2117,8 @@
                 var btnPrev = document.getElementById('btnPrevPage');
                 var btnNext = document.getElementById('btnNextPage');
 
-                if (pagInfo) pagInfo.textContent = `Mostrando ${totalItems > 0 ? startIdx + 1 : 0} a ${endIdx} de ${totalItems} ONUs monitoradas`;
-                if (pageInd) pageInd.textContent = `Página ${currentPage} / ${totalPages}`;
+                if (pagInfo) pagInfo.textContent = `Mostrando ${totalItems > 0 ? startIdx + 1 : 0} a ${endIdx} de ${totalItems} ONUs monitoradas (${dashboardPageSize}/pág)`;
+                if (pageInd) pageInd.textContent = `Pág ${currentPage} / ${totalPages}`;
                 if (btnPrev) btnPrev.disabled = (currentPage <= 1);
                 if (btnNext) btnNext.disabled = (currentPage >= totalPages);
 
@@ -2218,6 +2271,7 @@
                 return (a.serial_number || '').localeCompare(b.serial_number || '');
             });
 
+            calculateOnusPageSize();
             var totalItems = sorted.length;
             var totalPages = Math.max(1, Math.ceil(totalItems / onusPageSize));
             if (currentOnusPage > totalPages) currentOnusPage = totalPages;
@@ -2233,8 +2287,8 @@
             var btnPrev = document.getElementById('btnOnusPrevPage');
             var btnNext = document.getElementById('btnOnusNextPage');
 
-            if (pagInfo) pagInfo.textContent = `Mostrando ${totalItems > 0 ? startIdx + 1 : 0} a ${endIdx} de ${totalItems} ONUs cadastradas`;
-            if (pageInd) pageInd.textContent = `Página ${currentOnusPage} / ${totalPages}`;
+            if (pagInfo) pagInfo.textContent = `Mostrando ${totalItems > 0 ? startIdx + 1 : 0} a ${endIdx} de ${totalItems} ONUs (${onusPageSize}/pág)`;
+            if (pageInd) pageInd.textContent = `Pág ${currentOnusPage} / ${totalPages}`;
             if (btnPrev) btnPrev.disabled = (currentOnusPage <= 1);
             if (btnNext) btnNext.disabled = (currentOnusPage >= totalPages);
 
@@ -2357,8 +2411,10 @@
             if (!tbody) return;
             tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#475569; padding:20px;">Carregando histórico...</td></tr>';
 
+            calculateHistoryPageSize();
+
             try {
-                var res = await fetch(`/api/onus/${onuId}/history?page=${page}&limit=1000`);
+                var res = await fetch(`/api/onus/${onuId}/history?page=${page}&limit=${historyPageSize}`);
                 var json = await res.json();
                 if (!json.success || !json.data) throw new Error('Resposta inválida');
 
@@ -2378,7 +2434,7 @@
                 var startIdx = (data.page - 1) * historyPageSize;
                 var endIdx   = Math.min(startIdx + data.history.length, data.total);
 
-                if (pagInfo)  pagInfo.textContent  = `Mostrando ${data.total > 0 ? startIdx + 1 : 0} – ${endIdx} de ${data.total} registros`;
+                if (pagInfo)  pagInfo.textContent  = `Mostrando ${data.total > 0 ? startIdx + 1 : 0} – ${endIdx} de ${data.total} registros (${historyPageSize}/pág)`;
                 if (pageInd)  pageInd.textContent   = `Pág ${data.page} / ${totalPages}`;
                 if (btnPrev)  btnPrev.disabled       = (data.page <= 1);
                 if (btnNext)  btnNext.disabled       = (data.page >= totalPages);
@@ -2693,6 +2749,49 @@
             }
         }
 
+        var currentOltsPage = 1;
+        var oltsPageSize = 20;
+
+        function calculateOltsPageSize() {
+            var container = document.getElementById('oltsTableContainer');
+            if (container && container.clientHeight > 80) {
+                var availableHeight = container.clientHeight - 28;
+                oltsPageSize = Math.max(5, Math.min(Math.floor(availableHeight / 24), 100));
+            } else {
+                oltsPageSize = 20;
+            }
+            return oltsPageSize;
+        }
+
+        function prevOltsPage() {
+            if (currentOltsPage > 1) {
+                currentOltsPage--;
+                filterOltsFullTable();
+            }
+        }
+
+        function nextOltsPage() {
+            calculateOltsPageSize();
+            var totalPages = Math.max(1, Math.ceil((allLoadedOlts ? allLoadedOlts.length : 0) / oltsPageSize));
+            if (currentOltsPage < totalPages) {
+                currentOltsPage++;
+                filterOltsFullTable();
+            }
+        }
+
+        function filterOltsFullTable() {
+            var q = (document.getElementById('searchOltsInput')?.value || '').toLowerCase().trim();
+            var filtered = allLoadedOlts.filter(function(olt) {
+                if (!q) return true;
+                var name = (olt.name || '').toLowerCase();
+                var ip = (olt.ip_address || '').toLowerCase();
+                var vendor = (olt.vendor || '').toLowerCase();
+                var model = (olt.model || '').toLowerCase();
+                return name.includes(q) || ip.includes(q) || vendor.includes(q) || model.includes(q);
+            });
+            renderOltsFullTable(filtered);
+        }
+
         function renderOltsFullTable(olts) {
             var fullTbody = document.getElementById('oltsFullTableBody');
             var emptyShowcase = document.getElementById('oltShowcaseEmpty');
@@ -2709,15 +2808,39 @@
             if (emptyShowcase) emptyShowcase.style.display = 'none';
             if (contentShowcase) contentShowcase.style.display = 'flex';
 
-            // Seleciona e exibe a primeira OLT da lista por padrão no showcase
-            var firstOlt = olts[0];
-            var fVendorKey = (firstOlt.vendor || 'zte').toLowerCase();
-            var fIsActive = (firstOlt.is_active === true || firstOlt.is_active === 1 || firstOlt.is_active === "true" || firstOlt.is_active === "1" || (firstOlt.is_active !== false && firstOlt.is_active !== 0 && firstOlt.is_active !== "false" && firstOlt.is_active !== "0" && firstOlt.is_active !== undefined && firstOlt.is_active !== null));
-            var fIsOnline = fIsActive && (firstOlt.last_collection_status === 'success');
-            var fStatusLabel = !fIsActive ? 'Offline' : (fIsOnline ? 'Online' : (firstOlt.last_collection_status === 'in_progress' ? 'Coletando...' : (firstOlt.last_collection_status === 'never' ? 'Pendente' : 'Offline')));
-            var fModelDisplay = firstOlt.model || (oltSpecsCatalog[fVendorKey] ? oltSpecsCatalog[fVendorKey].model : 'GPON OLT');
-            previewOltHardware(fVendorKey, firstOlt.name, fIsActive, fStatusLabel, fModelDisplay);
-            fullTbody.innerHTML = olts.map(olt => {
+            calculateOltsPageSize();
+            var totalItems = olts.length;
+            var totalPages = Math.max(1, Math.ceil(totalItems / oltsPageSize));
+            if (currentOltsPage > totalPages) currentOltsPage = totalPages;
+            if (currentOltsPage < 1) currentOltsPage = 1;
+
+            var startIdx = (currentOltsPage - 1) * oltsPageSize;
+            var endIdx = Math.min(startIdx + oltsPageSize, totalItems);
+            var pageItems = olts.slice(startIdx, endIdx);
+
+            // Controles de paginação OLTs
+            var pagInfo = document.getElementById('oltsPaginationInfo');
+            var pageInd = document.getElementById('oltsPageIndicator');
+            var btnPrev = document.getElementById('btnOltsPrevPage');
+            var btnNext = document.getElementById('btnOltsNextPage');
+
+            if (pagInfo) pagInfo.textContent = `Mostrando ${totalItems > 0 ? startIdx + 1 : 0} a ${endIdx} de ${totalItems} OLTs (${oltsPageSize}/pág)`;
+            if (pageInd) pageInd.textContent = `Pág ${currentOltsPage} / ${totalPages}`;
+            if (btnPrev) btnPrev.disabled = (currentOltsPage <= 1);
+            if (btnNext) btnNext.disabled = (currentOltsPage >= totalPages);
+
+            // Seleciona e exibe a primeira OLT da página por padrão no showcase
+            if (pageItems.length > 0) {
+                var firstOlt = pageItems[0];
+                var fVendorKey = (firstOlt.vendor || 'zte').toLowerCase();
+                var fIsActive = (firstOlt.is_active === true || firstOlt.is_active === 1 || firstOlt.is_active === "true" || firstOlt.is_active === "1" || (firstOlt.is_active !== false && firstOlt.is_active !== 0 && firstOlt.is_active !== "false" && firstOlt.is_active !== "0" && firstOlt.is_active !== undefined && firstOlt.is_active !== null));
+                var fIsOnline = fIsActive && (firstOlt.last_collection_status === 'success');
+                var fStatusLabel = !fIsActive ? 'Offline' : (fIsOnline ? 'Online' : (firstOlt.last_collection_status === 'in_progress' ? 'Coletando...' : (firstOlt.last_collection_status === 'never' ? 'Pendente' : 'Offline')));
+                var fModelDisplay = firstOlt.model || (oltSpecsCatalog[fVendorKey] ? oltSpecsCatalog[fVendorKey].model : 'GPON OLT');
+                previewOltHardware(fVendorKey, firstOlt.name, fIsActive, fStatusLabel, fModelDisplay);
+            }
+
+            fullTbody.innerHTML = pageItems.map(olt => {
                 var isActive = (olt.is_active === true || olt.is_active === 1 || olt.is_active === "true" || olt.is_active === "1" || (olt.is_active !== false && olt.is_active !== 0 && olt.is_active !== "false" && olt.is_active !== "0" && olt.is_active !== undefined && olt.is_active !== null));
                 var isOnline = isActive && (olt.last_collection_status === 'success');
                 var statusLabel = !isActive ? 'Offline' : (isOnline ? 'Online' : (olt.last_collection_status === 'in_progress' ? 'Coletando...' : (olt.last_collection_status === 'never' ? 'Pendente' : 'Offline')));
@@ -3504,7 +3627,18 @@
         // ABA: PIORA DE SINAL (ΔdB - ÚLTIMOS 30 DIAS)
         // ==========================================
         var currentDegradationPage = 1;
-        var degradationPageSize = 1000;
+        var degradationPageSize = 20;
+
+        function calculateDegradationPageSize() {
+            var container = document.getElementById('degradationTableContainer');
+            if (container && container.clientHeight > 80) {
+                var availableHeight = container.clientHeight - 28;
+                degradationPageSize = Math.max(5, Math.min(Math.floor(availableHeight / 22), 100));
+            } else {
+                degradationPageSize = 20;
+            }
+            return degradationPageSize;
+        }
 
         function prevDegradationPage() {
             if (currentDegradationPage > 1) {
@@ -3514,8 +3648,12 @@
         }
 
         function nextDegradationPage() {
-            currentDegradationPage++;
-            applyDegradationFilter();
+            calculateDegradationPageSize();
+            var totalPages = Math.max(1, Math.ceil((globalAllOnus ? globalAllOnus.length : 0) / degradationPageSize));
+            if (currentDegradationPage < totalPages) {
+                currentDegradationPage++;
+                applyDegradationFilter();
+            }
         }
 
         function applyDegradationFilter() {
@@ -3547,6 +3685,7 @@
                 return rxA - rxB;
             });
 
+            calculateDegradationPageSize();
             var totalItems = sorted.length;
             var totalPages = Math.max(1, Math.ceil(totalItems / degradationPageSize));
             if (currentDegradationPage > totalPages) currentDegradationPage = totalPages;
@@ -3561,8 +3700,8 @@
             var btnPrev = document.getElementById('btnDegradationPrevPage');
             var btnNext = document.getElementById('btnDegradationNextPage');
 
-            if (pagInfo) pagInfo.textContent = `Mostrando ${totalItems > 0 ? startIdx + 1 : 0} a ${endIdx} de ${totalItems} ONUs com atenuação súbita`;
-            if (pageInd) pageInd.textContent = `Página ${currentDegradationPage} / ${totalPages}`;
+            if (pagInfo) pagInfo.textContent = `Mostrando ${totalItems > 0 ? startIdx + 1 : 0} a ${endIdx} de ${totalItems} ONUs com atenuação súbita (${degradationPageSize}/pág)`;
+            if (pageInd) pageInd.textContent = `Pág ${currentDegradationPage} / ${totalPages}`;
             if (btnPrev) btnPrev.disabled = (currentDegradationPage <= 1);
             if (btnNext) btnNext.disabled = (currentDegradationPage >= totalPages);
 
@@ -3964,7 +4103,7 @@
             var confirmed = await customConfirm({
                 title: 'Limpar Logs de Auditoria',
                 message: "Atenção: Tem certeza que deseja limpar o histórico de logs de auditoria?\n\nUm registro definitivo e imutável da limpeza será gerado.",
-                okText: 'Limpar Auditoria',
+                        okText: 'Limpar Auditoria',
                 cancelText: 'Cancelar',
                 type: 'danger',
                 icon: '🛡️'
@@ -4001,7 +4140,10 @@
                 activePanel.style.display = 'flex';
             }
 
-            if (tab === 'olts' || tab === 'dashboard') {
+            if (tab === 'dashboard') {
+                loadDashboardData();
+                applyDashboardFilter();
+            } else if (tab === 'olts') {
                 loadOlts();
             } else if (tab === 'onus') {
                 applyOnusFullFilter();
@@ -4160,15 +4302,38 @@
             checkAuthSession();
         }
 
-        // Recalcula o número ideal de linhas na auditoria caso o usuário redimensione o navegador
-        var auditResizeTimer = null;
+        // Recalcula dinamicamente a altura e paginação de todas as tabelas em tempo real ao redimensionar
+        var globalResizeTimer = null;
         window.addEventListener('resize', function() {
-            clearTimeout(auditResizeTimer);
-            auditResizeTimer = setTimeout(function() {
+            clearTimeout(globalResizeTimer);
+            globalResizeTimer = setTimeout(function() {
                 var auditTab = document.getElementById('content-audit');
                 if (auditTab && auditTab.style.display !== 'none' && filteredAuditLogs.length > 0) {
                     calculateAuditPageSize();
                     renderAuditLogsPage();
+                }
+
+                var dashboardTab = document.getElementById('content-dashboard');
+                if (dashboardTab && dashboardTab.style.display !== 'none') {
+                    applyDashboardFilter();
+                }
+
+                var oltsTab = document.getElementById('content-olts');
+                if (oltsTab && oltsTab.style.display !== 'none') {
+                    filterOltsFullTable();
+                }
+
+                var onusTab = document.getElementById('content-onus');
+                if (onusTab && onusTab.style.display !== 'none') {
+                    applyOnusFullFilter();
+                    if (historySelectedOnu) {
+                        loadOnuHistory(historySelectedOnu.id, historyCurrentPage);
+                    }
+                }
+
+                var degradationTab = document.getElementById('content-degradation');
+                if (degradationTab && degradationTab.style.display !== 'none') {
+                    applyDegradationFilter();
                 }
             }, 150);
         });

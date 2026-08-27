@@ -10,9 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.4] — (In Development)
 
 ### 🚀 Features & UI/UX
-- **Dynamic Viewport-Adaptive Audit Pagination**: Implemented automatic calculation of records per page (`calculateAuditPageSize`) based on available screen height, perfectly fitting rows without any vertical scrollbars.
-- **Interactive Navigation Controls**: Added responsive pagination bar featuring a dynamic totalizer (`Showing X to Y of Z records (N/page)`), page indicator (`Page X / Y`), and adaptive navigation buttons (`← Prev` / `Next →`).
-- **Real-Time Search & Resize Handling**: Instant textual search filters across the full dataset from the server and dynamically adjusts if the browser window is resized.
+- **Universal Viewport-Adaptive Dynamic Pagination**: Implemented automatic, responsive calculation of records per page across all application tables without vertical scrollbars:
+  - **Dashboard Geral (`#onuAlertsTableBody`)**: dynamic calculation (`calculateDashboardPageSize`) ensuring alerts fit the viewport height.
+  - **ONUs & Sinais (`#onusFullTableBody` & `#onuHistoryTableBody`)**: independent height calculation for both ONU list and signal history panels (`calculateOnusPageSize`, `calculateHistoryPageSize`).
+  - **OLTs (Equipamentos) (`#oltsFullTableBody`)**: dynamic pagination (`calculateOltsPageSize`) seamlessly fitting the hardware showcase view.
+  - **Piora de Sinal (`#degradationTableBody`)**: adaptive pagination (`calculateDegradationPageSize`) displaying degradation records cleanly without page scroll.
+  - **Logs de Auditoria (`#auditLogsTableBody`)**: dynamic pagination (`calculateAuditPageSize`) fitting audit events perfectly.
+- **Interactive Navigation Controls**: Standardized pagination bars featuring dynamic totalizers (`Showing X to Y of Z records (N/page)`), page indicators (`Page X / Y`), and adaptive navigation buttons (`← Prev` / `Next →`).
+- **Unified Real-Time Window Resize & Search Listener**: Global resize debouncing dynamically recalculates table capacities and re-renders active tabs without losing search filters.
 
 ---
 
