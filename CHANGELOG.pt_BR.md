@@ -7,7 +7,7 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
-## [1.0.4] — 2026-08-27
+## [1.0.4] — (Em Desenvolvimento)
 
 ### 🚀 Funcionalidades & Interface (UI/UX)
 - **Paginação de 23 em 23 nos Logs de Auditoria**: Implementada paginação de exatamente 23 registros por página na aba de auditoria (`content-audit`), eliminando a barra de rolagem lateral e mantendo layout compacto e estático.

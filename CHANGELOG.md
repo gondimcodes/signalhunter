@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.4] — 2026-08-27
+## [1.0.4] — (In Development)
 
 ### 🚀 Features & UI/UX
 - **Audit Logs 23-Record Pagination**: Implemented fixed 23-records-per-page pagination in the system audit logs tab (`content-audit`), eliminating the vertical scrollbar and ensuring a compact, static layout.
