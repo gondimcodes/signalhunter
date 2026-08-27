@@ -14,8 +14,9 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
   - **Dashboard Geral (`#onuAlertsTableBody`)**: cálculo dinâmico (`calculateDashboardPageSize`) preenchendo a altura disponível da tela.
   - **ONUs & Sinais (`#onusFullTableBody` e `#onuHistoryTableBody`)**: cálculo independente para ambos os lados (Lista de ONUs e Histórico de Sinais via `calculateOnusPageSize` e `calculateHistoryPageSize`).
   - **OLTs / Equipamentos (`#oltsFullTableBody`)**: paginação dinâmica adaptativa (`calculateOltsPageSize`) integrada ao painel de showcase de hardware.
-  - **Piora de Sinal (`#degradationTableBody`)**: paginação dinâmica (`calculateDegradationPageSize`) sem transbordamento de tela.
-  - **Logs de Auditoria (`#auditLogsTableBody`)**: dimensionamento automático (`calculateAuditPageSize`) perfeitamente calibrado.
+  - **Piora de Sinal (`#degradationTableBody`)**: paginação dinâmica (`calculateDegradationPageSize`) com exibição inline das 5 últimas coletas de potência óptica Rx de cada ONU.
+  - **Usuários / RBAC (`#usersTableBody`)**: paginação dinâmica (`calculateUsersPageSize`) e card otimizado (`max-width: 960px`).
+  - **Logs de Auditoria (`#auditLogsTableBody`)**: dimensionamento automático (`calculateAuditPageSize`) e card compacto padronizado (`max-width: 960px`).
 - **Controles Interativos Padronizados**: Barras de paginação com indicador `Pág X / Y`, totalizador dinâmico `Mostrando X a Y de Z registros (N/pág)` e botões `← Anterior` / `Próxima →`.
 - **Listener Global de Redimensionamento em Tempo Real**: Atualização instantânea com debounce no evento de `resize` do navegador recalculando o espaço de cada tabela sem perda de filtros ou estados de busca.
 

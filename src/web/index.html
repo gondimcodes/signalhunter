@@ -1281,12 +1281,13 @@
                                 <th>Sinal Anterior</th>
                                 <th>Sinal Rx Atual</th>
                                 <th>Piora Registrada (ΔdB)</th>
+                                <th>Últimas 5 Coletas (Rx)</th>
                                 <th>Status</th>
                                 <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody id="degradationTableBody">
-                            <tr><td colspan="9" style="text-align: center; color: var(--text-dim); padding: 20px;">Carregando histórico de piora de sinal dos últimos 30 dias...</td></tr>
+                            <tr><td colspan="10" style="text-align: center; color: var(--text-dim); padding: 20px;">Carregando histórico de piora de sinal dos últimos 30 dias...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1345,70 +1346,89 @@
             </div>
 
             <!-- ABA 7: Usuários do Sistema (RBAC) -->
-            <div class="tab-content-panel" id="content-users" style="display: none;">
-                <div class="search-add-bar">
-                    <div class="search-input-wrap">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        <input type="text" class="search-input" id="searchUsersInput" placeholder="Buscar usuários por Nome, Login ou E-mail..." oninput="filterUsersTable()">
+            <div class="tab-content-panel" id="content-users" style="display: none; flex-direction: column; gap: 0.6rem;">
+                <div style="max-width: 960px; width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0;">
+                    <div class="search-add-bar" style="margin-bottom: 8px;">
+                        <div class="search-input-wrap">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" class="search-input" id="searchUsersInput" placeholder="Buscar usuários por Nome, Login ou E-mail..." oninput="filterUsersTable()">
+                        </div>
+                        <button class="btn-primary" id="btnAddUserBtn" onclick="openAddUserModal()">+ Novo Usuário</button>
                     </div>
-                    <button class="btn-primary" id="btnAddUserBtn" onclick="openAddUserModal()">+ Novo Usuário</button>
-                </div>
 
-                <div class="table-responsive" style="flex: 1; min-height: 0;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width: 25%;">Nome Completo</th>
-                                <th style="width: 20%;">Login (Username)</th>
-                                <th style="width: 20%;">E-mail</th>
-                                <th style="width: 12%;">Perfil / Nível</th>
-                                <th style="width: 10%;">Status</th>
-                                <th style="width: 13%; text-align: right;">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="usersTableBody">
-                            <tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 16px;">Carregando usuários cadastrados...</td></tr>
-                        </tbody>
-                    </table>
+                    <div class="panel-inner" style="flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0.8rem;">
+                        <div class="panel-title-text" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span>Contas & Perfis de Acesso (RBAC)</span>
+                            <span style="font-size: 0.7rem; color: #94A3B8;">Gerenciamento de credenciais e permissões</span>
+                        </div>
+                        <div class="table-responsive" id="usersTableContainer" style="flex: 1; min-height: 0; overflow: hidden;">
+                            <table class="users-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 25%;">Nome Completo</th>
+                                        <th style="width: 18%;">Login (Username)</th>
+                                        <th style="width: 22%;">E-mail</th>
+                                        <th style="width: 14%;">Perfil / Nível</th>
+                                        <th style="width: 9%;">Status</th>
+                                        <th style="width: 12%; text-align: right;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTableBody">
+                                    <tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 16px;">Carregando usuários cadastrados...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- Barra de Paginação de Usuários -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: rgba(15, 23, 42, 0.6); border-top: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.72rem; flex-shrink: 0; margin-top: 4px;">
+                            <span style="color: #94A3B8;" id="usersPaginationInfo">Mostrando 0 de 0 registros</span>
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnUsersPrevPage" onclick="prevUsersPage()" disabled>&larr; Anterior</button>
+                                <span style="color: #FFF; font-weight: 600;" id="usersPageIndicator">Pág 1 / 1</span>
+                                <button class="btn-cyan" style="padding: 3px 8px; font-size: 0.68rem;" id="btnUsersNextPage" onclick="nextUsersPage()" disabled>Próxima &rarr;</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- ABA 8: Logs de Auditoria do Sistema -->
             <div class="tab-content-panel" id="content-audit" style="display: none; flex-direction: column; gap: 0.4rem;">
-                <div class="search-add-bar" style="margin-bottom: 0;">
-                    <div class="search-input-wrap">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        <input type="text" class="search-input" id="searchAuditInput" placeholder="Buscar nos logs por Usuário, Ação, Módulo ou Detalhes..." oninput="filterAuditLogs()">
+                <div style="max-width: 960px; width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 0.4rem;">
+                    <div class="search-add-bar" style="margin-bottom: 0;">
+                        <div class="search-input-wrap">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" class="search-input" id="searchAuditInput" placeholder="Buscar nos logs por Usuário, Ação, Módulo ou Detalhes..." oninput="filterAuditLogs()">
+                        </div>
+                        <button class="btn-cyan" onclick="loadAuditLogs()">Atualizar Logs</button>
+                        <button class="btn-cyan" id="btnClearAuditLogsBtn" style="background: rgba(244, 63, 94, 0.2); border-color: #F43F5E; color: #F43F5E;" onclick="clearAuditLogs()">🗑️ Limpar Logs</button>
                     </div>
-                    <button class="btn-cyan" onclick="loadAuditLogs()">Atualizar Logs</button>
-                    <button class="btn-cyan" id="btnClearAuditLogsBtn" style="background: rgba(244, 63, 94, 0.2); border-color: #F43F5E; color: #F43F5E;" onclick="clearAuditLogs()">🗑️ Limpar Logs</button>
-                </div>
 
-                <div class="table-responsive" id="auditTableContainer" style="flex: 1; min-height: 0; overflow: hidden;">
-                    <table class="audit-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 17%;">Data / Hora (Servidor)</th>
-                                <th style="width: 13%;">Usuário / Login</th>
-                                <th style="width: 12%;">Ação</th>
-                                <th style="width: 14%;">Módulo / Recurso</th>
-                                <th style="width: 32%;">Detalhes da Operação</th>
-                                <th style="width: 12%;">IP Origem</th>
-                            </tr>
-                        </thead>
-                        <tbody id="auditLogsTableBody">
-                            <tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 12px;">Carregando trilha de auditoria do sistema...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
+                    <div class="table-responsive" id="auditTableContainer" style="flex: 1; min-height: 0; overflow: hidden;">
+                        <table class="audit-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 17%;">Data / Hora (Servidor)</th>
+                                    <th style="width: 13%;">Usuário / Login</th>
+                                    <th style="width: 12%;">Ação</th>
+                                    <th style="width: 14%;">Módulo / Recurso</th>
+                                    <th style="width: 32%;">Detalhes da Operação</th>
+                                    <th style="width: 12%;">IP Origem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditLogsTableBody">
+                                <tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 12px;">Carregando trilha de auditoria do sistema...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
 
-                <!-- Barra de Paginação dos Logs de Auditoria (Ajuste automático à tela) -->
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(0, 240, 255, 0.15); border-radius: 6px; font-size: 0.73rem; flex-shrink: 0;">
-                    <span style="color: #94A3B8;" id="auditPaginationInfo">Mostrando 0 de 0 registros</span>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <button class="btn-cyan" style="padding: 3px 9px; font-size: 0.70rem;" id="btnAuditPrevPage" onclick="prevAuditPage()" disabled>&larr; Anterior</button>
-                        <span style="color: #FFF; font-weight: 600; min-width: 80px; text-align: center;" id="auditPageIndicator">Pág 1 / 1</span>
-                        <button class="btn-cyan" style="padding: 3px 9px; font-size: 0.70rem;" id="btnAuditNextPage" onclick="nextAuditPage()" disabled>Próxima &rarr;</button>
+                    <!-- Barra de Paginação dos Logs de Auditoria (Ajuste automático à tela) -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(0, 240, 255, 0.15); border-radius: 6px; font-size: 0.73rem; flex-shrink: 0;">
+                        <span style="color: #94A3B8;" id="auditPaginationInfo">Mostrando 0 de 0 registros</span>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="btn-cyan" style="padding: 3px 9px; font-size: 0.70rem;" id="btnAuditPrevPage" onclick="prevAuditPage()" disabled>&larr; Anterior</button>
+                            <span style="color: #FFF; font-weight: 600; min-width: 80px; text-align: center;" id="auditPageIndicator">Pág 1 / 1</span>
+                            <button class="btn-cyan" style="padding: 3px 9px; font-size: 0.70rem;" id="btnAuditNextPage" onclick="nextAuditPage()" disabled>Próxima &rarr;</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3397,20 +3417,73 @@
             }
         }
 
+        var currentUsersPage = 1;
+        var usersPageSize = 15;
+
+        function calculateUsersPageSize() {
+            var container = document.getElementById('usersTableContainer');
+            if (container && container.clientHeight > 80) {
+                var availableHeight = container.clientHeight - 28;
+                usersPageSize = Math.max(4, Math.min(Math.floor(availableHeight / 24), 50));
+            } else {
+                usersPageSize = 15;
+            }
+            return usersPageSize;
+        }
+
+        function prevUsersPage() {
+            if (currentUsersPage > 1) {
+                currentUsersPage--;
+                filterUsersTable();
+            }
+        }
+
+        function nextUsersPage() {
+            calculateUsersPageSize();
+            var totalPages = Math.max(1, Math.ceil((allLoadedUsers ? allLoadedUsers.length : 0) / usersPageSize));
+            if (currentUsersPage < totalPages) {
+                currentUsersPage++;
+                filterUsersTable();
+            }
+        }
+
         function renderUsersTable(usersList) {
             var tbody = document.getElementById('usersTableBody');
             if (!tbody) return;
 
             if (usersList.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 20px;">Nenhum usuário cadastrado.</td></tr>';
+                var pagInfo = document.getElementById('usersPaginationInfo');
+                if (pagInfo) pagInfo.textContent = 'Mostrando 0 de 0 registros';
                 return;
             }
+
+            calculateUsersPageSize();
+            var totalItems = usersList.length;
+            var totalPages = Math.max(1, Math.ceil(totalItems / usersPageSize));
+            if (currentUsersPage > totalPages) currentUsersPage = totalPages;
+            if (currentUsersPage < 1) currentUsersPage = 1;
+
+            var startIdx = (currentUsersPage - 1) * usersPageSize;
+            var endIdx = Math.min(startIdx + usersPageSize, totalItems);
+            var pageItems = usersList.slice(startIdx, endIdx);
+
+            // Atualiza controles de paginação
+            var pagInfo = document.getElementById('usersPaginationInfo');
+            var pageInd = document.getElementById('usersPageIndicator');
+            var btnPrev = document.getElementById('btnUsersPrevPage');
+            var btnNext = document.getElementById('btnUsersNextPage');
+
+            if (pagInfo) pagInfo.textContent = `Mostrando ${totalItems > 0 ? startIdx + 1 : 0} a ${endIdx} de ${totalItems} usuários (${usersPageSize}/pág)`;
+            if (pageInd) pageInd.textContent = `Pág ${currentUsersPage} / ${totalPages}`;
+            if (btnPrev) btnPrev.disabled = (currentUsersPage <= 1);
+            if (btnNext) btnNext.disabled = (currentUsersPage >= totalPages);
 
             var currentUserId = currentUserSession ? Number(currentUserSession.id) : null;
             var isAdmin = currentUserSession && currentUserSession.role === 'admin';
             var isDemo = currentUserSession && currentUserSession.is_demo === true;
 
-            tbody.innerHTML = usersList.map(function(u) {
+            tbody.innerHTML = pageItems.map(function(u) {
                 var isActive = (u.is_active !== 0 && u.is_active !== false);
                 var statusPill = isActive
                     ? '<span class="status-indicator status-online"></span><span style="color:#10B981; font-weight:600; font-size:0.75rem;">Ativo</span>'
@@ -3730,6 +3803,11 @@
                         <td><span class="font-mono" style="color:#94A3B8; font-weight:600; font-size:0.85rem;">${prevRxStr}</span></td>
                         <td><span style="font-weight:700; color:${rxColor}; font-size:0.85rem;">${rx}</span></td>
                         <td><span class="font-mono" style="color:#f43f5e; font-weight:700; font-size:0.85rem;">${delta}</span></td>
+                        <td>
+                            <div id="degLast5Signals_${onu.id}" style="display: flex; gap: 4px; align-items: center;">
+                                <span style="color: #475569; font-size: 0.70rem;">...</span>
+                            </div>
+                        </td>
                         <td><span class="signal-pill pill-critical">PIORA SINAL</span></td>
                         <td>
                             <button class="btn-action-small" onclick="showOnuAuditModal(${onu.id})">Auditar</button>
@@ -3737,8 +3815,37 @@
                     </tr>
                     `;
                 }).join('');
+
+                // Carrega assincronamente as últimas 5 leituras para cada item da página
+                pageItems.forEach(function(onu) {
+                    fetch('/api/onus/' + onu.id + '/history?page=1&limit=5')
+                        .then(r => r.json())
+                        .then(json => {
+                            var el = document.getElementById('degLast5Signals_' + onu.id);
+                            if (!el) return;
+                            var history = (json.success && json.data && json.data.history) ? json.data.history : [];
+                            if (history.length > 0) {
+                                el.innerHTML = history.slice(0, 5).map(function(h, idx) {
+                                    var rxN = h.rx_power_dbm;
+                                    var isOff = rxN == null || rxN < -45.0;
+                                    var rxTxt = isOff ? 'LOS' : rxN.toFixed(1);
+                                    var c = isOff ? '#f43f5e' : (rxN < -27.0 ? '#f43f5e' : (rxN < -23.0 ? '#f59e0b' : '#38BDF8'));
+                                    var bg = isOff ? 'rgba(244,63,94,0.15)' : (rxN < -27.0 ? 'rgba(244,63,94,0.15)' : (rxN < -23.0 ? 'rgba(245,158,11,0.15)' : 'rgba(56,189,248,0.15)'));
+                                    var border = isOff ? 'rgba(244,63,94,0.3)' : (rxN < -27.0 ? 'rgba(244,63,94,0.3)' : (rxN < -23.0 ? 'rgba(245,158,11,0.3)' : 'rgba(56,189,248,0.3)'));
+                                    var timeFormatted = formatDateLocal(h.collected_at);
+                                    return `<span title="Coleta #${idx+1}: ${rxTxt} dBm em ${timeFormatted}" style="padding: 1px 4px; border-radius: 3px; font-size: 0.68rem; font-family: monospace; font-weight: 600; color: ${c}; background: ${bg}; border: 1px solid ${border};">${rxTxt}</span>`;
+                                }).join('');
+                            } else {
+                                el.innerHTML = '<span style="color:#64748B; font-size:0.68rem;">--</span>';
+                            }
+                        })
+                        .catch(function() {
+                            var el = document.getElementById('degLast5Signals_' + onu.id);
+                            if (el) el.innerHTML = '<span style="color:#64748B; font-size:0.68rem;">--</span>';
+                        });
+                });
             } else {
-                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #10B981; padding: 20px;">Nenhuma piora de sinal detectada na rede óptica no período.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #10B981; padding: 20px;">Nenhuma piora de sinal detectada na rede óptica no período.</td></tr>';
             }
         }
 
