@@ -1894,10 +1894,10 @@
         function calculateDashboardPageSize() {
             var container = document.getElementById('dashboardTableContainer');
             if (container && container.clientHeight > 80) {
-                var availableHeight = container.clientHeight - 40;
-                dashboardPageSize = Math.max(3, Math.min(Math.floor(availableHeight / 26.5), 100));
+                var availableHeight = container.clientHeight - 28;
+                dashboardPageSize = Math.max(3, Math.min(Math.floor(availableHeight / 24.2), 100));
             } else {
-                dashboardPageSize = 20;
+                dashboardPageSize = 23;
             }
             return dashboardPageSize;
         }
@@ -1908,10 +1908,10 @@
         function calculateOnusPageSize() {
             var container = document.getElementById('onusTableContainer');
             if (container && container.clientHeight > 80) {
-                var availableHeight = container.clientHeight - 40;
-                onusPageSize = Math.max(3, Math.min(Math.floor(availableHeight / 26.5), 100));
+                var availableHeight = container.clientHeight - 28;
+                onusPageSize = Math.max(3, Math.min(Math.floor(availableHeight / 24.2), 100));
             } else {
-                onusPageSize = 20;
+                onusPageSize = 23;
             }
             return onusPageSize;
         }
@@ -1926,10 +1926,10 @@
         function calculateHistoryPageSize() {
             var container = document.getElementById('historyTableContainer');
             if (container && container.clientHeight > 80) {
-                var availableHeight = container.clientHeight - 40;
-                historyPageSize = Math.max(3, Math.min(Math.floor(availableHeight / 26.5), 100));
+                var availableHeight = container.clientHeight - 28;
+                historyPageSize = Math.max(3, Math.min(Math.floor(availableHeight / 24.2), 100));
             } else {
-                historyPageSize = 20;
+                historyPageSize = 23;
             }
             return historyPageSize;
         }
@@ -3719,10 +3719,10 @@
         function calculateDegradationPageSize() {
             var container = document.getElementById('degradationTableContainer');
             if (container && container.clientHeight > 80) {
-                var availableHeight = container.clientHeight - 40;
-                degradationPageSize = Math.max(3, Math.min(Math.floor(availableHeight / 26.5), 100));
+                var availableHeight = container.clientHeight - 28;
+                degradationPageSize = Math.max(3, Math.min(Math.floor(availableHeight / 24.2), 100));
             } else {
-                degradationPageSize = 20;
+                degradationPageSize = 23;
             }
             return degradationPageSize;
         }
@@ -4054,12 +4054,12 @@
         function calculateAuditPageSize() {
             var container = document.getElementById('auditTableContainer');
             if (container && container.clientHeight > 80) {
-                // Desconta altura do cabeçalho da tabela (th ~40px) e calcula com linha precisa (~26.5px)
-                var availableHeight = container.clientHeight - 40;
-                var calculatedRows = Math.floor(availableHeight / 26.5);
+                // Desconta altura do cabeçalho da tabela (th ~28px) e calcula com linha precisa (~24.2px)
+                var availableHeight = container.clientHeight - 28;
+                var calculatedRows = Math.floor(availableHeight / 24.2);
                 auditPageSize = Math.max(3, Math.min(calculatedRows, 100));
             } else {
-                auditPageSize = 20;
+                auditPageSize = 23;
             }
             return auditPageSize;
         }
