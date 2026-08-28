@@ -32,8 +32,19 @@ impl TpLinkDriver {
 
     /// Converte DisplayString de potência óptica (ex: "-24.50", "-24.50 dBm", "N/A", "--") para f64
     fn parse_power_string(s: &str) -> Option<f64> {
-        let trimmed = s.trim().trim_end_matches("dBm").trim_end_matches("dB").trim();
-        if trimmed.is_empty() || trimmed == "--" || trimmed == "N/A" || trimmed == "null" || trimmed == "0" || trimmed == "0.0" || trimmed == "0.00" {
+        let trimmed = s
+            .trim()
+            .trim_end_matches("dBm")
+            .trim_end_matches("dB")
+            .trim();
+        if trimmed.is_empty()
+            || trimmed == "--"
+            || trimmed == "N/A"
+            || trimmed == "null"
+            || trimmed == "0"
+            || trimmed == "0.0"
+            || trimmed == "0.00"
+        {
             return None;
         }
         if let Ok(val) = trimmed.parse::<f64>() {
@@ -46,7 +57,12 @@ impl TpLinkDriver {
 
     /// Converte DisplayString de temperatura (ex: "45.2", "45 C", "45.2 C") para f64
     fn parse_temp_string(s: &str) -> Option<f64> {
-        let trimmed = s.trim().trim_end_matches('C').trim_end_matches('c').trim_end_matches("°C").trim();
+        let trimmed = s
+            .trim()
+            .trim_end_matches('C')
+            .trim_end_matches('c')
+            .trim_end_matches("°C")
+            .trim();
         if trimmed.is_empty() || trimmed == "--" || trimmed == "N/A" {
             return None;
         }
@@ -60,7 +76,11 @@ impl TpLinkDriver {
 
     /// Converte DisplayString de corrente de bias (mA) para f64
     fn parse_bias_string(s: &str) -> Option<f64> {
-        let trimmed = s.trim().trim_end_matches("mA").trim_end_matches("ma").trim();
+        let trimmed = s
+            .trim()
+            .trim_end_matches("mA")
+            .trim_end_matches("ma")
+            .trim();
         if trimmed.is_empty() || trimmed == "--" || trimmed == "N/A" {
             return None;
         }
@@ -123,7 +143,11 @@ impl OltDriver for TpLinkDriver {
         // ── 1. Mapeamento de Seriais das ONUs (omSerialNumber: .1.3.6.1.4.1.11863.6.100.1.7.2.1.6) ──
         let mut serial_map: HashMap<(i32, i32, i32), String> = HashMap::new();
         let serial_vbs = client
-            .walk(".1.3.6.1.4.1.11863.6.100.1.7.2.1.6", 1000, Duration::from_millis(5))
+            .walk(
+                ".1.3.6.1.4.1.11863.6.100.1.7.2.1.6",
+                1000,
+                Duration::from_millis(5),
+            )
             .await
             .unwrap_or_default();
 
@@ -131,7 +155,10 @@ impl OltDriver for TpLinkDriver {
             if let Some(idx) = Self::parse_onu_index(&vb.oid) {
                 if let Some(mut sn) = vb.value_str {
                     sn = sn.trim().to_string();
-                    if !sn.is_empty() && sn != "000000000000" && !sn.chars().all(|c| c == '\0' || c == ' ') {
+                    if !sn.is_empty()
+                        && sn != "000000000000"
+                        && !sn.chars().all(|c| c == '\0' || c == ' ')
+                    {
                         serial_map.insert(idx, sn);
                     }
                 }
@@ -151,7 +178,11 @@ impl OltDriver for TpLinkDriver {
         // ── 2. Descrição / Nome do Cliente (omOnuDescription: .1.3.6.1.4.1.11863.6.100.1.7.2.1.5) ──
         let mut descr_map: HashMap<(i32, i32, i32), String> = HashMap::new();
         if let Ok(descr_vbs) = client
-            .walk(".1.3.6.1.4.1.11863.6.100.1.7.2.1.5", 1000, Duration::from_millis(5))
+            .walk(
+                ".1.3.6.1.4.1.11863.6.100.1.7.2.1.5",
+                1000,
+                Duration::from_millis(5),
+            )
             .await
         {
             for vb in descr_vbs {
@@ -169,14 +200,21 @@ impl OltDriver for TpLinkDriver {
         // ── 3. Status Online / Offline (omOnlineStatus: .1.3.6.1.4.1.11863.6.100.1.7.2.1.11) ──
         let mut status_map: HashMap<(i32, i32, i32), bool> = HashMap::new();
         if let Ok(status_vbs) = client
-            .walk(".1.3.6.1.4.1.11863.6.100.1.7.2.1.11", 1000, Duration::from_millis(5))
+            .walk(
+                ".1.3.6.1.4.1.11863.6.100.1.7.2.1.11",
+                1000,
+                Duration::from_millis(5),
+            )
             .await
         {
             for vb in status_vbs {
                 if let Some(idx) = Self::parse_onu_index(&vb.oid) {
                     // 1 = online, 0 = offline
                     let is_on = vb.value_int.map(|v| v == 1).unwrap_or_else(|| {
-                        vb.value_str.as_deref().map(|s| s.trim() == "1" || s.to_lowercase().contains("online")).unwrap_or(false)
+                        vb.value_str
+                            .as_deref()
+                            .map(|s| s.trim() == "1" || s.to_lowercase().contains("online"))
+                            .unwrap_or(false)
                     });
                     status_map.insert(idx, is_on);
                 }
@@ -186,7 +224,11 @@ impl OltDriver for TpLinkDriver {
         // ── 4. Potência Óptica Rx da ONU (omReceivedOpticalPower: .1.3.6.1.4.1.11863.6.100.1.7.2.1.26) ──
         let mut rx_map: HashMap<(i32, i32, i32), f64> = HashMap::new();
         if let Ok(rx_vbs) = client
-            .walk(".1.3.6.1.4.1.11863.6.100.1.7.2.1.26", 1000, Duration::from_millis(5))
+            .walk(
+                ".1.3.6.1.4.1.11863.6.100.1.7.2.1.26",
+                1000,
+                Duration::from_millis(5),
+            )
             .await
         {
             for vb in rx_vbs {
@@ -203,7 +245,11 @@ impl OltDriver for TpLinkDriver {
         // ── 5. Potência Óptica Tx da ONU (omTransmittedOpticalPower: .1.3.6.1.4.1.11863.6.100.1.7.2.1.27) ──
         let mut tx_map: HashMap<(i32, i32, i32), f64> = HashMap::new();
         if let Ok(tx_vbs) = client
-            .walk(".1.3.6.1.4.1.11863.6.100.1.7.2.1.27", 1000, Duration::from_millis(5))
+            .walk(
+                ".1.3.6.1.4.1.11863.6.100.1.7.2.1.27",
+                1000,
+                Duration::from_millis(5),
+            )
             .await
         {
             for vb in tx_vbs {
@@ -220,7 +266,11 @@ impl OltDriver for TpLinkDriver {
         // ── 6. Potência Óptica Rx na OLT (omOltReceivedOpticalPower: .1.3.6.1.4.1.11863.6.100.1.7.2.1.28) ──
         let mut olt_rx_map: HashMap<(i32, i32, i32), f64> = HashMap::new();
         if let Ok(olt_rx_vbs) = client
-            .walk(".1.3.6.1.4.1.11863.6.100.1.7.2.1.28", 1000, Duration::from_millis(5))
+            .walk(
+                ".1.3.6.1.4.1.11863.6.100.1.7.2.1.28",
+                1000,
+                Duration::from_millis(5),
+            )
             .await
         {
             for vb in olt_rx_vbs {
@@ -237,7 +287,11 @@ impl OltDriver for TpLinkDriver {
         // ── 7. Distância Física (omDistance: .1.3.6.1.4.1.11863.6.100.1.7.2.1.18) ──
         let mut distance_map: HashMap<(i32, i32, i32), i32> = HashMap::new();
         if let Ok(dist_vbs) = client
-            .walk(".1.3.6.1.4.1.11863.6.100.1.7.2.1.18", 1000, Duration::from_millis(5))
+            .walk(
+                ".1.3.6.1.4.1.11863.6.100.1.7.2.1.18",
+                1000,
+                Duration::from_millis(5),
+            )
             .await
         {
             for vb in dist_vbs {
@@ -254,7 +308,11 @@ impl OltDriver for TpLinkDriver {
         // ── 8. Diagnósticos DDM (Temperatura, Voltagem, Corrente de Bias) ──
         let mut temp_map: HashMap<(i32, i32, i32), f64> = HashMap::new();
         if let Ok(temp_vbs) = client
-            .walk(".1.3.6.1.4.1.11863.6.100.1.7.2.1.31", 1000, Duration::from_millis(5))
+            .walk(
+                ".1.3.6.1.4.1.11863.6.100.1.7.2.1.31",
+                1000,
+                Duration::from_millis(5),
+            )
             .await
         {
             for vb in temp_vbs {
@@ -270,7 +328,11 @@ impl OltDriver for TpLinkDriver {
 
         let mut volt_map: HashMap<(i32, i32, i32), f64> = HashMap::new();
         if let Ok(volt_vbs) = client
-            .walk(".1.3.6.1.4.1.11863.6.100.1.7.2.1.30", 1000, Duration::from_millis(5))
+            .walk(
+                ".1.3.6.1.4.1.11863.6.100.1.7.2.1.30",
+                1000,
+                Duration::from_millis(5),
+            )
             .await
         {
             for vb in volt_vbs {
@@ -287,7 +349,11 @@ impl OltDriver for TpLinkDriver {
 
         let mut bias_map: HashMap<(i32, i32, i32), f64> = HashMap::new();
         if let Ok(bias_vbs) = client
-            .walk(".1.3.6.1.4.1.11863.6.100.1.7.2.1.29", 1000, Duration::from_millis(5))
+            .walk(
+                ".1.3.6.1.4.1.11863.6.100.1.7.2.1.29",
+                1000,
+                Duration::from_millis(5),
+            )
             .await
         {
             for vb in bias_vbs {
@@ -304,7 +370,11 @@ impl OltDriver for TpLinkDriver {
         // ── 9. Causa da Última Desconexão (omOnuLastDownCauses: .1.3.6.1.4.1.11863.6.100.1.7.2.1.42) ──
         let mut down_reason_map: HashMap<(i32, i32, i32), String> = HashMap::new();
         if let Ok(reason_vbs) = client
-            .walk(".1.3.6.1.4.1.11863.6.100.1.7.2.1.42", 1000, Duration::from_millis(5))
+            .walk(
+                ".1.3.6.1.4.1.11863.6.100.1.7.2.1.42",
+                1000,
+                Duration::from_millis(5),
+            )
             .await
         {
             for vb in reason_vbs {

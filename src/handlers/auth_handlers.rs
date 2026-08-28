@@ -313,7 +313,11 @@ pub async fn login_handler(
     // 2. Validação Estrita de Tamanho do Payload (Defesa contra DoS / CWE-400 / CWE-770)
     let username_clean = payload.username.trim();
     let password_clean = payload.password.trim();
-    if username_clean.is_empty() || username_clean.len() > 64 || password_clean.is_empty() || password_clean.len() > 128 {
+    if username_clean.is_empty()
+        || username_clean.len() > 64
+        || password_clean.is_empty()
+        || password_clean.len() > 128
+    {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(LoginResponse {
