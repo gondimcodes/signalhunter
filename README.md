@@ -110,6 +110,7 @@ SignalHunter features specialized native Rust drivers for major telecom equipmen
 | **FiberHome** | AN5516-01, AN5516-04, AN5516-06 | All Versions | ✅ **SNMPv2c (100%)** | Rx, Tx, Real SFP Tx, Computed OLT-Rx, Temp, Voltage, Bias, Distance, Names |
 | **Nokia / Alcatel** | ISAM 7360 FX, 7342, 7330, Lightspan FX | All Versions | ✅ **SNMPv2c (100%)** | Full DDM, Serials, `.88` Drop Alarms (Dying Gasp vs LOS), Rx, Tx, OLT-Rx, Names |
 | **Parks** | Fiberlink 30028, 21000, 21016, 21008, 21004 | All Versions | ✅ **SNMPv2c (100%)** | centi-dBm Rx (`.15`), Temp (`.6.1.10`), Names (`.62`), Dying Gasp vs LOS (`.41`/`.5`) |
+| **TP-Link** | DeltaStream DS-P7001 (01/04/08/16), DS-P8000 Series | All Versions | ✅ **SNMPv2c (100%)** | Serials (`.6`), Rx (`.26`), Tx (`.27`), OLT-Rx (`.28`), Distance (m) (`.18`), Temp (`.31`), Voltage (`.30`), Bias (`.29`), Names (`.5`), Drop Reason (`.42`) |
 
 ---
 
@@ -123,6 +124,7 @@ SignalHunter features specialized native Rust drivers for major telecom equipmen
 | **FiberHome** | Serial Number (`.800.3.9.3.3.1.2`), Customer Name (`.800.3.9.3.3.1.4`), ONU Rx (`.800.3.9.3.3.1.6`), ONU Tx (`.800.3.9.3.3.1.7`), Temperature (`.800.3.9.3.3.1.8`), Voltage (`.800.3.9.3.3.1.9`), Bias Current (`.800.3.9.3.3.1.10`), Distance (`.800.3.9.3.3.1.11`), Real OLT SFP Tx (`.800.3.9.3.4.1.8`) |
 | **Nokia / Alcatel** | Serial Number (`.35.10.1.1.5`), Customer Name (`.35.10.1.1.12`), ONU Operational Status (`.35.10.4.1.8`), Drop Diagnosis (`.35.10.1.1.88`), ONU Rx (`.35.10.14.1.2`), ONU Tx (`.35.10.14.1.3`), Upstream OLT-Rx (`.35.10.18.1.2`) |
 | **Parks** | Serial Number (`.5.1.18`), Customer Name / Login (`.5.1.62`), ONT Model (`.5.1.23`), ONU Rx (`.5.1.15`), Transceiver Temperature (`.6.1.10`), Drop Cause (`.5.1.41` / `.5.1.5`) |
+| **TP-Link** | Serial Number (`.11863.6.100.1.7.2.1.6`), Customer Name (`.5`), Online Status (`.11`), Vendor ID (`.15`), Equipment Model (`.16`), Distance (`.18`), ONU Rx (`.26`), ONU Tx (`.27`), Upstream OLT-Rx (`.28`), Laser Bias Current (`.29`), Voltage (`.30`), Temperature (`.31`), Drop Cause (`.42`) |
 
 ---
 
@@ -206,6 +208,25 @@ Parks polling is executed **100% via SNMPv2c**:
 * `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.6771.10.1.5.1.15.<slot>.<port>.<onu>` (centi-dBm scale: `2638` $\rightarrow -26.38\text{ dBm}$)
 * `Transceiver Temperature (°C)`: `.1.3.6.1.4.1.6771.10.1.6.1.10.<slot>.<port>.<onu>.2` (Raw / 10.0)
 * `Drop Cause Diagnosis`: `.1.3.6.1.4.1.6771.10.1.5.1.41` (`1` = Dying Gasp / Power Outage, `0` = LOS / Fiber Break) and `.1.3.6.1.4.1.6771.10.1.5.1.5` (`3` = Online, `1` = Dying Gasp, `0` = LOS)
+
+---
+
+#### 7. TP-Link (DeltaStream DS-P7001-04 / DS-P7001-08 / DS-P7001-16 / DS-P8000 Series)
+TP-Link DeltaStream polling is executed **100% via SNMPv2c** (indexed by `{slot, port, onu_id}`):
+* `ONU Serial Number`: `.1.3.6.1.4.1.11863.6.100.1.7.2.1.6.<slot>.<port>.<onu>` (`omSerialNumber`)
+* `Customer Name / Description`: `.1.3.6.1.4.1.11863.6.100.1.7.2.1.5.<slot>.<port>.<onu>` (`omOnuDescription`)
+* `Online Status`: `.1.3.6.1.4.1.11863.6.100.1.7.2.1.11.<slot>.<port>.<onu>` (`1` = Online, `0` = Offline)
+* `Vendor ID`: `.1.3.6.1.4.1.11863.6.100.1.7.2.1.15.<slot>.<port>.<onu>` (`omVendorId`, e.g., `TPLG`, `ZTEG`, `HWTC`)
+* `Equipment Model`: `.1.3.6.1.4.1.11863.6.100.1.7.2.1.16.<slot>.<port>.<onu>` (`omEquipmentId`)
+* `Physical Fiber Distance (m)`: `.1.3.6.1.4.1.11863.6.100.1.7.2.1.18.<slot>.<port>.<onu>` (`omDistance`)
+* `ONU Optical Rx Power (dBm)`: `.1.3.6.1.4.1.11863.6.100.1.7.2.1.26.<slot>.<port>.<onu>` (`omReceivedOpticalPower`)
+* `ONU Optical Tx Power (dBm)`: `.1.3.6.1.4.1.11863.6.100.1.7.2.1.27.<slot>.<port>.<onu>` (`omTransmittedOpticalPower`)
+* `Upstream OLT Rx Power (dBm)`: `.1.3.6.1.4.1.11863.6.100.1.7.2.1.28.<slot>.<port>.<onu>` (`omOltReceivedOpticalPower`)
+* `Laser Bias Current (mA)`: `.1.3.6.1.4.1.11863.6.100.1.7.2.1.29.<slot>.<port>.<onu>` (`omBiasCurrent`)
+* `Supply Voltage (V)`: `.1.3.6.1.4.1.11863.6.100.1.7.2.1.30.<slot>.<port>.<onu>` (`omWorkingVoltage` - Raw mV / 1000.0)
+* `Transceiver Temperature (°C)`: `.1.3.6.1.4.1.11863.6.100.1.7.2.1.31.<slot>.<port>.<onu>` (`omWorkingTemperature`)
+* `Last Down Reason`: `.1.3.6.1.4.1.11863.6.100.1.7.2.1.42.<slot>.<port>.<onu>` (`omOnuLastDownCauses`, e.g., `LOS`, `Dying Gasp`)
+
 
 ---
 
