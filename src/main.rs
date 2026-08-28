@@ -77,6 +77,7 @@ async fn serve_olt_image(
         "parks" => (include_bytes!("web/parks.jpg"), "image/jpeg"),
         "nokia" => (include_bytes!("web/nokia.jpg"), "image/jpeg"),
         "fiberhome" => (include_bytes!("web/fiberhome.jpg"), "image/jpeg"),
+        "tplink" => (include_bytes!("web/tplink.jpg"), "image/jpeg"),
         _ => (include_bytes!("web/zte_c600.jpg"), "image/jpeg"),
     };
     ([(axum::http::header::CONTENT_TYPE, mime)], data)
@@ -324,6 +325,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     registry.register(crate::collector::vendors::nokia::NokiaDriver::new());
     registry.register(crate::collector::vendors::fiberhome::FiberHomeDriver::new());
     registry.register(crate::collector::vendors::parks::ParksDriver::new());
+    registry.register(crate::collector::vendors::tplink::TpLinkDriver::new());
     let collectors = Arc::new(registry);
 
     let app_state = Arc::new(AppState {
