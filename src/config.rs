@@ -59,10 +59,16 @@ fn default_interval_mins() -> u32 {
     1440
 }
 
+fn default_max_onus_per_olt() -> usize {
+    150_000
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CollectorConfig {
     #[serde(default = "default_interval_mins")]
     pub default_collection_interval_mins: u32,
+    #[serde(default = "default_max_onus_per_olt")]
+    pub max_onus_per_olt: usize,
     pub max_concurrent_olt_scans: usize,
     pub max_concurrent_requests_per_olt: usize,
     pub request_timeout_sec: u64,

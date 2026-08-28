@@ -254,8 +254,7 @@ pub async fn generate_report_pdf_handler(
                {}
              ORDER BY 
                 ol.name ASC,
-                h.rx_power_dbm ASC
-             LIMIT 10000",
+                h.rx_power_dbm ASC",
             if search_like.is_some() {
                 "AND (o.serial_number LIKE ? OR o.customer_identifier LIKE ? OR o.custom_name LIKE ? OR ol.name LIKE ?)"
             } else {
@@ -294,8 +293,7 @@ pub async fn generate_report_pdf_handler(
              {}
              ORDER BY 
                 ol.name ASC,
-                h.rx_power_dbm ASC
-             LIMIT 10000",
+                h.rx_power_dbm ASC",
             if search_like.is_some() {
                 "AND (o.serial_number LIKE ? OR o.customer_identifier LIKE ? OR o.custom_name LIKE ? OR ol.name LIKE ?)"
             } else {
@@ -343,8 +341,7 @@ pub async fn generate_report_pdf_handler(
              ORDER BY 
                 ol.name ASC,
                 CASE WHEN o.status IN ('los', 'offline') THEN 0 ELSE 1 END ASC,
-                h.rx_power_dbm ASC
-             LIMIT 10000",
+                h.rx_power_dbm ASC",
             if search_like.is_some() {
                 "AND (o.serial_number LIKE ? OR o.customer_identifier LIKE ? OR o.custom_name LIKE ? OR ol.name LIKE ?)"
             } else {

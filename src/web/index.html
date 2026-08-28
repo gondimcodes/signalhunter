@@ -1872,7 +1872,7 @@
 
         async function loadPriorityAlerts() {
             try {
-                var res = await fetch('/api/onus?limit=10000');
+                var res = await fetch('/api/onus');
                 if (res.ok) {
                     var json = await res.json();
                     if (json.success && json.data && json.data.onus) {

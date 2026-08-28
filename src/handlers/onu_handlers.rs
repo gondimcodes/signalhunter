@@ -54,7 +54,12 @@ pub async fn list_onus_handler(
         )
     })?;
 
-    let limit = params.limit.unwrap_or(1000).clamp(1, 5000);
+    // Limite dinâmico de escala: permite consultas completas de inventário e paginação ampla
+    let max_system_capacity = state.config.collector.max_onus_per_olt.max(150_000) as u32;
+    let limit = params
+        .limit
+        .unwrap_or(max_system_capacity)
+        .clamp(1, max_system_capacity * 10);
     let offset = params.offset.unwrap_or(0);
 
     // Consulta ultra-otimizada para listagem instantânea de alertas e ONUs

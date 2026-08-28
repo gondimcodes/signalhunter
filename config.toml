@@ -56,6 +56,10 @@ jwt_expiration_hours = 24
 # Intervalo padrão de coleta automática (em minutos). Padrão: 1440 (24 horas)
 default_collection_interval_mins = 1440
 
+# Limite máximo de segurança de ONUs por chassi de OLT (evita buffer overflow ou loops de MIBs corrompidas)
+# Padrão: 150000 (mais que o dobro dos maiores chassis modulares do mercado: Huawei MA5800-X17 / ZTE C600 Titan)
+max_onus_per_olt = 150000
+
 # Máximo de OLTs varridas simultaneamente no sistema (Worker Pool)
 # Para redes com 50+ ou 100+ OLTs, recomenda-se entre 10 e 20 para coletas rápidas
 max_concurrent_olt_scans = 10
