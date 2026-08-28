@@ -10,6 +10,12 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [1.0.4] — (Em Desenvolvimento)
 
 ### 🚀 Funcionalidades & Interface (UI/UX)
+- **Driver Nativo 100% SNMPv2c para OLTs TP-Link DeltaStream GPON**: Suporte completo a telemetria física e diagnóstico óptico para a linha **TP-Link** (`DS-P7001-01`, `DS-P7001-04`, `DS-P7001-08`, `DS-P7001-16` e `Linha DS-P8000`):
+  - Mapeamento estrito de OIDs baseado na MIB oficial `tplink-olt-onuManagement.mib` sob `.1.3.6.1.4.1.11863.6.100.1.7.2.1`.
+  - Resolução hierárquica do índice da tabela `{omSlotId, omPortId, omOnuId}`.
+  - Coleta de potência óptica: Rx ONU (`omReceivedOpticalPower`), Tx ONU (`omTransmittedOpticalPower`) e OLT-Rx Upstream (`omOltReceivedOpticalPower`).
+  - Diagnósticos físicos DDM: Corrente de Bias do Laser (`omBiasCurrent`), Tensão de Alimentação (`omWorkingVoltage`), Temperatura do Transceiver (`omWorkingTemperature`), Distância em metros (`omDistance`) e Causa da Última Desconexão (`omOnuLastDownCauses`).
+  - Inclusão do showcase interativo com renderização 3D de estúdio do chassi DeltaStream na interface Web.
 - **Paginação Dinâmica Adaptativa Universal Sem Scroll**: Implementado cálculo automático e responsivo da quantidade ideal de registros por página em todas as tabelas da aplicação, eliminando barras de rolagem verticais:
   - **Dashboard Geral (`#onuAlertsTableBody`)**: cálculo dinâmico (`calculateDashboardPageSize`) preenchendo a altura da tela, distribuição por 100% da largura do card e ampliação da coluna OLT (24%).
   - **ONUs & Sinais (`#onusFullTableBody` e `#onuHistoryTableBody`)**: cálculo independente para ambos os lados (Lista de ONUs e Histórico de Sinais via `calculateOnusPageSize` e `calculateHistoryPageSize`), com ampliação do painel de listagem para 52% da largura.

@@ -110,7 +110,7 @@ O SignalHunter possui drivers de engenharia especializados em Rust nativo para o
 | **FiberHome** | AN5516-01, AN5516-04, AN5516-06 | Todas as versões | ✅ **SNMPv2c (100%)** | Rx, Tx, SFP Tx Real, OLT-Rx Calculado, Temp, Tensão, Bias, Distância e Nomes |
 | **Nokia / Alcatel** | ISAM 7360 FX, 7342, 7330, Lightspan FX | Todas as versões | ✅ **SNMPv2c (100%)** | DDM completo, Seriais, Alarmes `.88` (Dying Gasp vs LOS), Rx, Tx, OLT-Rx e Nomes |
 | **Parks** | Fiberlink 30028, 21000, 21016, 21008, 21004 | Todas as versões | ✅ **SNMPv2c (100%)** | Rx centi-dBm (`.15`), Temp (`.6.1.10`), Nomes (`.62`), Dying Gasp vs LOS (`.41`/`.5`) |
-| **TP-Link** | DeltaStream DS-P7001 (01/04/08/16), DS-P8000 Series | Todas as versões | ✅ **SNMPv2c (100%)** | Seriais (`.6`), Rx (`.26`), Tx (`.27`), OLT-Rx (`.28`), Distância (m) (`.18`), Temp (`.31`), Tensão (`.30`), Bias (`.29`), Nomes (`.5`), Causa de Queda (`.42`) |
+| **TP-Link** | DeltaStream DS-P7001 (01/04/08/16), DS-P8000 Series | **Firmware $\ge$ 1.2.0** | ✅ **SNMPv2c (100%)** | Serials (`.6`), Rx (`.26`), Tx (`.27`), OLT-Rx (`.28`), Distância (m) (`.18`), Temp (`.31`), Tensão (`.30`), Bias (`.29`), Nomes (`.5`), Causa de Queda (`.42`) |
 
 ---
 

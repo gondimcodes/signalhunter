@@ -110,7 +110,7 @@ SignalHunter features specialized native Rust drivers for major telecom equipmen
 | **FiberHome** | AN5516-01, AN5516-04, AN5516-06 | All Versions | ✅ **SNMPv2c (100%)** | Rx, Tx, Real SFP Tx, Computed OLT-Rx, Temp, Voltage, Bias, Distance, Names |
 | **Nokia / Alcatel** | ISAM 7360 FX, 7342, 7330, Lightspan FX | All Versions | ✅ **SNMPv2c (100%)** | Full DDM, Serials, `.88` Drop Alarms (Dying Gasp vs LOS), Rx, Tx, OLT-Rx, Names |
 | **Parks** | Fiberlink 30028, 21000, 21016, 21008, 21004 | All Versions | ✅ **SNMPv2c (100%)** | centi-dBm Rx (`.15`), Temp (`.6.1.10`), Names (`.62`), Dying Gasp vs LOS (`.41`/`.5`) |
-| **TP-Link** | DeltaStream DS-P7001 (01/04/08/16), DS-P8000 Series | All Versions | ✅ **SNMPv2c (100%)** | Serials (`.6`), Rx (`.26`), Tx (`.27`), OLT-Rx (`.28`), Distance (m) (`.18`), Temp (`.31`), Voltage (`.30`), Bias (`.29`), Names (`.5`), Drop Reason (`.42`) |
+| **TP-Link** | DeltaStream DS-P7001 (01/04/08/16), DS-P8000 Series | **Firmware $\ge$ 1.2.0** | ✅ **SNMPv2c (100%)** | Serials (`.6`), Rx (`.26`), Tx (`.27`), OLT-Rx (`.28`), Distance (m) (`.18`), Temp (`.31`), Voltage (`.30`), Bias (`.29`), Names (`.5`), Drop Reason (`.42`) |
 
 ---
 
