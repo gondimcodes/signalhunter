@@ -82,6 +82,9 @@ ON DUPLICATE KEY UPDATE
 -- -----------------------------------------------------------------------------
 -- 3. SÉRIES TEMPORAIS ÓPTICAS (ÚLTIMAS 5 LEITURAS POR ONU)
 -- -----------------------------------------------------------------------------
+-- Garante limpeza prévia do histórico das ONUs demo para permitir reimportações sucessivas sem duplicidade
+DELETE FROM onu_signal_history WHERE onu_id IN (101, 102, 103, 104, 201, 202, 203, 301, 302, 401, 402, 501, 502, 601, 602, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008);
+
 
 -- ZTE
 INSERT INTO onu_signal_history (onu_id, collected_at, rx_power_dbm, tx_power_dbm, olt_rx_power_dbm, olt_tx_power_dbm, attenuation_db, voltage_v, bias_current_ma, temperature_c, signal_quality, delta_prev_rx_db, is_degraded, collection_protocol)
