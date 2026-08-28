@@ -7,6 +7,18 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [1.0.5] — 2026-08-28
+
+### 🚀 Funcionalidades & Escalabilidade
+- **Arquitetura Carrier-Grade para Redes Massivas**: Adicionada a diretiva configurável `max_onus_per_olt` no `config.toml` (padrão: 150.000 ONUs por OLT, superando o dobro da capacidade física dos maiores chassis modulares do mercado mundial: Huawei MA5800-X17 e ZTE C600 Titan).
+- **Consultas e Relatórios sem Travas Artificiais**: Removidos os limites fixos de 5.000/10.000 registros nos endpoints REST (`/api/onus`) e na geração de relatórios PDF, habilitando suporte nativo para operações com centenas de milhares a milhões de ONUs.
+
+### 🛡️ Segurança & Hardening
+- **Controle Estrito de Tamanho de Payloads (Mitigação CWE-400 / CWE-770)**: Validação em profundidade com limites de caracteres (`maxlength`) nos formulários de autenticação, gerenciamento de usuários e CAPTCHA tanto na interface web quanto nos handlers Axum.
+- **Padronização de Código**: Código 100% alinhado às diretrizes oficiais do `cargo fmt`.
+
+---
+
 ## [1.0.4] — 2026-08-27
 
 ### 🚀 Funcionalidades & Interface (UI/UX)

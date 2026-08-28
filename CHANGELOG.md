@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.5] — 2026-08-28
+
+### 🚀 Features & Scalability
+- **Carrier-Grade Mass Scale Architecture**: Added configurable `max_onus_per_olt` setting in `config.toml` (default: 150,000 ONUs per OLT chassis, exceeding double the physical capacity of top global modular chassis like Huawei MA5800-X17 and ZTE C600 Titan).
+- **Unrestricted Inventory & Streaming Queries**: Removed arbitrary 5,000/10,000 limits across REST endpoints (`/api/onus`) and PDF reports, unlocking native support for networks with hundreds of thousands to millions of ONUs.
+
+### 🛡️ Security & Hardening
+- **Strict Payload Length Constraints (CWE-400 / CWE-770 fix)**: Enforced strict validation and `maxlength` limits on authentication, user management, and CAPTCHA forms across frontend SPA and Axum backend handlers.
+- **Code Style Compliance**: Applied full `cargo fmt` formatting standards across all collector modules and handlers.
+
+---
+
 ## [1.0.4] — 2026-08-27
 
 ### 🚀 Features & UI/UX
