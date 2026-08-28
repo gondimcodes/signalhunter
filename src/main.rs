@@ -149,7 +149,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(128) NOT NULL,
                 ip_address VARCHAR(45) NOT NULL,
-                vendor ENUM('huawei', 'zte', 'datacom', 'fiberhome', 'nokia', 'parks', 'generic') NOT NULL,
+                vendor ENUM('huawei', 'zte', 'datacom', 'fiberhome', 'nokia', 'parks', 'tplink', 'generic') NOT NULL,
                 model VARCHAR(64) NULL,
                 firmware_version VARCHAR(64) NULL,
                 snmp_port INT UNSIGNED NOT NULL DEFAULT 161,
@@ -166,6 +166,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 INDEX idx_olt_active (is_active)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
         ).execute(pool).await;
+
+        // Migração suave e segura: garante suporte a novos vendors no ENUM caso a tabela já exista
+        let _ = sqlx::query("ALTER TABLE olts MODIFY COLUMN vendor ENUM('huawei', 'zte', 'datacom', 'fiberhome', 'nokia', 'parks', 'tplink', 'generic') NOT NULL")
+            .execute(pool)
+            .await;
 
         // Migração suave e segura: remove colunas legadas de SSH, Netconf e SNMPv3 caso existam na base de dados
         let _ = sqlx::query("ALTER TABLE olts DROP COLUMN IF EXISTS primary_protocol")

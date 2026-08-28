@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS olts (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
     ip_address VARCHAR(45) NOT NULL,
-    vendor ENUM('huawei', 'zte', 'datacom', 'fiberhome', 'nokia', 'parks', 'generic') NOT NULL,
+    vendor ENUM('huawei', 'zte', 'datacom', 'fiberhome', 'nokia', 'parks', 'tplink', 'generic') NOT NULL,
     model VARCHAR(64) NULL,
     firmware_version VARCHAR(64) NULL,
     
