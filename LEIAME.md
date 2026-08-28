@@ -104,13 +104,13 @@ O SignalHunter possui drivers de engenharia especializados em Rust nativo para o
 
 | Fabricante | Modelos Homologados | Compatibilidade de Firmware | Protocolo | Parâmetros Coletados |
 | :--- | :--- | :---: | :---: | :--- |
-| **Huawei** | SmartAX MA5800, MA5608T, MA5680T | Todas as versões VRP | ✅ **SNMPv2c (100%)** | Seriais, Rx, Tx, SFP Tx PON, OLT-Rx, Distância Métrica (m), Alarmes de Queda (Dying Gasp / LOS), Temp, Tensão e Nomes |
-| **Datacom** | DmOS DM4610, DM4615, DM4618 | **DmOS $\ge$ 12.6** | ✅ **SNMPv2c (100%)** | Serial Real (`.38`), Rx (`.22`), Tx (`.21`), Motivo da Última Queda (`.31`), Status Primário (`.37`), SFP PON Tx e Nomes (`.5`) |
-| **ZTE** | ZXA10 C600, C650, C610 (Titan), C300, C320 | Todas as versões | ✅ **SNMPv2c (100%)** | Seriais, Rx, Tx, OLT-Rx Calculado, Distância (m), Temp, Tensão, Nomes e Causa de Queda (`.1012.3.28.2.1.4`) |
-| **FiberHome** | AN5516-01, AN5516-04, AN5516-06 | Todas as versões | ✅ **SNMPv2c (100%)** | Rx, Tx, SFP Tx Real, OLT-Rx Calculado, Temp, Tensão, Bias, Distância e Nomes |
-| **Nokia / Alcatel** | ISAM 7360 FX, 7342, 7330, Lightspan FX | Todas as versões | ✅ **SNMPv2c (100%)** | DDM completo, Seriais, Alarmes `.88` (Dying Gasp vs LOS), Rx, Tx, OLT-Rx e Nomes |
-| **Parks** | Fiberlink 30028, 21000, 21016, 21008, 21004 | Todas as versões | ✅ **SNMPv2c (100%)** | Rx centi-dBm (`.15`), Temp (`.6.1.10`), Nomes (`.62`), Dying Gasp vs LOS (`.41`/`.5`) |
-| **TP-Link** | DeltaStream DS-P7001 (01/04/08/16), DS-P8000 Series | **Firmware $\ge$ 1.2.0** | ✅ **SNMPv2c (100%)** | Serials (`.6`), Rx (`.26`), Tx (`.27`), OLT-Rx (`.28`), Distância (m) (`.18`), Temp (`.31`), Tensão (`.30`), Bias (`.29`), Nomes (`.5`), Causa de Queda (`.42`) |
+| **Huawei** | SmartAX MA5800, MA5608T, MA5680T | **V800R013+** *(Rec: V800R017+)* | ✅ **SNMPv2c (100%)** | Serials, Rx, Tx, SFP Tx PON, OLT-Rx, Distância Métrica (m), Alarmes de Queda (Dying Gasp / LOS), Temp, Tensão e Nomes |
+| **Datacom** | DmOS DM4610, DM4615, DM4618 | **DmOS $\ge$ 12.6** *(Obrigatório)* | ✅ **SNMPv2c (100%)** | Serial Real (`.38`), Rx (`.22`), Tx (`.21`), Motivo da Última Queda (`.31`), Status Primário (`.37`), SFP PON Tx e Nomes (`.5`) |
+| **ZTE** | ZXA10 C600, C650, C610 (Titan), C300, C320 | **C300: V2.1+ / Titan: V1.2+** | ✅ **SNMPv2c (100%)** | Serials, Rx, Tx, OLT-Rx Calculado, Distância (m), Temp, Tensão, Nomes e Causa de Queda (`.1012.3.28.2.1.4`) |
+| **FiberHome** | AN5516-01, AN5516-04, AN5516-06 | **RP0700+** *(Rec: RP1000+)* | ✅ **SNMPv2c (100%)** | Rx, Tx, SFP Tx Real, OLT-Rx Calculado, Temp, Tensão, Bias, Distância e Nomes |
+| **Nokia / Alcatel** | ISAM 7360 FX, 7342, 7330, Lightspan FX | **ISAM $\ge$ R5.2 / TiMOS 15+** | ✅ **SNMPv2c (100%)** | DDM completo, Seriais, Alarmes `.88` (Dying Gasp vs LOS), Rx, Tx, OLT-Rx e Nomes |
+| **Parks** | Fiberlink 30028, 21000, 21016, 21008, 21004 | **Firmware $\ge$ 2.0.0** | ✅ **SNMPv2c (100%)** | Rx centi-dBm (`.15`), Temp (`.6.1.10`), Nomes (`.62`), Dying Gasp vs LOS (`.41`/`.5`) |
+| **TP-Link** | DeltaStream DS-P7001 (01/04/08/16), DS-P8000 Series | **Firmware $\ge$ 1.2.0** *(Obrigatório)* | ✅ **SNMPv2c (100%)** | Serials (`.6`), Rx (`.26`), Tx (`.27`), OLT-Rx (`.28`), Distância (m) (`.18`), Temp (`.31`), Tensão (`.30`), Bias (`.29`), Nomes (`.5`), Causa de Queda (`.42`) |
 
 ---
 

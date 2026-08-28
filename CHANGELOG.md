@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.4] — (In Development)
+## [1.0.4] — 2026-08-27
 
 ### 🚀 Features & UI/UX
 - **Native 100% SNMPv2c Driver for TP-Link DeltaStream GPON OLTs**: Full telemetry and optical diagnostics support for **TP-Link** hardware (`DS-P7001-01`, `DS-P7001-04`, `DS-P7001-08`, `DS-P7001-16`, and `DS-P8000 Series`):
