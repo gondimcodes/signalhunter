@@ -205,23 +205,36 @@ pub async fn create_user_handler(
     }
 
     let username = payload.username.trim().to_lowercase();
-    if username.is_empty() || username.len() < 3 {
+    if username.is_empty() || username.len() < 3 || username.len() > 64 {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(ApiResponse {
                 success: false,
-                message: "O login de usuário deve ter no mínimo 3 caracteres.".to_string(),
+                message: "O login de usuário deve conter entre 3 e 64 caracteres.".to_string(),
                 data: None,
             }),
         ));
     }
 
-    if payload.password.trim().len() < 6 {
+    let full_name = payload.full_name.trim();
+    if full_name.is_empty() || full_name.len() > 128 {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(ApiResponse {
                 success: false,
-                message: "A senha deve ter no mínimo 6 caracteres.".to_string(),
+                message: "O nome completo deve conter entre 1 e 128 caracteres.".to_string(),
+                data: None,
+            }),
+        ));
+    }
+
+    let password_clean = payload.password.trim();
+    if password_clean.len() < 6 || password_clean.len() > 128 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                message: "A senha deve conter entre 6 e 128 caracteres.".to_string(),
                 data: None,
             }),
         ));
