@@ -41,8 +41,26 @@ pub struct OnuListResponse {
 
 pub async fn list_onus_handler(
     State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
     Query(params): Query<OnuFilterParams>,
 ) -> Result<Json<ApiResponse<OnuListResponse>>, (StatusCode, Json<ApiResponse<()>>)> {
+    // Validação de sessão autenticada (SEC-03)
+    let _ = crate::handlers::auth_handlers::extract_authenticated_session(&state, &headers)
+        .map_err(|(status, json)| {
+            (
+                status,
+                Json(ApiResponse {
+                    success: false,
+                    message: json
+                        .get("message")
+                        .and_then(|m| m.as_str())
+                        .unwrap_or("Acesso não autorizado")
+                        .to_string(),
+                    data: None,
+                }),
+            )
+        })?;
+
     let pool = state.db.as_ref().ok_or_else(|| {
         (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -128,9 +146,27 @@ pub async fn list_onus_handler(
 
 pub async fn get_onu_history_handler(
     State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
     axum::extract::Path(onu_id): axum::extract::Path<u64>,
     Query(params): Query<OnuHistoryParams>,
 ) -> Result<Json<ApiResponse<OnuHistoryResponse>>, (StatusCode, Json<ApiResponse<()>>)> {
+    // Validação de sessão autenticada (SEC-04)
+    let _ = crate::handlers::auth_handlers::extract_authenticated_session(&state, &headers)
+        .map_err(|(status, json)| {
+            (
+                status,
+                Json(ApiResponse {
+                    success: false,
+                    message: json
+                        .get("message")
+                        .and_then(|m| m.as_str())
+                        .unwrap_or("Acesso não autorizado")
+                        .to_string(),
+                    data: None,
+                }),
+            )
+        })?;
+
     let pool = state.db.as_ref().ok_or_else(|| {
         (
             StatusCode::SERVICE_UNAVAILABLE,

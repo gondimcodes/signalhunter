@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.6] — 2026-08-29
+
+### 🛡️ Security & Hardening
+- **Universal DOM-Based & Stored XSS Mitigation (SEC-01)**: Implemented pure HTML entity sanitization helper (`escapeHtml`) across all dynamic SPA tables, modals, tooltips, and toast notifications in `src/web/index.html`.
+- **Production Startup Guard for Sample Secrets (SEC-02)**: Added active validation at daemon startup rejecting default sample secrets for `jwt_secret` and `master_encryption_key` when running in `mode = "production"`.
+- **Enforced Session Authentication on Telemetry & Diagnostic REST Endpoints (SEC-03 / SEC-04)**: Standardized `extract_authenticated_session` across `/api/dashboard`, `/api/diagnostics`, `/api/onus`, and `/api/onus/:id/history` (with transparent bypass in `mode = "demo"`).
+
+---
+
 ## [1.0.5] — 2026-08-28
 
 ### 🚀 Features & Scalability

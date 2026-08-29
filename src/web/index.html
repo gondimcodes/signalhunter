@@ -1684,6 +1684,17 @@
             });
         }
 
+        // Função universal de sanitização contra XSS e injeção no DOM (SEC-01)
+        function escapeHtml(str) {
+            if (str == null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         function showToast(message, type) {
             var container = document.getElementById('toastContainer');
             if (!container) return;
@@ -1703,18 +1714,19 @@
             toast.style.opacity = '0';
             toast.style.transform = 'translateY(10px)';
 
+            var safeMsg = escapeHtml(message);
             if (type === 'success') {
                 toast.style.background = 'rgba(16, 185, 129, 0.9)';
                 toast.style.border = '1px solid #34D399';
-                toast.innerHTML = '<span>✅</span><span>' + message + '</span>';
+                toast.innerHTML = '<span>✅</span><span>' + safeMsg + '</span>';
             } else if (type === 'error') {
                 toast.style.background = 'rgba(244, 63, 94, 0.9)';
                 toast.style.border = '1px solid #FB7185';
-                toast.innerHTML = '<span>❌</span><span>' + message + '</span>';
+                toast.innerHTML = '<span>❌</span><span>' + safeMsg + '</span>';
             } else {
                 toast.style.background = 'rgba(14, 20, 36, 0.92)';
                 toast.style.border = '1px solid #00F0FF';
-                toast.innerHTML = '<span>ℹ️</span><span>' + message + '</span>';
+                toast.innerHTML = '<span>ℹ️</span><span>' + safeMsg + '</span>';
             }
 
             container.appendChild(toast);
@@ -2200,18 +2212,20 @@
                             rxColor = '#f43f5e';
                         }
 
-                        var oltName = onu.olt_name || 'OLT Principal';
+                        var oltName = escapeHtml(onu.olt_name || 'OLT Principal');
                         var clientName = onu.customer_identifier || onu.custom_name || '--';
-                        var clientDisplay = clientName.length > 25 ? clientName.substring(0, 23) + '...' : clientName;
+                        var clientDisplay = escapeHtml(clientName.length > 25 ? clientName.substring(0, 23) + '...' : clientName);
+                        var clientTitle = escapeHtml(clientName);
+                        var serialSafe = escapeHtml(onu.serial_number);
                         var deltaColor = onu.is_degraded ? '#f43f5e' : '#94A3B8';
                         var deltaWeight = onu.is_degraded ? '700' : '500';
 
-                        var ponDisplay = `S${onu.slot}/P${onu.pon_port}${onu.onu_id != null ? ':' + onu.onu_id : ''}`;
+                        var ponDisplay = escapeHtml(`S${onu.slot}/P${onu.pon_port}${onu.onu_id != null ? ':' + onu.onu_id : ''}`);
 
                         return `
                         <tr>
-                            <td><strong style="color:var(--accent); font-family:monospace; font-size:0.85rem;">${onu.serial_number}</strong></td>
-                            <td><span style="color:#FFF; font-weight:500; font-size:0.8rem;" title="${clientName}">${clientDisplay}</span></td>
+                            <td><strong style="color:var(--accent); font-family:monospace; font-size:0.85rem;">${serialSafe}</strong></td>
+                            <td><span style="color:#FFF; font-weight:500; font-size:0.8rem;" title="${clientTitle}">${clientDisplay}</span></td>
                             <td><span style="color:#E2E8F0; font-weight:500; font-size:0.8rem;">${oltName}</span></td>
                             <td><span class="font-mono" style="color:var(--accent-cyan); font-weight:500;">${ponDisplay}</span></td>
                             <td><span style="font-weight:700; color:${rxColor}; font-size:0.85rem;">${rx}</span></td>
@@ -2371,15 +2385,17 @@
                     }
 
                     var client = onu.customer_identifier || onu.custom_name || '--';
-                    var clientDisplay = client.length > 25 ? client.substring(0, 23) + '...' : client;
-                    var oltName = onu.olt_name || 'OLT Principal';
+                    var clientDisplay = escapeHtml(client.length > 25 ? client.substring(0, 23) + '...' : client);
+                    var clientTitle = escapeHtml(client);
+                    var oltName = escapeHtml(onu.olt_name || 'OLT Principal');
+                    var serialSafe = escapeHtml(onu.serial_number);
                     var deltaColor = onu.is_degraded ? '#f43f5e' : '#94A3B8';
-                    var ponDisplay = `S${onu.slot}/P${onu.pon_port}${onu.onu_id != null ? ':' + onu.onu_id : ''}`;
+                    var ponDisplay = escapeHtml(`S${onu.slot}/P${onu.pon_port}${onu.onu_id != null ? ':' + onu.onu_id : ''}`);
 
                     return `
-                    <tr class="onu-row ${selectedOnuId === onu.id ? 'onu-row-selected' : ''}" onclick="handleOnuRowClick(${onu.id})" title="Clique para ver hist\u00f3rico de sinais">
-                        <td><strong style="color:var(--accent); font-family:monospace; font-size:0.85rem;">${onu.serial_number}</strong></td>
-                        <td><span style="color:#FFF; font-weight:500; font-size:0.8rem;" title="${client}">${clientDisplay}</span></td>
+                    <tr class="onu-row ${selectedOnuId === onu.id ? 'onu-row-selected' : ''}" onclick="handleOnuRowClick(${onu.id})" title="Clique para ver histórico de sinais">
+                        <td><strong style="color:var(--accent); font-family:monospace; font-size:0.85rem;">${serialSafe}</strong></td>
+                        <td><span style="color:#FFF; font-weight:500; font-size:0.8rem;" title="${clientTitle}">${clientDisplay}</span></td>
                         <td><span style="color:#E2E8F0; font-weight:500; font-size:0.8rem;">${oltName}</span></td>
                         <td><span class="font-mono" style="color:var(--accent-cyan); font-weight:500;">${ponDisplay}</span></td>
                         <td><span style="font-weight:700; color:${rxColor}; font-size:0.85rem;">${rx}</span></td>
@@ -2889,21 +2905,27 @@
                 var modelDisplay = olt.model || (oltSpecsCatalog[vendorKey] ? oltSpecsCatalog[vendorKey].model : 'GPON OLT');
                 var isAdmin = (currentUserSession && currentUserSession.role === 'admin');
 
+                var safeName = escapeHtml(olt.name);
+                var safeIp = escapeHtml(olt.ip_address);
+                var safeVendor = escapeHtml(olt.vendor);
+                var safeModel = escapeHtml(modelDisplay);
+                var safeJsName = (olt.name || '').replace(/'/g, "\\'");
+
                 var actionsHtml = isAdmin
                     ? `<div style="display:inline-flex; gap:4px;">
                         <button class="btn-action-small" onclick="event.stopPropagation(); triggerCollect(${olt.id})">Coletar</button>
                         <button class="btn-action-small" style="color:var(--accent); border-color:rgba(196,113,237,0.4);" onclick="event.stopPropagation(); openEditOltModal(${olt.id})">Editar</button>
-                        <button class="btn-action-small" style="color:#F59E0B; border-color:rgba(245,158,11,0.4);" onclick="event.stopPropagation(); clearOltTelemetry(${olt.id}, '${olt.name}')" title="Excluir todas as coletas e ONUs desta OLT, mantendo o cadastro do equipamento">Limpar Coletas</button>
-                        <button class="btn-action-small" style="color:#f87171; border-color:rgba(239,68,68,0.4);" onclick="event.stopPropagation(); deleteOlt(${olt.id}, '${olt.name}')">Excluir</button>
+                        <button class="btn-action-small" style="color:#F59E0B; border-color:rgba(245,158,11,0.4);" onclick="event.stopPropagation(); clearOltTelemetry(${olt.id}, '${safeJsName}')" title="Excluir todas as coletas e ONUs desta OLT, mantendo o cadastro do equipamento">Limpar Coletas</button>
+                        <button class="btn-action-small" style="color:#f87171; border-color:rgba(239,68,68,0.4);" onclick="event.stopPropagation(); deleteOlt(${olt.id}, '${safeJsName}')">Excluir</button>
                        </div>`
                     : `<span style="font-size:0.72rem; color:var(--text-dim);">Somente Leitura</span>`;
 
                 return `
-                <tr style="cursor: pointer;" onmouseenter="previewOltHardware('${vendorKey}', '${olt.name}', ${isActive}, '${statusLabel}', '${modelDisplay}')" onclick="previewOltHardware('${vendorKey}', '${olt.name}', ${isActive}, '${statusLabel}', '${modelDisplay}')">
-                    <td><strong style="color:#FFF; font-size: 0.82rem;">${olt.name}</strong></td>
-                    <td><span class="font-mono" style="color:var(--accent-cyan); font-size: 0.78rem;">${olt.ip_address}</span> <small style="color:var(--text-dim);">:${port}</small></td>
-                    <td><span style="text-transform:uppercase; font-weight:700; color:var(--accent); font-size: 0.78rem;">${olt.vendor}</span></td>
-                    <td><span style="color:#E2E8F0; font-size: 0.75rem; font-family: monospace;">${modelDisplay}</span></td>
+                <tr style="cursor: pointer;" onmouseenter="previewOltHardware('${vendorKey}', '${safeJsName}', ${isActive}, '${statusLabel}', '${safeJsName}')" onclick="previewOltHardware('${vendorKey}', '${safeJsName}', ${isActive}, '${statusLabel}', '${safeJsName}')">
+                    <td><strong style="color:#FFF; font-size: 0.82rem;">${safeName}</strong></td>
+                    <td><span class="font-mono" style="color:var(--accent-cyan); font-size: 0.78rem;">${safeIp}</span> <small style="color:var(--text-dim);">:${port}</small></td>
+                    <td><span style="text-transform:uppercase; font-weight:700; color:var(--accent); font-size: 0.78rem;">${safeVendor}</span></td>
+                    <td><span style="color:#E2E8F0; font-size: 0.75rem; font-family: monospace;">${safeModel}</span></td>
                     <td><span class="signal-pill ${statusPill}">${statusLabel}</span></td>
                     <td><span class="signal-pill ${operPill}">${operLabel}</span></td>
                     <td style="text-align: center;">${actionsHtml}</td>
@@ -3516,8 +3538,11 @@
                     ? '<span class="badge" style="background: rgba(196, 113, 237, 0.2); color: #C471ED; border: 1px solid rgba(196, 113, 237, 0.4); font-size: 0.72rem; padding: 2px 8px; border-radius: 4px; font-weight: 700;">Administrador</span>'
                     : '<span class="badge" style="background: rgba(56, 189, 248, 0.15); color: #38BDF8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 0.72rem; padding: 2px 8px; border-radius: 4px; font-weight: 600;">Operador</span>';
 
-                var emailDisplay = u.email || '<span style="color:#64748B;">--</span>';
+                var emailDisplay = u.email ? escapeHtml(u.email) : '<span style="color:#64748B;">--</span>';
                 var isSelf = (currentUserId && Number(u.id) === currentUserId);
+                var safeFullName = escapeHtml(u.full_name);
+                var safeUsername = escapeHtml(u.username);
+                var safeJsUsername = (u.username || '').replace(/'/g, "\\'");
 
                 // Regras de Ações:
                 // - Admin pode editar qualquer um.
@@ -3530,7 +3555,7 @@
                     : ``;
 
                 var deleteBtn = (isAdmin && !isSelf)
-                    ? `<button class="btn-action-small" style="color: #F43F5E; border-color: rgba(244, 63, 94, 0.4);" onclick="deleteUser(${u.id}, '${u.username}')">Excluir</button>`
+                    ? `<button class="btn-action-small" style="color: #F43F5E; border-color: rgba(244, 63, 94, 0.4);" onclick="deleteUser(${u.id}, '${safeJsUsername}')">Excluir</button>`
                     : (isSelf && isAdmin ? `<span style="font-size:0.7rem; color:#94A3B8; padding: 4px 6px;">(Você)</span>` : ``);
 
                 var actionsContent = (editBtn || deleteBtn)
@@ -3539,8 +3564,8 @@
 
                 return `
                 <tr>
-                    <td><strong style="color: #FFF; font-size: 0.86rem;">${u.full_name} ${isSelf ? '<span style="color:#00F0FF; font-size:0.72rem;">(Sua Conta)</span>' : ''}</strong></td>
-                    <td><span class="font-mono" style="color: var(--accent); font-weight: 600; font-size: 0.82rem;">${u.username}</span></td>
+                    <td><strong style="color: #FFF; font-size: 0.86rem;">${safeFullName} ${isSelf ? '<span style="color:#00F0FF; font-size:0.72rem;">(Sua Conta)</span>' : ''}</strong></td>
+                    <td><span class="font-mono" style="color: var(--accent); font-weight: 600; font-size: 0.82rem;">${safeUsername}</span></td>
                     <td><span style="color: #E2E8F0; font-size: 0.8rem;">${emailDisplay}</span></td>
                     <td>${roleBadge}</td>
                     <td><div style="display: flex; align-items: center; gap: 6px;">${statusPill}</div></td>
@@ -4176,19 +4201,21 @@
                     actionColor = '#C471ED';
                 }
 
-                var userDisplay = log.username ? `<strong style="color:var(--accent);">${log.username}</strong>` : '<span style="color:#64748B;">Sistema</span>';
+                var userDisplay = log.username ? `<strong style="color:var(--accent);">${escapeHtml(log.username)}</strong>` : '<span style="color:#64748B;">Sistema</span>';
                 var isAdmin = currentUserSession && currentUserSession.role === 'admin';
                 var isDemo = currentUserSession && currentUserSession.is_demo === true;
                 // No modo demo, se for operador/visitante oculta o IP com '--'. Administrador sempre visualiza os IPs.
-                var ipDisplay = ((isDemo && !isAdmin) || !log.ip_address) ? '<span style="color:#64748B;">--</span>' : log.ip_address;
-                var detailsDisplay = log.details || '--';
+                var ipDisplay = ((isDemo && !isAdmin) || !log.ip_address) ? '<span style="color:#64748B;">--</span>' : escapeHtml(log.ip_address);
+                var detailsDisplay = escapeHtml(log.details || '--');
+                var resourceTypeDisplay = escapeHtml(log.resource_type);
+                var actionDisplay = escapeHtml(log.action);
 
                 return `
                 <tr>
                     <td><span class="font-mono" style="color: #CBD5E1; font-size: 0.73rem;">${dateStr}</span></td>
                     <td>${userDisplay}</td>
-                    <td><span class="badge" style="background: ${actionBg}; color: ${actionColor}; border: 1px solid ${actionColor}; font-size: 0.66rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; display: inline-block;">${log.action}</span></td>
-                    <td><span style="color: var(--accent-cyan); font-weight: 600; font-size: 0.74rem;">${log.resource_type}</span></td>
+                    <td><span class="badge" style="background: ${actionBg}; color: ${actionColor}; border: 1px solid ${actionColor}; font-size: 0.66rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; display: inline-block;">${actionDisplay}</span></td>
+                    <td><span style="color: var(--accent-cyan); font-weight: 600; font-size: 0.74rem;">${resourceTypeDisplay}</span></td>
                     <td><span style="color: #FFF; font-size: 0.75rem;">${detailsDisplay}</span></td>
                     <td><span class="font-mono" style="color: #94A3B8; font-size: 0.72rem;">${ipDisplay}</span></td>
                 </tr>

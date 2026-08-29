@@ -93,6 +93,9 @@ pub struct ThresholdsConfig {
     pub degradation_alert_delta_db: f64,
 }
 
+pub const DEFAULT_SAMPLE_AES_KEY: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+pub const DEFAULT_SAMPLE_JWT_SECRET: &str = "altere_este_segredo_jwt_longo_e_aleatorio_para_producao_12345";
+
 impl AppConfig {
     pub fn load_from_file<P: AsRef<Path>>(
         path: P,
@@ -113,5 +116,29 @@ impl AppConfig {
     /// Retorna verdadeiro se o sistema estiver operando em modo de demonstração ("demo")
     pub fn is_demo(&self) -> bool {
         self.mode.eq_ignore_ascii_case("demo")
+    }
+
+    /// Valida se chaves criptográficas críticas não são as padrões de exemplo quando em produção
+    pub fn validate_security_secrets(&self) -> Result<(), String> {
+        if self.is_demo() {
+            return Ok(());
+        }
+
+        let key = self.security.master_encryption_key.trim();
+        let jwt = self.security.jwt_secret.trim();
+
+        if key == DEFAULT_SAMPLE_AES_KEY {
+            return Err("ERRO CRÍTICO DE SEGURANÇA: 'security.master_encryption_key' no config.toml contém a chave de exemplo padrão! Gere uma chave hexadecimal de 32 bytes exclusiva com: openssl rand -hex 32".to_string());
+        }
+
+        if jwt == DEFAULT_SAMPLE_JWT_SECRET {
+            return Err("ERRO CRÍTICO DE SEGURANÇA: 'security.jwt_secret' no config.toml contém o segredo JWT de exemplo padrão! Gere um segredo de alta entropia exclusivo com: openssl rand -base64 48".to_string());
+        }
+
+        if jwt.len() < 32 {
+            return Err("ERRO DE SEGURANÇA: 'security.jwt_secret' deve conter no mínimo 32 caracteres.".to_string());
+        }
+
+        Ok(())
     }
 }

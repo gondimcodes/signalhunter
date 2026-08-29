@@ -141,6 +141,42 @@ pub fn extract_auth_token(headers: &HeaderMap) -> Option<String> {
     None
 }
 
+/// Helper público para validar sessão autenticada nas rotas REST (suporta bypass no modo Demo)
+pub fn extract_authenticated_session(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Result<Option<crate::auth::Claims>, (StatusCode, Json<serde_json::Value>)> {
+    if state.config.is_demo() {
+        let token_opt = extract_auth_token(headers);
+        let claims = token_opt.and_then(|t| state.auth.verify_token(&t).ok());
+        return Ok(claims);
+    }
+
+    let token = extract_auth_token(headers).ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({
+                "success": false,
+                "message": "Sessão não encontrada ou expirada. Faça login novamente.",
+                "data": null
+            })),
+        )
+    })?;
+
+    let claims = state.auth.verify_token(&token).map_err(|_| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({
+                "success": false,
+                "message": "Token de sessão inválido ou expirado.",
+                "data": null
+            })),
+        )
+    })?;
+
+    Ok(Some(claims))
+}
+
 /// Normaliza um endereço IP (IPv4 ou IPv6), removendo colchetes, portas e prefixos de encaminhamento
 fn normalize_ip_candidate(raw: &str) -> Option<String> {
     let mut s = raw.trim();

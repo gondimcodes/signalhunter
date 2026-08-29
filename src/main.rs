@@ -102,6 +102,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     info!("Carregando configurações de: {}", config_path);
     let config = AppConfig::load_from_file(&config_path)?;
 
+    // Validação ativa de segurança: rejeita chaves padrões de exemplo em modo produção (SEC-02)
+    if let Err(err_msg) = config.validate_security_secrets() {
+        log::error!("{}", err_msg);
+        eprintln!("\n{}\n", err_msg);
+        return Err(err_msg.into());
+    }
+
     info!("Inicializando gerenciador criptográfico AES-256-GCM...");
     let crypto = Arc::new(CryptoManager::new(&config.security.master_encryption_key)?);
 

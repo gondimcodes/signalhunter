@@ -2,12 +2,34 @@ use crate::analytics::{DiagnosticSummary, OpticalEvaluator};
 use crate::db::queries::OnuRecord;
 use crate::handlers::olt_handlers::ApiResponse;
 use crate::AppState;
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    Json,
+};
 use std::sync::Arc;
 
 pub async fn get_diagnostics_handler(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
 ) -> Result<Json<ApiResponse<DiagnosticSummary>>, (StatusCode, Json<ApiResponse<()>>)> {
+    // Validação de sessão autenticada (SEC-03)
+    let _ = crate::handlers::auth_handlers::extract_authenticated_session(&state, &headers)
+        .map_err(|(status, json)| {
+            (
+                status,
+                Json(ApiResponse {
+                    success: false,
+                    message: json
+                        .get("message")
+                        .and_then(|m| m.as_str())
+                        .unwrap_or("Acesso não autorizado")
+                        .to_string(),
+                    data: None,
+                }),
+            )
+        })?;
+
     let pool = state.db.as_ref().ok_or_else(|| {
         (
             StatusCode::SERVICE_UNAVAILABLE,
