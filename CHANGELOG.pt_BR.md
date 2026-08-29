@@ -7,6 +7,16 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [1.0.7] — 2026-08-29
+
+### 🛡️ Segurança & Validação de Entrada
+- **Validação Estrita de Credenciais de Usuários**: Restrição obrigatória do login a caracteres alfanuméricos (`[a-z0-9._-]`) e rejeição ativa de tags HTML (`<` / `>`) nos campos de nome completo e gerenciamento de contas.
+
+### 🎨 Melhorias de Interface (UI/UX)
+- **Tabela de Usuários em Largura Total (100%)**: Expansão do container de usuários para 100% da área útil com truncamento inteligente de texto (`text-overflow: ellipsis`) em nomes e e-mails extensos, garantindo a exibição integral e alinhada dos botões de ação.
+
+---
+
 ## [1.0.6] — 2026-08-29
 
 ### 🛡️ Segurança & Hardening

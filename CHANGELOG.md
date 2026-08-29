@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.7] — 2026-08-29
+
+### 🛡️ Security & Input Validation
+- **Strict User Input Validation**: Enforced alphanumeric character restrictions (`[a-z0-9._-]`) on usernames and active blocking of HTML tags (`<` / `>`) in full name and user management endpoints.
+
+### 🎨 UI & Layout Improvements
+- **Users Table Full-Width & Overflow Handling**: Expanded user management container to 100% width, applied fixed table layout with text truncation (`text-overflow: ellipsis`) on long names/emails, preventing action buttons from being clipped.
+
+---
+
 ## [1.0.6] — 2026-08-29
 
 ### 🛡️ Security & Hardening
