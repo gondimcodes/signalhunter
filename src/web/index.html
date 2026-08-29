@@ -1359,7 +1359,7 @@
 
             <!-- ABA 7: Usuários do Sistema (RBAC) -->
             <div class="tab-content-panel" id="content-users" style="display: none; flex-direction: column; gap: 0.6rem;">
-                <div style="max-width: 960px; width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0;">
+                <div style="width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0;">
                     <div class="search-add-bar" style="margin-bottom: 8px;">
                         <div class="search-input-wrap">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -1374,14 +1374,14 @@
                             <span style="font-size: 0.7rem; color: #94A3B8;">Gerenciamento de credenciais e permissões</span>
                         </div>
                         <div class="table-responsive" id="usersTableContainer" style="flex: 1; min-height: 0; overflow: hidden;">
-                            <table class="users-table">
+                            <table class="users-table" style="width: 100%; table-layout: fixed;">
                                 <thead>
                                     <tr>
-                                        <th style="width: 25%;">Nome Completo</th>
+                                        <th style="width: 28%;">Nome Completo</th>
                                         <th style="width: 18%;">Login (Username)</th>
                                         <th style="width: 22%;">E-mail</th>
-                                        <th style="width: 14%;">Perfil / Nível</th>
-                                        <th style="width: 9%;">Status</th>
+                                        <th style="width: 12%;">Perfil / Nível</th>
+                                        <th style="width: 8%;">Status</th>
                                         <th style="width: 12%; text-align: right;">Ações</th>
                                     </tr>
                                 </thead>
@@ -3559,17 +3559,17 @@
                     : (isSelf && isAdmin ? `<span style="font-size:0.7rem; color:#94A3B8; padding: 4px 6px;">(Você)</span>` : ``);
 
                 var actionsContent = (editBtn || deleteBtn)
-                    ? `<div style="display: flex; gap: 6px; justify-content: flex-end; align-items: center;">${editBtn}${deleteBtn}</div>`
-                    : `<span style="font-size:0.72rem; color:var(--text-dim);">${isSelf && isDemo ? 'Protegido (Demo)' : 'Somente Leitura'}</span>`;
+                    ? `<div style="display: flex; gap: 6px; justify-content: flex-end; align-items: center; white-space: nowrap;">${editBtn}${deleteBtn}</div>`
+                    : `<span style="font-size:0.72rem; color:var(--text-dim); white-space: nowrap;">${isSelf && isDemo ? 'Protegido (Demo)' : 'Somente Leitura'}</span>`;
 
                 return `
                 <tr>
-                    <td><strong style="color: #FFF; font-size: 0.86rem;">${safeFullName} ${isSelf ? '<span style="color:#00F0FF; font-size:0.72rem;">(Sua Conta)</span>' : ''}</strong></td>
-                    <td><span class="font-mono" style="color: var(--accent); font-weight: 600; font-size: 0.82rem;">${safeUsername}</span></td>
-                    <td><span style="color: #E2E8F0; font-size: 0.8rem;">${emailDisplay}</span></td>
+                    <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${safeFullName}"><strong style="color: #FFF; font-size: 0.86rem;">${safeFullName} ${isSelf ? '<span style="color:#00F0FF; font-size:0.72rem;">(Sua Conta)</span>' : ''}</strong></td>
+                    <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${safeUsername}"><span class="font-mono" style="color: var(--accent); font-weight: 600; font-size: 0.82rem;">${safeUsername}</span></td>
+                    <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${u.email ? escapeHtml(u.email) : ''}"><span style="color: #E2E8F0; font-size: 0.8rem;">${emailDisplay}</span></td>
                     <td>${roleBadge}</td>
                     <td><div style="display: flex; align-items: center; gap: 6px;">${statusPill}</div></td>
-                    <td style="text-align: right;">${actionsContent}</td>
+                    <td style="text-align: right; overflow: visible;">${actionsContent}</td>
                 </tr>
                 `;
             }).join('');

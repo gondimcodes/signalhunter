@@ -216,6 +216,23 @@ pub async fn create_user_handler(
         ));
     }
 
+    // O login deve conter apenas caracteres alfanuméricos, pontos, hífens ou underscores
+    if !username
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_')
+    {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                message:
+                    "O login de usuário deve conter apenas letras, números, pontos, hífens ou '_'"
+                        .to_string(),
+                data: None,
+            }),
+        ));
+    }
+
     let full_name = payload.full_name.trim();
     if full_name.is_empty() || full_name.len() > 128 {
         return Err((
@@ -223,6 +240,19 @@ pub async fn create_user_handler(
             Json(ApiResponse {
                 success: false,
                 message: "O nome completo deve conter entre 1 e 128 caracteres.".to_string(),
+                data: None,
+            }),
+        ));
+    }
+
+    // Não permite caracteres de controle ou tags HTML brutas no nome completo
+    if full_name.contains('<') || full_name.contains('>') {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                message: "O nome completo não pode conter caracteres HTML como '<' ou '>'."
+                    .to_string(),
                 data: None,
             }),
         ));
@@ -413,8 +443,31 @@ pub async fn update_user_handler(
     // Apenas admin pode alterar Nome Completo e E-mail de usuários
     if is_admin {
         if let Some(ref name) = payload.full_name {
+            let name_clean = name.trim();
+            if name_clean.is_empty() || name_clean.len() > 128 {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    Json(ApiResponse {
+                        success: false,
+                        message: "O nome completo deve conter entre 1 e 128 caracteres."
+                            .to_string(),
+                        data: None,
+                    }),
+                ));
+            }
+            if name_clean.contains('<') || name_clean.contains('>') {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    Json(ApiResponse {
+                        success: false,
+                        message: "O nome completo não pode conter caracteres HTML como '<' ou '>'."
+                            .to_string(),
+                        data: None,
+                    }),
+                ));
+            }
             let _ = sqlx::query("UPDATE users SET full_name = ? WHERE id = ?")
-                .bind(name.trim())
+                .bind(name_clean)
                 .bind(user_id)
                 .execute(pool)
                 .await;
