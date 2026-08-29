@@ -16,9 +16,10 @@ pub struct AuditParams {
     pub limit: Option<u64>,
 }
 
-/// Helper para validar permissão de visualização/gerenciamento de auditoria:
-/// Permitido exclusivamente para administradores autenticados.
-fn check_audit_permission(
+/// Helper para validar permissão de visualização de auditoria:
+/// - Em produção: restrito exclusivamente para administradores.
+/// - Em modo Demo: permite que operadores autenticados visualizem a trilha (com IPs anonimizados).
+fn check_audit_view_permission(
     state: &AppState,
     headers: &HeaderMap,
 ) -> Result<crate::auth::Claims, (StatusCode, Json<ApiResponse<()>>)> {
@@ -44,7 +45,7 @@ fn check_audit_permission(
         )
     })?;
 
-    if claims.role != "admin" {
+    if !state.config.is_demo() && claims.role != "admin" {
         return Err((
             StatusCode::FORBIDDEN,
             Json(ApiResponse {
@@ -59,12 +60,33 @@ fn check_audit_permission(
     Ok(claims)
 }
 
+/// Helper para validar permissão de limpeza/exclusão de logs:
+/// Sempre restrito a administradores (inclusive no modo Demo).
+fn check_audit_admin_permission(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Result<crate::auth::Claims, (StatusCode, Json<ApiResponse<()>>)> {
+    let claims = check_audit_view_permission(state, headers)?;
+    if claims.role != "admin" {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(ApiResponse {
+                success: false,
+                message: "Acesso negado: a limpeza de logs é restrita a administradores."
+                    .to_string(),
+                data: None,
+            }),
+        ));
+    }
+    Ok(claims)
+}
+
 pub async fn list_audit_logs_handler(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
     Query(params): Query<AuditParams>,
 ) -> Result<Json<ApiResponse<Vec<AuditLogRecord>>>, (StatusCode, Json<ApiResponse<()>>)> {
-    let claims = check_audit_permission(&state, &headers)?;
+    let claims = check_audit_view_permission(&state, &headers)?;
 
     let pool = state.db.as_ref().ok_or_else(|| {
         (
@@ -136,7 +158,7 @@ pub async fn clear_audit_logs_handler(
     ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
 ) -> Result<Json<ApiResponse<()>>, (StatusCode, Json<ApiResponse<()>>)> {
-    let claims = check_audit_permission(&state, &headers)?;
+    let claims = check_audit_admin_permission(&state, &headers)?;
     let mut client_ip = crate::handlers::auth_handlers::extract_client_ip(&headers);
     if client_ip == "--" {
         client_ip = peer_addr.ip().to_string();
