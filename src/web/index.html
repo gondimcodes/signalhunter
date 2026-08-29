@@ -1358,8 +1358,8 @@
             </div>
 
             <!-- ABA 7: Usuários do Sistema (RBAC) -->
-            <div class="tab-content-panel" id="content-users" style="display: none; flex-direction: column; gap: 0.6rem;">
-                <div style="width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0;">
+            <div class="tab-content-panel" id="content-users" style="display: none; flex-direction: column; gap: 0.6rem; align-items: flex-start;">
+                <div style="max-width: 1080px; width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0;">
                     <div class="search-add-bar" style="margin-bottom: 8px;">
                         <div class="search-input-wrap">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -1377,18 +1377,18 @@
                             <table class="users-table" style="width: 100%; table-layout: fixed;">
                                 <thead>
                                     <tr>
-                                        <th style="width: 28%;">Nome Completo</th>
-                                        <th style="width: 18%;">Login (Username)</th>
+                                        <th style="width: 26%;">Nome Completo</th>
+                                        <th style="width: 16%;">Login (Username)</th>
                                         <th style="width: 22%;">E-mail</th>
                                         <th style="width: 12%;">Perfil / Nível</th>
-                                        <th style="width: 8%;">Status</th>
-                                        <th style="width: 12%; text-align: right;">Ações</th>
+                                        <th style="width: 10%;">Status</th>
+                                        <th style="width: 14%; text-align: right;">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="usersTableBody">
                                     <tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 16px;">Carregando usuários cadastrados...</td></tr>
                                 </tbody>
-                            </table>
+                                </table>
                         </div>
                         <!-- Barra de Paginação de Usuários -->
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: rgba(15, 23, 42, 0.6); border-top: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.72rem; flex-shrink: 0; margin-top: 4px;">
