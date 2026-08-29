@@ -17,18 +17,11 @@ pub struct AuditParams {
 }
 
 /// Helper para validar permissão de visualização/gerenciamento de auditoria:
-/// Permitido apenas para administradores, exceto quando o sistema estiver em modo de demonstração (demo).
+/// Permitido exclusivamente para administradores autenticados.
 fn check_audit_permission(
     state: &AppState,
     headers: &HeaderMap,
-) -> Result<Option<crate::auth::Claims>, (StatusCode, Json<ApiResponse<()>>)> {
-    if state.config.is_demo() {
-        // Em modo Demo, permite visualização para qualquer usuário ou visitante
-        let token_opt = crate::handlers::auth_handlers::extract_auth_token(headers);
-        let claims = token_opt.and_then(|t| state.auth.verify_token(&t).ok());
-        return Ok(claims);
-    }
-
+) -> Result<crate::auth::Claims, (StatusCode, Json<ApiResponse<()>>)> {
     let token = crate::handlers::auth_handlers::extract_auth_token(headers).ok_or_else(|| {
         (
             StatusCode::UNAUTHORIZED,
@@ -63,7 +56,7 @@ fn check_audit_permission(
         ));
     }
 
-    Ok(Some(claims))
+    Ok(claims)
 }
 
 pub async fn list_audit_logs_handler(
@@ -71,7 +64,7 @@ pub async fn list_audit_logs_handler(
     headers: HeaderMap,
     Query(params): Query<AuditParams>,
 ) -> Result<Json<ApiResponse<Vec<AuditLogRecord>>>, (StatusCode, Json<ApiResponse<()>>)> {
-    let claims_opt = check_audit_permission(&state, &headers)?;
+    let claims = check_audit_permission(&state, &headers)?;
 
     let pool = state.db.as_ref().ok_or_else(|| {
         (
@@ -123,12 +116,8 @@ pub async fn list_audit_logs_handler(
         )
     })?;
 
-    // No modo Demo, anonimiza o IP de origem para visitantes e operadores.
-    // Administradores autenticados podem ver os IPs mesmo em ambiente Demo.
-    let is_admin = claims_opt
-        .as_ref()
-        .map(|c| c.role == "admin")
-        .unwrap_or(false);
+    // No modo Demo, anonimiza o IP de origem para operadores não-admin
+    let is_admin = claims.role == "admin";
     if state.config.is_demo() && !is_admin {
         for log in &mut logs {
             log.ip_address = Some("--".to_string());
@@ -147,12 +136,12 @@ pub async fn clear_audit_logs_handler(
     ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
 ) -> Result<Json<ApiResponse<()>>, (StatusCode, Json<ApiResponse<()>>)> {
-    let claims_opt = check_audit_permission(&state, &headers)?;
+    let claims = check_audit_permission(&state, &headers)?;
     let mut client_ip = crate::handlers::auth_handlers::extract_client_ip(&headers);
     if client_ip == "--" {
         client_ip = peer_addr.ip().to_string();
     }
-    let user_id = claims_opt.map(|c| c.sub).unwrap_or(1);
+    let user_id = claims.sub;
 
     let pool = state.db.as_ref().ok_or_else(|| {
         (

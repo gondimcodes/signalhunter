@@ -93,8 +93,10 @@ pub struct ThresholdsConfig {
     pub degradation_alert_delta_db: f64,
 }
 
-pub const DEFAULT_SAMPLE_AES_KEY: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-pub const DEFAULT_SAMPLE_JWT_SECRET: &str = "altere_este_segredo_jwt_longo_e_aleatorio_para_producao_12345";
+pub const DEFAULT_SAMPLE_AES_KEY: &str =
+    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+pub const DEFAULT_SAMPLE_JWT_SECRET: &str =
+    "altere_este_segredo_jwt_longo_e_aleatorio_para_producao_12345";
 
 impl AppConfig {
     pub fn load_from_file<P: AsRef<Path>>(
@@ -136,7 +138,10 @@ impl AppConfig {
         }
 
         if jwt.len() < 32 {
-            return Err("ERRO DE SEGURANÇA: 'security.jwt_secret' deve conter no mínimo 32 caracteres.".to_string());
+            return Err(
+                "ERRO DE SEGURANÇA: 'security.jwt_secret' deve conter no mínimo 32 caracteres."
+                    .to_string(),
+            );
         }
 
         Ok(())

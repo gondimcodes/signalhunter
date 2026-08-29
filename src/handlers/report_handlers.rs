@@ -39,6 +39,24 @@ pub async fn generate_report_pdf_handler(
     headers: HeaderMap,
     Query(params): Query<GenerateReportParams>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
+    let session_user = crate::handlers::auth_handlers::extract_authenticated_session(
+        &state, &headers,
+    )
+    .map_err(|(status, json)| {
+        (
+            status,
+            Json(ApiResponse {
+                success: false,
+                message: json
+                    .get("message")
+                    .and_then(|m| m.as_str())
+                    .unwrap_or("Acesso não autorizado")
+                    .to_string(),
+                data: None,
+            }),
+        )
+    })?;
+
     let pool = state.db.as_ref().ok_or_else(|| {
         (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -54,9 +72,7 @@ pub async fn generate_report_pdf_handler(
     if client_ip == "--" {
         client_ip = peer_addr.ip().to_string();
     }
-    let session_user_id = crate::handlers::auth_handlers::extract_auth_token(&headers)
-        .and_then(|tok| state.auth.verify_token(&tok).ok())
-        .map(|c| c.sub);
+    let session_user_id = Some(session_user.sub);
 
     let is_firmware = params.report_type.as_deref() == Some("firmware")
         || params.report_type.as_deref() == Some("model_firmware");

@@ -33,7 +33,24 @@ pub struct ApiResponse<T> {
 
 pub async fn list_olts_handler(
     State(state): State<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
 ) -> Result<Json<ApiResponse<Vec<OltRecord>>>, (StatusCode, Json<ApiResponse<()>>)> {
+    let _ = crate::handlers::auth_handlers::extract_authenticated_session(&state, &headers)
+        .map_err(|(status, json)| {
+            (
+                status,
+                Json(ApiResponse {
+                    success: false,
+                    message: json
+                        .get("message")
+                        .and_then(|m| m.as_str())
+                        .unwrap_or("Acesso não autorizado")
+                        .to_string(),
+                    data: None,
+                }),
+            )
+        })?;
+
     let pool = state.db.as_ref().ok_or_else(|| {
         (
             StatusCode::SERVICE_UNAVAILABLE,
