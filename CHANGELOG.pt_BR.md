@@ -12,7 +12,7 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ### 🛡️ Segurança & Hardening
 - **Mitigação Universal de XSS Armazenado e DOM-Based (SEC-01)**: Implementação e aplicação da função `escapeHtml` em todas as tabelas dinâmicas, modais, tooltips e notificações toast da SPA (`src/web/index.html`).
 - **Trava de Inicialização contra Segredos Padrão em Produção (SEC-02)**: Validação ativa no boot do serviço recusando a inicialização em modo de produção caso `jwt_secret` ou `master_encryption_key` contenham os valores padrão de exemplo.
-- **Padronização de Autenticação em Rotas REST de Telemetria e Diagnóstico (SEC-03 / SEC-04)**: Exigência de sessão autenticada (`extract_authenticated_session`) em `/api/dashboard`, `/api/diagnostics`, `/api/onus` e `/api/onus/:id/history` (com bypass seguro e transparente em `mode = "demo"`).
+- **Autenticação Estrita e Obrigatória em Todas as Rotas REST e Relatórios (SEC-03 / SEC-04)**: Padronização da verificação de sessão (`extract_authenticated_session`) em `/api/dashboard`, `/api/diagnostics`, `/api/olts`, `/api/onus`, `/api/onus/:id/history` e `/api/reports/pdf` sem exceções em todos os ambientes.
 
 ---
 
