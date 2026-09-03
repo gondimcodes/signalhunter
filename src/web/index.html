@@ -922,7 +922,7 @@
                 <div class="search-add-bar">
                     <div class="search-input-wrap">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        <input type="text" class="search-input" id="globalSearch" placeholder="Buscar por Serial, Cliente, OLT, IP ou Slot/PON (ex: S1/P6)..." oninput="applyDashboardFilter()">
+                        <input type="text" class="search-input" id="globalSearch" placeholder="Buscar por Serial, Cliente, OLT, IP ou Slot/PON (ex: HUAWEI S1/P2)..." oninput="applyDashboardFilter()">
                     </div>
                     <button class="btn-cyan" onclick="refreshAllData()">Atualizar</button>
                     <button class="btn-cyan" onclick="downloadPdfReport()">Exportar PDF</button>
@@ -1170,7 +1170,7 @@
                 <div class="search-add-bar">
                     <div class="search-input-wrap">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        <input type="text" class="search-input" id="searchOnusInput" placeholder="Buscar ONUs por Serial, Slot/PON, Cliente ou OLT..." oninput="applyOnusFullFilter()">
+                        <input type="text" class="search-input" id="searchOnusInput" placeholder="Buscar ONUs por Serial, Slot/PON, Cliente ou OLT (ex: ZTE S1/P1)..." oninput="applyOnusFullFilter()">
                     </div>
                     <button class="btn-cyan" onclick="refreshAllData()">Atualizar</button>
                     <button class="btn-cyan" onclick="downloadPdfReport()">Exportar PDF</button>
@@ -1947,6 +1947,42 @@
             return historyPageSize;
         }
 
+        // Função de busca inteligente multi-termos (suporta concatenação ex: "OLT PORTA", "HUAWEI S1/P2")
+        function matchesOnuSearchTokens(onu, rawQuery) {
+            if (!rawQuery) return true;
+            var tokens = rawQuery.toLowerCase().trim().split(/\s+/).filter(Boolean);
+            if (tokens.length === 0) return true;
+
+            var serial = (onu.serial_number || '').toLowerCase();
+            var client = (onu.customer_identifier || onu.custom_name || '').toLowerCase();
+            var olt = (onu.olt_name || '').toLowerCase();
+            var ponStr = `s${onu.slot}/p${onu.pon_port}`.toLowerCase();
+            var ponNum = `${onu.slot}/${onu.pon_port}`.toLowerCase();
+            var ponFull = `s${onu.slot}/p${onu.pon_port}${onu.onu_id != null ? ':' + onu.onu_id : ''}`.toLowerCase();
+            var slotStr = `s${onu.slot}`.toLowerCase();
+            var portStr = `p${onu.pon_port}`.toLowerCase();
+            var slotWord = `slot ${onu.slot}`.toLowerCase();
+            var portWord = `pon ${onu.pon_port}`.toLowerCase();
+            var oltIp = '';
+            var matchOlt = (typeof allLoadedOlts !== 'undefined' && Array.isArray(allLoadedOlts)) ? allLoadedOlts.find(o => o.id === onu.olt_id) : null;
+            if (matchOlt) oltIp = (matchOlt.ip_address || '').toLowerCase();
+
+            // Todos os tokens digitados precisam ser encontrados na ONU (AND lógico entre palavras)
+            return tokens.every(function(token) {
+                return serial.includes(token)
+                    || client.includes(token)
+                    || olt.includes(token)
+                    || oltIp.includes(token)
+                    || ponStr.includes(token)
+                    || ponNum.includes(token)
+                    || ponFull.includes(token)
+                    || slotStr === token
+                    || portStr === token
+                    || slotWord.includes(token)
+                    || portWord.includes(token);
+            });
+        }
+
         function prevPage() {
             if (currentPage > 1) {
                 currentPage--;
@@ -1985,7 +2021,7 @@
             var searchInput = document.getElementById('globalSearch');
             if (searchInput) {
                 if (currentKpiFilter === '') {
-                    searchInput.placeholder = 'Buscar por Serial, Cliente, OLT, IP ou Slot/PON (ex: S1/P6)...';
+                    searchInput.placeholder = 'Buscar por Serial, Cliente, OLT, IP ou Slot/PON (ex: HUAWEI S1/P2)...';
                 } else {
                     searchInput.placeholder = 'Filtro: [' + currentKpiFilter.toUpperCase() + '] - Clique no card novamente para limpar';
                 }
@@ -1998,36 +2034,9 @@
             var tbody = document.getElementById('onuAlertsTableBody');
             var fullOnusTbody = document.getElementById('onusFullTableBody');
 
-            // Filtra as ONUs por Busca e por Categoria de KPI
+            // Filtra as ONUs por Busca (multi-termos concatenados) e por Categoria de KPI
             var filtered = globalAllOnus.filter(function(onu) {
-                var matchesSearch = true;
-                if (q) {
-                    var serial = (onu.serial_number || '').toLowerCase();
-                    var client = (onu.customer_identifier || onu.custom_name || '').toLowerCase();
-                    var olt = (onu.olt_name || '').toLowerCase();
-                    var ponStr = `s${onu.slot}/p${onu.pon_port}`.toLowerCase();
-                    var ponNum = `${onu.slot}/${onu.pon_port}`.toLowerCase();
-                    var slotStr = `s${onu.slot}`.toLowerCase();
-                    var portStr = `p${onu.pon_port}`.toLowerCase();
-                    var slotWord = `slot ${onu.slot}`.toLowerCase();
-                    var portWord = `pon ${onu.pon_port}`.toLowerCase();
-                    var oltIp = '';
-                    var matchOlt = allLoadedOlts.find(o => o.id === onu.olt_id);
-                    if (matchOlt) oltIp = (matchOlt.ip_address || '').toLowerCase();
-                    
-                    matchesSearch = serial.includes(q) 
-                        || client.includes(q) 
-                        || olt.includes(q) 
-                        || oltIp.includes(q)
-                        || ponStr.includes(q)
-                        || ponNum.includes(q)
-                        || slotStr === q
-                        || portStr === q
-                        || slotWord.includes(q)
-                        || portWord.includes(q);
-                }
-
-                if (!matchesSearch) return false;
+                if (!matchesOnuSearchTokens(onu, q)) return false;
 
                 if (!currentKpiFilter) return true;
 
@@ -2274,15 +2283,9 @@
 
             var q = (document.getElementById('searchOnusInput')?.value || '').toLowerCase().trim();
             
-            // Filtra todas as ONUs (boas ou ruins)
+            // Filtra todas as ONUs (boas ou ruins) com suporte a busca concatenada (multi-termos)
             var filtered = globalAllOnus.filter(function(onu) {
-                if (!q) return true;
-                var serial = (onu.serial_number || '').toLowerCase();
-                var client = (onu.customer_identifier || onu.custom_name || '').toLowerCase();
-                var olt = (onu.olt_name || '').toLowerCase();
-                var pon = `s${onu.slot}/p${onu.pon_port}${onu.onu_id != null ? ':' + onu.onu_id : ''}`.toLowerCase();
-                var ponShort = `s${onu.slot}/p${onu.pon_port}`.toLowerCase();
-                return serial.includes(q) || client.includes(q) || olt.includes(q) || pon.includes(q) || ponShort.includes(q);
+                return matchesOnuSearchTokens(onu, q);
             });
 
             // Ordena exatamente igual ao Dashboard na hierarquia técnica estrita:
@@ -3793,12 +3796,7 @@
                 if (delta != null && delta > 0) return false;
                 if (!hasDegradation) return false;
 
-                if (!q) return true;
-                var serial = (onu.serial_number || '').toLowerCase();
-                var client = (onu.customer_identifier || onu.custom_name || '').toLowerCase();
-                var olt = (onu.olt_name || '').toLowerCase();
-                var pon = `s${onu.slot}/p${onu.pon_port}`.toLowerCase();
-                return serial.includes(q) || client.includes(q) || olt.includes(q) || pon.includes(q);
+                return matchesOnuSearchTokens(onu, q);
             });
 
             // Ordena puramente do pior sinal para o melhor
@@ -3985,7 +3983,8 @@
             if (!allLoadedDiagnostics || !allLoadedDiagnostics.incidents) return;
             var q = (document.getElementById('searchDiagInput')?.value || '').toLowerCase().trim();
 
-            if (!q) {
+            var tokens = q.split(/\s+/).filter(Boolean);
+            if (tokens.length === 0) {
                 renderDiagnosticsList(allLoadedDiagnostics.incidents);
                 return;
             }
@@ -3996,7 +3995,10 @@
                 var loc = (inc.location || '').toLowerCase();
                 var cause = (inc.root_cause || '').toLowerCase();
                 var act = (inc.recommended_action || '').toLowerCase();
-                return title.includes(q) || olt.includes(q) || loc.includes(q) || cause.includes(q) || act.includes(q);
+                
+                return tokens.every(function(token) {
+                    return title.includes(token) || olt.includes(token) || loc.includes(token) || cause.includes(token) || act.includes(token);
+                });
             });
 
             renderDiagnosticsList(filtered);

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.8] — 2026-09-03
+
+### 🚀 Features & Usability
+- **Multi-Token Concatenated Search Engine**: Implemented intelligent multi-token search with logical `AND` intersection across the entire frontend SPA (`src/web/index.html`):
+  - Allows operators to perform combined queries such as **OLT and PON port** (e.g., `HUAWEI S1/P2`, `ZTE P3`, `FIBERHOME S1/P1:2`).
+  - Seamlessly filters records across OLT name, OLT IP, PON port (`sX/pY`, `X/Y`, `pon Y`, `slot X`), ONU serial number, and customer identifier simultaneously.
+  - Integrated across all active application tables: **Dashboard Geral** (`#globalSearch`), **ONUs & Sinais** (`#searchOnusInput`), **Piora de Sinal (ΔdB)** (`#searchDegradationInput`), and **Diagnóstico Óptico** (`#searchDiagInput`).
+  - Updated input search placeholders with intuitive concatenated query examples.
+
+---
+
 ## [1.0.7] — 2026-08-29
 
 ### 🛡️ Security & Input Validation
