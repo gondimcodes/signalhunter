@@ -7,6 +7,17 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [1.0.8] — 2026-09-03
+
+### 🚀 Funcionalidades & Usabilidade
+- **Motor de Busca Multi-Termos Concatenado**: Implementação de busca inteligente com interseção lógica (`AND`) em toda a interface SPA (`src/web/index.html`):
+  - Permite aos operadores realizar consultas combinadas como **OLT e porta PON** (ex: `HUAWEI S1/P2`, `ZTE P3`, `FIBERHOME S1/P1:2`).
+  - Filtra simultaneamente registros cruzando nome da OLT, IP da OLT, porta PON (`sX/pY`, `X/Y`, `pon Y`, `slot X`), número de série da ONU e identificador do cliente.
+  - Integrado a todas as tabelas ativas da aplicação: **Dashboard Geral** (`#globalSearch`), **ONUs & Sinais** (`#searchOnusInput`), **Piora de Sinal (ΔdB)** (`#searchDegradationInput`) e **Diagnóstico Óptico** (`#searchDiagInput`).
+  - Atualização dos placeholders dos campos de busca com exemplos intuitivos de consultas concatenadas.
+
+---
+
 ## [1.0.7] — 2026-08-29
 
 ### 🛡️ Segurança & Validação de Entrada
