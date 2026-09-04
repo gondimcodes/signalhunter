@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.9] — 2026-09-04
+
+### 🚀 Enhancements & Driver Resiliency
+- **Resilient Multi-Firmware TP-Link DeltaStream Driver**:
+  - Implemented dual parsing (`parse_power_value`, `parse_temp_value`, `parse_bias_value`) supporting both `DisplayString` and integer (centi-dBm / centi-degree) SNMP responses across legacy and modern TP-Link DeltaStream firmware revisions.
+  - Added hybrid serial decoding (`decode_serial`) supporting raw ASCII, byte arrays, and Hex-STRING formats (`54 50 4C 47...` -> `TPLG...`).
+  - Added OLT SFP PON port Tx power collection (`.1.3.6.1.4.1.11863.6.96.1.7.1.1.5`), enabling exact fiber attenuation calculation ($\text{Attenuation} = \text{Tx}_{\text{OLT}} - \text{Rx}_{\text{ONU}}$).
+  - Implemented automatic status fallback from `omOnlineStatus` (`.11`) to operational status `.41`.
+  - Added native detection and database persistence for TP-Link hardware model (`.1.3.6.1.4.1.11863.6.1.1.5.0`) and firmware version (`.1.3.6.1.4.1.11863.6.1.1.6.0`).
+
+---
+
 ## [1.0.8] — 2026-09-03
 
 ### 🚀 Features & Usability

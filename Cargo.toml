@@ -1,6 +1,6 @@
 [package]
 name = "signalhunter"
-version = "1.0.8"
+version = "1.0.9"
 edition = "2021"
 authors = ["Marcelo Gondim da Cunha <gondim@ispfocus.net.br>"]
 license = "GPL-3.0-only"

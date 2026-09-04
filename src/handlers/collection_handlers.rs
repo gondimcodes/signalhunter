@@ -104,11 +104,36 @@ pub async fn sync_olt_telemetry(
             }
         }
 
-        if !sys_desc.is_empty() {
+        // Para TP-Link DeltaStream, consulta as MIBs proprietárias de hardware (.5.0) e firmware (.6.0)
+        let (tplink_hw, tplink_fw) = if target.vendor.to_lowercase().contains("tplink") {
+            let hw = snmp_client
+                .get(".1.3.6.1.4.1.11863.6.1.1.5.0")
+                .await
+                .ok()
+                .flatten()
+                .and_then(|vb| vb.value_str)
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty());
+            let fw = snmp_client
+                .get(".1.3.6.1.4.1.11863.6.1.1.6.0")
+                .await
+                .ok()
+                .flatten()
+                .and_then(|vb| vb.value_str)
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty());
+            (hw, fw)
+        } else {
+            (None, None)
+        };
+
+        if !sys_desc.is_empty() || tplink_hw.is_some() || tplink_fw.is_some() {
             let desc_upper = sys_desc.to_uppercase();
 
             // Extrator Universal e Dinâmico de Versão de Firmware
-            let detected_fw = if let Some(pos) = desc_upper.find("VERSION ") {
+            let detected_fw = if let Some(fw) = tplink_fw {
+                Some(fw)
+            } else if let Some(pos) = desc_upper.find("VERSION ") {
                 let part = &sys_desc[pos + 8..];
                 part.split(|c: char| c.is_whitespace() || c == ')' || c == ',' || c == ';')
                     .next()
@@ -148,8 +173,15 @@ pub async fn sync_olt_telemetry(
                     })
             };
 
-            // Extrator Dinâmico de Modelo (ex: "ZXA10 C600", "ZXA10 C610", "DM4615", "MA5800")
-            let detected_model = if let Some(first_comma) = sys_desc.find(',') {
+            // Extrator Dinâmico de Modelo (ex: "ZXA10 C600", "ZXA10 C610", "DM4615", "MA5800", "DS-P7001-08")
+            let detected_model = if let Some(hw) = tplink_hw {
+                Some(hw)
+            } else if sys_desc.to_uppercase().contains("DS-P") {
+                sys_desc
+                    .split_whitespace()
+                    .find(|w| w.to_uppercase().starts_with("DS-P"))
+                    .map(|s| s.trim().to_string())
+            } else if let Some(first_comma) = sys_desc.find(',') {
                 let prefix = sys_desc[..first_comma].trim();
                 if !prefix.is_empty()
                     && prefix.len() <= 35

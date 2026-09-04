@@ -7,6 +7,18 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [1.0.9] — 2026-09-04
+
+### 🚀 Melhorias & Resiliência de Drivers
+- **Aprimoramento e Blindagem do Driver TP-Link DeltaStream**:
+  - Implementado parser dual (`parse_power_value`, `parse_temp_value`, `parse_bias_value`) suportando tanto `DisplayString` quanto números inteiros (centi-dBm / centi-graus) nas respostas SNMP entre diferentes revisões de firmware da TP-Link.
+  - Adicionada decodificação híbrida de seriais (`decode_serial`) com suporte a texto ASCII puro, arrays binários e formato Hex-STRING (`54 50 4C 47...` -> `TPLG...`).
+  - Implementada coleta de potência Tx do SFP da porta PON da OLT (`.1.3.6.1.4.1.11863.6.96.1.7.1.1.5`), permitindo cálculo exato da atenuação óptica da fibra ($\text{Atenuação} = \text{Tx}_{\text{OLT}} - \text{Rx}_{\text{ONU}}$).
+  - Adicionado fallback automático de status operacional: consulta `omOnlineStatus` (`.11`) com fallback para o OID `.41`.
+  - Integrada detecção proprietária de hardware/modelo (`.1.3.6.1.4.1.11863.6.1.1.5.0`) e firmware (`.1.3.6.1.4.1.11863.6.1.1.6.0`) com persistência automática no banco de dados.
+
+---
+
 ## [1.0.8] — 2026-09-03
 
 ### 🚀 Funcionalidades & Usabilidade
