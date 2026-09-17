@@ -1,28 +1,30 @@
-# Contribuições da Comunidade (contrib/)
+# Community Contributions (`contrib/`)
 
-Este diretório reúne scripts auxiliares, automações de infraestrutura e ferramentas complementares desenvolvidas por colaboradores e membros da comunidade do **SignalHunter**.
+[Português](README.pt_BR.md) | **English**
 
-Os utilitários aqui presentes não fazem parte do runtime central do sistema, mas facilitam implantações, integrações e rotinas operacionais em ambientes externos.
+This directory collects auxiliary scripts, infrastructure automation, and third-party tools contributed by the **SignalHunter** community.
+
+The utilities located here are not part of the core daemon runtime, but provide streamlined deployment, monitoring integration, and operational workflows for external environments.
 
 ---
 
-## Índice de Ferramentas
+## Available Tools
 
 ### 1. `create_deploy.sh`
-- **Autor**: Alexandre Jeronimo Correa ([ajcorrea@gmail.com](mailto:ajcorrea@gmail.com))
-- **Objetivo**: Automação de deploy containerizado para o SignalHunter utilizando Docker Compose e MariaDB 11.
-- **Destaques Técnicos**:
-  - Compilação estática do binário Rust com a target `x86_64-unknown-linux-musl` em multi-stage build.
-  - Imagem de runtime mínima (`debian:bookworm-slim`) executando com usuário isolado e sem privilégios (`UID/GID 1000`).
-  - Geração automática e aleatória de chaves de alta entropia para `master_encryption_key` (AES-256-GCM), `jwt_secret` e senhas do MariaDB com `openssl rand`.
-  - Configuração do MariaDB 11 com `healthcheck` garantindo que o banco esteja pronto antes do SignalHunter subir.
-  - Arquivos de configuração e senhas gravados com permissão restrita (`chmod 600`).
-- **Modos de Operação**:
-  - `./create_deploy.sh deploy`: Realiza a primeira instalação completa (pergunta a porta web desejada, gera credenciais, cria `compose.yaml`, compila a imagem Docker e inicializa os containers).
-  - `./create_deploy.sh update`: Sincroniza o código-fonte com a branch `main` do GitHub e reconstrói os containers preservando o banco de dados.
-  - `./create_deploy.sh clean`: Para os containers, remove a imagem local e os volumes Docker (com confirmação obrigatória).
-- **Como Utilizar**:
-  - Recomenda-se copiar ou baixar o script para o diretório pai onde você deseja estruturar o deploy (ex: `/opt/` ou `/srv/`):
+- **Author**: Alexandre Jeronimo Correa ([ajcorrea@gmail.com](mailto:ajcorrea@gmail.com))
+- **Purpose**: Containerized deployment automation for SignalHunter using Docker Compose and MariaDB 11.
+- **Key Technical Highlights**:
+  - Multi-stage build producing a static binary targeting `x86_64-unknown-linux-musl`.
+  - Minimal runtime container based on `debian:bookworm-slim` running under an unprivileged user (`UID/GID 1000`).
+  - Automated high-entropy cryptographic secret generation for `master_encryption_key` (AES-256-GCM), `jwt_secret`, and MariaDB passwords using `openssl rand`.
+  - MariaDB 11 container with active `healthcheck` ensuring database readiness before SignalHunter starts.
+  - Configuration files and secrets stored with strict permissions (`chmod 600`).
+- **Operation Modes**:
+  - `./create_deploy.sh deploy`: First-time setup (prompts for web port, generates secrets, generates `compose.yaml`, builds Docker image, and starts services).
+  - `./create_deploy.sh update`: Pulls latest changes from the `main` branch and rebuilds containers while preserving database volume.
+  - `./create_deploy.sh clean`: Stops containers, removes local Docker image and volumes (requires explicit confirmation).
+- **How to Use**:
+  - Copy or download the script to the parent directory where you want to organize the deployment (e.g. `/opt/` or `/srv/`):
     ```bash
     cp contrib/create_deploy.sh /opt/deploy-signalhunter/
     cd /opt/deploy-signalhunter/
@@ -31,10 +33,10 @@ Os utilitários aqui presentes não fazem parte do runtime central do sistema, m
 
 ---
 
-## Como Contribuir
+## How to Contribute
 
-Se você desenvolveu um script útil, playbook Ansible, exporter para Prometheus, template para Grafana ou integração de alertas que possa beneficiar outros provedores e operadores:
+If you developed a useful script, Ansible playbook, Prometheus exporter, Grafana dashboard, or webhook alert bridge:
 
-1. Coloque seus arquivos e scripts dentro deste diretório `contrib/`.
-2. Documente neste `README.md` a autoria, objetivos, dependências e modo de uso.
-3. Abra um Pull Request no repositório oficial com a sua contribuição.
+1. Place your scripts and tools inside this `contrib/` directory.
+2. Document the tool in both `README.md` and `README.pt_BR.md` including authorship, goals, dependencies, and usage instructions.
+3. Open a Pull Request on the official repository.
