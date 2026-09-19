@@ -7,6 +7,21 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [1.1.0] — 2026-09-19
+
+### 🚀 Correções & Resiliência de Drivers
+- **Padronização e Correção de Dying Gasp vs LOS em OLTs ZTE (C300 / C600 Titan)**:
+  - Substituição da OID incorreta de `PhaseState` (`.8.1.4`) pelas OIDs oficiais corporativas de causa de queda:
+    - Primária (MIB 1082 - C600 Titan / C300 moderna): `.1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.7` (`zxAnGponOnuLastOfflineReason`).
+    - Fallback (MIB 1012 - C300 legada): `.1.3.6.1.4.1.3902.1012.3.28.2.1.11` (`zxAnGponOntLastDownCause`).
+  - Implementação do decodificador determinístico `ZteDriver::decode_zte_offline_reason`:
+    - Códigos `9` (`onuPowerOff`), `12` (`onuReboot`), `13` (`onuShutdown`), `14` e `15` normalizados como `dying_gasp`.
+    - Códigos `2` (`oltLos`), `3` (`onuLos`), `4` (`onuLof`), `5` (`onuSf`) normalizados como `los`.
+    - Na MIB 1012 legada: códigos `1` (`powerOff`) e `4` (`reboot`) mapeados como `dying_gasp`.
+  - Eliminação de falso positivo onde fases de sincronismo eram interpretadas como falhas de energia ou rompimentos ópticos.
+
+---
+
 ## [1.0.9] — 2026-09-04
 
 ### 🚀 Melhorias & Resiliência de Drivers

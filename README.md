@@ -169,8 +169,8 @@ ZTE telemetry polling is executed **100% via SNMPv2c**:
 * `ONU Optical Tx Power (dBm)`: `.1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.11` (Titan) / `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.1` (C300)
 * `Upstream OLT Rx Power (dBm)`: `.1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.12` (Titan) / `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.3` (C300)
 * `Transceiver Temperature (°C)`: `.1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.13` (Titan) / `.1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.5` (C300)
-* `Physical Fiber Distance (m)`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.4.<ifIndex>.<onuId>`
-* `Last Down Cause (Dying Gasp vs LOS)`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.11` / `.1.3.6.1.4.1.3902.1012.3.28.2.1.4` (`1` = Dying Gasp / Power, `2` = LOS / Fiber Break)
+* `Physical Fiber Distance (m)`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.10.1.2.<ifIndex>.<onuId>`
+* `Last Down Cause (Dying Gasp vs LOS)`: `.1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.7` / `.1.3.6.1.4.1.3902.1012.3.28.2.1.11` (`9/12/13/14/15` ou `1` MIB 1012 = Dying Gasp / Power Outage, `2/3/4/5` = LOS / Fiber Break)
 
 ---
 

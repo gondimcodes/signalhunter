@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] — 2026-09-19
+
+### 🚀 Driver Resiliency & Bugfixes
+- **ZTE Dying Gasp vs LOS Detection and MIB Standardization (C300 / C600 Titan)**:
+  - Replaced erroneous `PhaseState` OID (`.8.1.4`) with the official enterprise drop cause OIDs:
+    - Primary (MIB 1082 - C600 Titan / modern C300): `.1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.7` (`zxAnGponOnuLastOfflineReason`).
+    - Fallback (MIB 1012 - legacy C300): `.1.3.6.1.4.1.3902.1012.3.28.2.1.11` (`zxAnGponOntLastDownCause`).
+  - Implemented deterministic enum decoder `ZteDriver::decode_zte_offline_reason`:
+    - Values `9` (`onuPowerOff`), `12` (`onuReboot`), `13` (`onuShutdown`), `14`, and `15` normalized to `dying_gasp`.
+    - Values `2` (`oltLos`), `3` (`onuLos`), `4` (`onuLof`), and `5` (`onuSf`) normalized to `los`.
+    - On legacy MIB 1012: values `1` (`powerOff`) and `4` (`reboot`) mapped to `dying_gasp`.
+  - Eliminated false positives where ONU synchronization phase states were incorrectly interpreted as power outages or fiber breaks.
+
+---
+
 ## [1.0.9] — 2026-09-04
 
 ### 🚀 Enhancements & Driver Resiliency

@@ -56,6 +56,24 @@ impl ZteDriver {
         let onu_id = ((default_idx % 128) + 1) as i32;
         (slot, pon_port, onu_id)
     }
+
+    /// Normaliza o código numérico da causa de queda da ZTE para os status do SignalHunter:
+    /// - MIB 1082 (zxAnGponOnuLastOfflineReason - C600 Titan / C300 moderna):
+    ///   * 9 (onuPowerOff), 12 (onuReboot), 13 (onuShutdown), 14, 15 -> dying_gasp
+    ///   * 2 (oltLos), 3 (onuLos), 4 (onuLof), 5 (onuSf) -> los
+    ///   * 1 (unknown) -> los
+    /// - MIB 1012 legada (zxAnGponOntLastDownCause - C300 legada):
+    ///   * 1 (powerOff), 4 (reboot) -> dying_gasp
+    ///   * 2 (los), 3 (lofi), 5 (sf) -> los
+    pub fn decode_zte_offline_reason(raw_val: i64, is_legacy_1012: bool) -> &'static str {
+        match raw_val {
+            9 | 12 | 13 | 14 | 15 => "dying_gasp",
+            1 if is_legacy_1012 => "dying_gasp",
+            4 if is_legacy_1012 => "dying_gasp",
+            2 | 3 | 4 | 5 => "los",
+            _ => "los",
+        }
+    }
 }
 
 #[async_trait]
@@ -502,36 +520,31 @@ impl OltDriver for ZteDriver {
         }
 
         // 2.7 Causa da Última Desconexão via SNMP:
-        // C300/C320: .1.3.6.1.4.1.3902.1012.3.28.2.1.4 (zxAnGponOntLastDownCause)
-        // C600/C650/C610: .1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.4 ou .1.3.6.1.4.1.3902.1082.500.20.2.1.8.1.4
-        // Mapeamento ZTE:
-        // 1 = dying-gasp (falta de energia)
-        // 2 = los / lofi (perda de sinal óptico / rompimento)
-        // 3 = manual_deactivate / disable
-        // 4 = reboot
+        // Primário (MIB estendida 1082 - C600 Titan e C300 moderna):
+        // .1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.7 (zxAnGponOnuLastOfflineReason)
+        // Fallback (MIB nativa 1012 - C300 legada):
+        // .1.3.6.1.4.1.3902.1012.3.28.2.1.11 (zxAnGponOntLastDownCause)
         let mut down_cause_map = std::collections::HashMap::new();
+        let mut is_legacy_1012 = false;
         let mut down_walk = snmp
-            .bulk_walk(".1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.4", 65535)
+            .bulk_walk(".1.3.6.1.4.1.3902.1082.500.10.2.3.8.1.7", 65535)
             .await
             .unwrap_or_default();
         if down_walk.is_empty() {
             down_walk = snmp
-                .bulk_walk(".1.3.6.1.4.1.3902.1012.3.28.2.1.4", 65535)
+                .bulk_walk(".1.3.6.1.4.1.3902.1012.3.28.2.1.11", 65535)
                 .await
                 .unwrap_or_default();
+            if !down_walk.is_empty() {
+                is_legacy_1012 = true;
+            }
         }
         for vb in &down_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
                 let key = format!("{}.{}", parts[parts.len() - 2], parts[parts.len() - 1]);
                 let raw_val = vb.value_int.unwrap_or(0);
-                let reason = match raw_val {
-                    1 => "dying_gasp",
-                    2 => "los",
-                    3 => "manual_deactivate",
-                    4 => "dying_gasp",
-                    _ => "los",
-                };
+                let reason = Self::decode_zte_offline_reason(raw_val, is_legacy_1012);
                 down_cause_map.insert(key.clone(), reason.to_string());
                 if parts.len() >= 3 {
                     down_cause_map.insert(
@@ -748,5 +761,53 @@ impl OltDriver for ZteDriver {
             final_results.len()
         );
         Ok(final_results)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_decode_zte_offline_reason_mib_1082() {
+        // MIB 1082 (C600 / C300 moderna)
+        assert_eq!(ZteDriver::decode_zte_offline_reason(9, false), "dying_gasp");
+        assert_eq!(
+            ZteDriver::decode_zte_offline_reason(12, false),
+            "dying_gasp"
+        );
+        assert_eq!(
+            ZteDriver::decode_zte_offline_reason(13, false),
+            "dying_gasp"
+        );
+        assert_eq!(
+            ZteDriver::decode_zte_offline_reason(14, false),
+            "dying_gasp"
+        );
+        assert_eq!(
+            ZteDriver::decode_zte_offline_reason(15, false),
+            "dying_gasp"
+        );
+
+        assert_eq!(ZteDriver::decode_zte_offline_reason(2, false), "los");
+        assert_eq!(ZteDriver::decode_zte_offline_reason(3, false), "los");
+        assert_eq!(ZteDriver::decode_zte_offline_reason(4, false), "los");
+        assert_eq!(ZteDriver::decode_zte_offline_reason(5, false), "los");
+
+        // 1 na MIB 1082 é unknown -> mapeado para los
+        assert_eq!(ZteDriver::decode_zte_offline_reason(1, false), "los");
+        // Valores desconhecidos caem em los
+        assert_eq!(ZteDriver::decode_zte_offline_reason(99, false), "los");
+    }
+
+    #[test]
+    fn test_decode_zte_offline_reason_legacy_1012() {
+        // MIB 1012 legada (C300)
+        assert_eq!(ZteDriver::decode_zte_offline_reason(1, true), "dying_gasp");
+        assert_eq!(ZteDriver::decode_zte_offline_reason(4, true), "dying_gasp");
+
+        assert_eq!(ZteDriver::decode_zte_offline_reason(2, true), "los");
+        assert_eq!(ZteDriver::decode_zte_offline_reason(3, true), "los");
+        assert_eq!(ZteDriver::decode_zte_offline_reason(5, true), "los");
     }
 }
