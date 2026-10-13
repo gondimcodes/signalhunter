@@ -218,6 +218,56 @@ impl TpLinkDriver {
 
         None
     }
+
+    /// Normaliza a causa da última desconexão da TP-Link DeltaStream para status do SignalHunter:
+    /// - MIB oficial .1.3.6.1.4.1.11863.6.107.1.5.2.1.42 (recomendada pela engenharia TP-Link)
+    /// - Fallback de compatibilidade .1.3.6.1.4.1.11863.6.100.1.7.2.1.42
+    pub fn decode_down_reason(val_str: Option<&str>, val_int: Option<i64>) -> Option<String> {
+        if let Some(s) = val_str {
+            let trimmed = s.trim();
+            if !trimmed.is_empty() && trimmed != "--" && trimmed != "N/A" && trimmed != "null" {
+                let lower = trimmed.to_lowercase();
+                if lower.contains("power") || lower.contains("gasp") || lower.contains("dying") {
+                    return Some("dying_gasp".to_string());
+                } else if lower.contains("los")
+                    || lower.contains("signal")
+                    || lower.contains("cut")
+                    || lower.contains("fiber")
+                    || lower.contains("lof")
+                    || lower.contains("sf")
+                {
+                    return Some("los".to_string());
+                } else if lower.contains("reboot") {
+                    return Some("reboot".to_string());
+                } else if lower.contains("manual")
+                    || lower.contains("admin")
+                    || lower.contains("deact")
+                {
+                    return Some("manual_deactivate".to_string());
+                } else {
+                    return Some(trimmed.to_string());
+                }
+            }
+        }
+
+        if let Some(code) = val_int {
+            // Mapeamento padrão ITU-T G.984 / TP-Link DeltaStream MIB
+            match code {
+                // Dying gasp / Power off
+                4 | 9 | 13 | 14 | 15 => Some("dying_gasp".to_string()),
+                // Loss of Signal / Loss of Frame / Signal Fail
+                2 | 3 | 5 => Some("los".to_string()),
+                // Reboot
+                6 | 12 => Some("reboot".to_string()),
+                // Unknown / Link Down
+                1 => Some("los".to_string()),
+                _ if code > 0 => Some(format!("code_{}", code)),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
 }
 
 #[async_trait]
@@ -260,7 +310,37 @@ impl OltDriver for TpLinkDriver {
             .and_then(|vb| vb.value_str)
             .map(|s| s.trim().to_string());
 
-        // 4. SysDescr de fallback
+        // 4. Suporte e Fallback a Chassis Modulares X2/X7 (tpControlBoardTable: .1.3.6.1.4.1.11863.6.103.1.1)
+        let mut modular_model = None;
+        let mut modular_fw = None;
+        if hw_version.is_none() || fw_version.is_none() {
+            if let Ok(ctrl_vbs) = client
+                .walk(".1.3.6.1.4.1.11863.6.103.1.1", 20, Duration::from_millis(5))
+                .await
+            {
+                for vb in ctrl_vbs {
+                    if let Some(s) = vb.value_str {
+                        let trimmed = s.trim();
+                        if !trimmed.is_empty() && trimmed != "--" {
+                            if trimmed.contains("DS-P8000")
+                                || trimmed.contains("X2")
+                                || trimmed.contains("X7")
+                            {
+                                modular_model = Some(trimmed.to_string());
+                            } else if (trimmed.contains('.')
+                                || trimmed.contains('v')
+                                || trimmed.contains('V'))
+                                && modular_fw.is_none()
+                            {
+                                modular_fw = Some(trimmed.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. SysDescr de fallback
         let sys_descr = client
             .get(".1.3.6.1.2.1.1.1.0")
             .await?
@@ -268,6 +348,7 @@ impl OltDriver for TpLinkDriver {
             .unwrap_or_else(|| "TP-Link DeltaStream OLT".to_string());
 
         let model_display = hw_version
+            .or(modular_model)
             .or_else(|| {
                 if sys_descr.contains("DS-P") {
                     sys_descr
@@ -280,7 +361,9 @@ impl OltDriver for TpLinkDriver {
             })
             .unwrap_or_else(|| "TP-Link DeltaStream".to_string());
 
-        let fw_display = fw_version.unwrap_or_else(|| "--".to_string());
+        let fw_display = fw_version
+            .or(modular_fw)
+            .unwrap_or_else(|| "--".to_string());
 
         Ok(format!(
             "TP-Link SNMPv2c Online | Host: {} | Modelo: {} | Firmware: {}",
@@ -571,29 +654,62 @@ impl OltDriver for TpLinkDriver {
             }
         }
 
-        // ── 10. Causa da Última Desconexão (omOnuLastDownCauses: .1.3.6.1.4.1.11863.6.100.1.7.2.1.42) ──
+        // ── 10. Causa da Última Desconexão (Recomendação Engenharia TP-Link: .1.3.6.1.4.1.11863.6.107.1.5.2.1.42 com fallback .100) ──
         let mut down_reason_map: HashMap<(i32, i32, i32), String> = HashMap::new();
-        if let Ok(reason_vbs) = client
+        let mut reason_vbs = client
             .walk(
-                ".1.3.6.1.4.1.11863.6.100.1.7.2.1.42",
+                ".1.3.6.1.4.1.11863.6.107.1.5.2.1.42",
+                1000,
+                Duration::from_millis(5),
+            )
+            .await
+            .unwrap_or_default();
+
+        if reason_vbs.is_empty() {
+            // Fallback para árvore alternativa .100 caso a OLT use firmware legado
+            reason_vbs = client
+                .walk(
+                    ".1.3.6.1.4.1.11863.6.100.1.7.2.1.42",
+                    1000,
+                    Duration::from_millis(5),
+                )
+                .await
+                .unwrap_or_default();
+        }
+
+        for vb in reason_vbs {
+            if let Some(idx) = Self::parse_onu_index(&vb.oid) {
+                if let Some(reason) =
+                    Self::decode_down_reason(vb.value_str.as_deref(), vb.value_int)
+                {
+                    down_reason_map.insert(idx, reason);
+                }
+            }
+        }
+
+        // ── 11. Último Tempo Online da ONT (Recomendação Engenharia TP-Link: .1.3.6.1.4.1.11863.6.107.1.5.2.1.19) ──
+        let mut last_online_map: HashMap<(i32, i32, i32), String> = HashMap::new();
+        if let Ok(time_vbs) = client
+            .walk(
+                ".1.3.6.1.4.1.11863.6.107.1.5.2.1.19",
                 1000,
                 Duration::from_millis(5),
             )
             .await
         {
-            for vb in reason_vbs {
+            for vb in time_vbs {
                 if let Some(idx) = Self::parse_onu_index(&vb.oid) {
-                    if let Some(r) = vb.value_str {
-                        let trimmed = r.trim().to_string();
-                        if !trimmed.is_empty() && trimmed != "--" {
-                            down_reason_map.insert(idx, trimmed);
+                    if let Some(s) = vb.value_str {
+                        let trimmed = s.trim().to_string();
+                        if !trimmed.is_empty() && trimmed != "--" && trimmed != "0" {
+                            last_online_map.insert(idx, trimmed);
                         }
                     }
                 }
             }
         }
 
-        // ── 11. Consolidação dos dados coletados ──
+        // ── 12. Consolidação dos dados coletados ──
         let mut results = Vec::with_capacity(serial_map.len());
 
         for (idx @ (slot, pon_port, onu_id), serial_number) in serial_map {
@@ -606,7 +722,11 @@ impl OltDriver for TpLinkDriver {
             let volt = volt_map.get(&idx).copied();
             let bias = bias_map.get(&idx).copied();
             let customer_identifier = descr_map.get(&idx).cloned();
-            let offline_reason = down_reason_map.get(&idx).cloned();
+            let offline_reason = if !is_online {
+                down_reason_map.get(&idx).cloned()
+            } else {
+                None
+            };
 
             // Potência Tx da porta PON da OLT (módulo SFP)
             let olt_tx = pon_sfp_tx_map.get(&pon_port).copied();
@@ -663,5 +783,86 @@ impl OltDriver for TpLinkDriver {
         );
 
         Ok(results)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_onu_index() {
+        assert_eq!(
+            TpLinkDriver::parse_onu_index(".1.3.6.1.4.1.11863.6.100.1.7.2.1.26.0.2.0"),
+            Some((0, 2, 0))
+        );
+        assert_eq!(
+            TpLinkDriver::parse_onu_index(".1.3.6.1.4.1.11863.6.107.1.5.2.1.42.1.16.5"),
+            Some((1, 16, 5))
+        );
+    }
+
+    #[test]
+    fn test_decode_down_reason_strings() {
+        assert_eq!(
+            TpLinkDriver::decode_down_reason(Some("dying-gasp"), None),
+            Some("dying_gasp".to_string())
+        );
+        assert_eq!(
+            TpLinkDriver::decode_down_reason(Some("power off"), None),
+            Some("dying_gasp".to_string())
+        );
+        assert_eq!(
+            TpLinkDriver::decode_down_reason(Some("LOS (Loss of Signal)"), None),
+            Some("los".to_string())
+        );
+        assert_eq!(
+            TpLinkDriver::decode_down_reason(Some("reboot"), None),
+            Some("reboot".to_string())
+        );
+        assert_eq!(
+            TpLinkDriver::decode_down_reason(Some("manual deactivation"), None),
+            Some("manual_deactivate".to_string())
+        );
+    }
+
+    #[test]
+    fn test_decode_down_reason_integers() {
+        assert_eq!(
+            TpLinkDriver::decode_down_reason(None, Some(4)),
+            Some("dying_gasp".to_string())
+        );
+        assert_eq!(
+            TpLinkDriver::decode_down_reason(None, Some(9)),
+            Some("dying_gasp".to_string())
+        );
+        assert_eq!(
+            TpLinkDriver::decode_down_reason(None, Some(2)),
+            Some("los".to_string())
+        );
+        assert_eq!(
+            TpLinkDriver::decode_down_reason(None, Some(3)),
+            Some("los".to_string())
+        );
+        assert_eq!(
+            TpLinkDriver::decode_down_reason(None, Some(6)),
+            Some("reboot".to_string())
+        );
+        assert_eq!(
+            TpLinkDriver::decode_down_reason(None, Some(1)),
+            Some("los".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_power_value() {
+        assert_eq!(
+            TpLinkDriver::parse_power_value(Some("-21.45 dBm"), None),
+            Some(-21.45)
+        );
+        assert_eq!(
+            TpLinkDriver::parse_power_value(None, Some(-2145)),
+            Some(-21.45)
+        );
     }
 }

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.1] — 2026-10-13
+
+### 🚀 Driver Resiliency & Vendor Standardization
+- **TP-Link DeltaStream Official MIB Alignment**:
+  - Migrated primary offline drop cause query to official dynamic event table `.1.3.6.1.4.1.11863.6.107.1.5.2.1.42`, keeping automatic fallback to `.100.1.7.2.1.42` for legacy firmware revisions.
+  - Implemented dual drop reason decoding (`TpLinkDriver::decode_down_reason`) handling both textual `DisplayString` and numeric `INTEGER` enums (ITU-T G.984 / DeltaStream standards).
+  - Added collection of ONT last online timestamp via `.1.3.6.1.4.1.11863.6.107.1.5.2.1.19`.
+  - Added modular chassis detection (`DS-P8000-X2` and `DS-P8000-X7`) via `tpControlBoardTable` (`.1.3.6.1.4.1.11863.6.103.1.1`) in connectivity testing and hardware discovery.
+  - Normalized `offline_reason` to be populated strictly when ONUs are offline (`!is_online`), maintaining system-wide state consistency.
+  - Added integrated unit test suite for TP-Link index parsing, string/integer drop cause decoding, and power telemetry conversion.
+
+---
+
 ## [1.1.0] — 2026-09-19
 
 ### 🚀 Driver Resiliency & Bugfixes

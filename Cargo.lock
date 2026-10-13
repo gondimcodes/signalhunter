@@ -2350,7 +2350,7 @@ dependencies = [
 
 [[package]]
 name = "signalhunter"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "aes-gcm",
  "anyhow",

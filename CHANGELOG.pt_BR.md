@@ -7,6 +7,19 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [1.1.1] — 2026-10-13
+
+### 🚀 Resiliência de Drivers & Padronização de Fabricantes
+- **Alinhamento do Driver TP-Link DeltaStream com MIBs Oficiais da Engenharia**:
+  - Migração da consulta primária de causa de queda para a tabela dinâmica de eventos `.1.3.6.1.4.1.11863.6.107.1.5.2.1.42`, com fallback automático para `.100.1.7.2.1.42` em firmwares legados.
+  - Implementação de decodificação dual (`TpLinkDriver::decode_down_reason`) suportando tanto strings descritivas (`DisplayString`) quanto enums numéricos inteiros (`INTEGER` ITU-T G.984 / DeltaStream).
+  - Adicionada coleta da estampa temporal da última conexão online da ONT via `.1.3.6.1.4.1.11863.6.107.1.5.2.1.19`.
+  - Adicionado suporte a identificação de chassis modulares (`DS-P8000-X2` e `DS-P8000-X7`) via `tpControlBoardTable` (`.1.3.6.1.4.1.11863.6.103.1.1`) em testes de conectividade e inventário de hardware.
+  - Normalização do campo `offline_reason` para ser preenchido estritamente quando a ONU estiver desconectada (`!is_online`), mantendo paridade com os demais drivers.
+  - Implementação de suíte de testes unitários integrados cobrindo decodificação de motivos de queda, parsing de índices de OID e potências ópticas.
+
+---
+
 ## [1.1.0] — 2026-09-19
 
 ### 🚀 Correções & Resiliência de Drivers
