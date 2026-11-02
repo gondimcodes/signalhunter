@@ -7,6 +7,23 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [1.1.2] — 2026-11-02
+
+### 🛡️ Segurança & Hardening de Cadeia de Suprimentos
+- **Remediação Integral de Vulnerabilidades RustSec (Zero Vulnerabilities)**:
+  - Saneamento de 10 advisories de segurança e 12 avisos via atualização cirúrgica do grafo de dependências:
+    - `zstd` (0.13.3 -> 0.14.3 / RUSTSEC-2026-0391: prevenção de vazamento de dados entre streams).
+    - `zstd-safe` (7.2.4 -> 8.2.0 / RUSTSEC-2026-0398 e RUSTSEC-2026-0403: segurança de memória e validação de buffers).
+    - `zstd-sys` (2.0.16 -> 2.1.2 / RUSTSEC-2026-0410).
+    - `rustls` (0.23.45 -> 0.23.46 / RUSTSEC-2026-0349, 0347, 0346, 0348).
+    - `rustls-webpki` (0.103.14 -> 0.103.16 / RUSTSEC-2026-0382).
+    - `webpki-roots` (1.0.9 -> 1.0.11 / RUSTSEC-2026-0381).
+    - `tokio` (1.53.1 -> 1.54.1 / RUSTSEC-2026-0386: I/O safety).
+    - `chacha20` (0.10.1 -> 0.10.2: saneamento de versão yanked).
+  - Preservada conformidade estrita com a suíte de testes unitários (6/6 aprovados) e `cargo clippy`.
+
+---
+
 ## [1.1.1] — 2026-10-13
 
 ### 🚀 Resiliência de Drivers & Padronização de Fabricantes
