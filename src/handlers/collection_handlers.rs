@@ -319,7 +319,7 @@ pub async fn sync_olt_telemetry(
         if let Some((onu_id,)) = onu_id_opt {
             let prev_rx_opt: Option<(Option<f64>,)> = sqlx::query_as(
                 "SELECT CAST(rx_power_dbm AS DOUBLE) FROM onu_signal_history 
-                 WHERE onu_id = ? ORDER BY id DESC LIMIT 1",
+                 WHERE onu_id = ? AND rx_power_dbm <= -8.00 ORDER BY id DESC LIMIT 1",
             )
             .bind(onu_id)
             .fetch_optional(&mut *tx)
@@ -334,7 +334,28 @@ pub async fn sync_olt_telemetry(
                 &state.config.thresholds,
             );
 
-            if let Err(e) = sqlx::query(
+            let rx_to_insert = if data.is_online {
+                data.rx_power_dbm
+            } else {
+                None
+            };
+            let tx_to_insert = if data.is_online {
+                data.tx_power_dbm
+            } else {
+                None
+            };
+            let olt_rx_to_insert = if data.is_online {
+                data.olt_rx_power_dbm
+            } else {
+                None
+            };
+            let att_to_insert = if data.is_online {
+                data.attenuation_db
+            } else {
+                None
+            };
+
+            match sqlx::query(
                 "INSERT INTO onu_signal_history (
                     onu_id, collected_at, rx_power_dbm, tx_power_dbm, olt_rx_power_dbm,
                     olt_tx_power_dbm, attenuation_db, voltage_v, bias_current_ma,
@@ -342,11 +363,11 @@ pub async fn sync_olt_telemetry(
                 ) VALUES (?, UTC_TIMESTAMP(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             )
             .bind(onu_id)
-            .bind(data.rx_power_dbm)
-            .bind(data.tx_power_dbm)
-            .bind(data.olt_rx_power_dbm)
+            .bind(rx_to_insert)
+            .bind(tx_to_insert)
+            .bind(olt_rx_to_insert)
             .bind(data.olt_tx_power_dbm)
-            .bind(data.attenuation_db)
+            .bind(att_to_insert)
             .bind(data.voltage_v)
             .bind(data.bias_current_ma)
             .bind(data.temperature_c)
@@ -356,7 +377,19 @@ pub async fn sync_olt_telemetry(
             .bind("snmp")
             .execute(&mut *tx)
             .await {
-                log::warn!("Falha ao gravar histórico de sinal para onu_id {}: {}", onu_id, e);
+                Ok(insert_res) => {
+                    let hist_id = insert_res.last_insert_id();
+                    let _ = sqlx::query(
+                        "UPDATE onus SET latest_signal_history_id = ? WHERE id = ?"
+                    )
+                    .bind(hist_id)
+                    .bind(onu_id)
+                    .execute(&mut *tx)
+                    .await;
+                }
+                Err(e) => {
+                    log::warn!("Falha ao gravar histórico de sinal para onu_id {}: {}", onu_id, e);
+                }
             }
         }
     }

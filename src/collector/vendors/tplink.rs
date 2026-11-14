@@ -35,7 +35,7 @@ impl TpLinkDriver {
     fn parse_pon_port(oid: &str) -> Option<i32> {
         let parts: Vec<&str> = oid.split('.').collect();
         if let Some(last) = parts.last().and_then(|s| s.parse::<u32>().ok()) {
-            if last >= 114689 && last <= 114752 {
+            if (114689..=114752).contains(&last) {
                 return Some(((last - 114688) & 0xFF) as i32);
             }
             if last > 0 && last <= 64 {
@@ -43,7 +43,7 @@ impl TpLinkDriver {
             }
         }
         if parts.len() >= 2 {
-            if let Some(p) = parts[parts.len() - 1].parse::<i32>().ok() {
+            if let Ok(p) = parts[parts.len() - 1].parse::<i32>() {
                 if p > 0 && p <= 64 {
                     return Some(p);
                 }
@@ -194,7 +194,7 @@ impl TpLinkDriver {
                 .trim();
             if !trimmed.is_empty() && trimmed != "--" && trimmed != "N/A" {
                 if let Ok(val) = trimmed.parse::<f64>() {
-                    if val >= 0.0 && val < 200.0 {
+                    if (0.0..200.0).contains(&val) {
                         return Some(val);
                     }
                 }
@@ -210,7 +210,7 @@ impl TpLinkDriver {
                 } else {
                     num as f64
                 };
-                if val >= 0.0 && val < 200.0 {
+                if (0.0..200.0).contains(&val) {
                     return Some(val);
                 }
             }
@@ -267,6 +267,12 @@ impl TpLinkDriver {
         } else {
             None
         }
+    }
+}
+
+impl Default for TpLinkDriver {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -737,7 +743,7 @@ impl OltDriver for TpLinkDriver {
             let attenuation_db = match (olt_tx, rx) {
                 (Some(tx_olt), Some(rx_onu)) if rx_onu > -45.0 => {
                     let att = tx_olt - rx_onu;
-                    if att >= 0.0 && att <= 45.0 {
+                    if (0.0..=45.0).contains(&att) {
                         Some(att)
                     } else {
                         None
@@ -746,7 +752,7 @@ impl OltDriver for TpLinkDriver {
                 _ => match (tx, olt_rx) {
                     (Some(tx_onu), Some(rx_olt)) if rx_olt > -45.0 => {
                         let att = tx_onu - rx_olt;
-                        if att >= 0.0 && att <= 45.0 {
+                        if (0.0..=45.0).contains(&att) {
                             Some(att)
                         } else {
                             None

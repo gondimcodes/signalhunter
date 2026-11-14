@@ -17,6 +17,12 @@ impl DatacomDriver {
     }
 }
 
+impl Default for DatacomDriver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl OltDriver for DatacomDriver {
     fn vendor_name(&self) -> &'static str {
@@ -78,7 +84,9 @@ impl OltDriver for DatacomDriver {
         let mut ifindex_map: HashMap<String, (i32, i32, i32)> = HashMap::new(); // ifindex_str -> (slot, port, onu_id)
 
         for vb in if_names {
-            if let (Some(ifindex_str), Some(name_str)) = (vb.oid.split('.').last(), vb.value_str) {
+            if let (Some(ifindex_str), Some(name_str)) =
+                (vb.oid.split('.').next_back(), vb.value_str)
+            {
                 if name_str.starts_with("gpon-") && name_str.contains("-onu-") {
                     let parts: Vec<&str> = name_str.split("-onu-").collect();
                     if parts.len() == 2 {
@@ -113,7 +121,8 @@ impl OltDriver for DatacomDriver {
             .unwrap_or_default();
 
         for vb in rx_vbs {
-            if let (Some(ifindex_str), Some(rx_str)) = (vb.oid.split('.').last(), vb.value_str) {
+            if let (Some(ifindex_str), Some(rx_str)) = (vb.oid.split('.').next_back(), vb.value_str)
+            {
                 if let Ok(rx_val) = rx_str.trim().parse::<f64>() {
                     if rx_val < -6.0 && rx_val > -45.0 {
                         snmp_rx_map.insert(ifindex_str.to_string(), rx_val);
@@ -134,7 +143,8 @@ impl OltDriver for DatacomDriver {
             .unwrap_or_default();
 
         for vb in tx_vbs {
-            if let (Some(ifindex_str), Some(tx_str)) = (vb.oid.split('.').last(), vb.value_str) {
+            if let (Some(ifindex_str), Some(tx_str)) = (vb.oid.split('.').next_back(), vb.value_str)
+            {
                 if let Ok(tx_val) = tx_str.trim().parse::<f64>() {
                     if tx_val > -10.0 && tx_val < 15.0 && tx_val != 0.0 {
                         snmp_tx_map.insert(ifindex_str.to_string(), tx_val);
@@ -155,7 +165,7 @@ impl OltDriver for DatacomDriver {
             .unwrap_or_default();
 
         for vb in down_reason_vbs {
-            if let Some(ifindex_str) = vb.oid.split('.').last() {
+            if let Some(ifindex_str) = vb.oid.split('.').next_back() {
                 let reason = if let Some(val_str) = vb.value_str {
                     let s = val_str.to_lowercase();
                     if s.contains("dgi")
@@ -178,7 +188,7 @@ impl OltDriver for DatacomDriver {
                 } else if let Some(val_int) = vb.value_int {
                     match val_int {
                         1 | 2 => "dying_gasp".to_string(),
-                        3 | 4 | 5 => "los".to_string(),
+                        3..=5 => "los".to_string(),
                         6 => "manual_deactivate".to_string(),
                         _ => "los".to_string(),
                     }
@@ -201,7 +211,7 @@ impl OltDriver for DatacomDriver {
             .unwrap_or_default();
 
         for vb in primary_status_vbs {
-            if let Some(ifindex_str) = vb.oid.split('.').last() {
+            if let Some(ifindex_str) = vb.oid.split('.').next_back() {
                 let is_up = if let Some(val_int) = vb.value_int {
                     val_int == 1 || val_int == 2 // 1 = up/active, 2 = operational
                 } else if let Some(val_str) = vb.value_str {
@@ -226,7 +236,9 @@ impl OltDriver for DatacomDriver {
             .unwrap_or_default();
 
         for vb in name_vbs {
-            if let (Some(ifindex_str), Some(name_val)) = (vb.oid.split('.').last(), vb.value_str) {
+            if let (Some(ifindex_str), Some(name_val)) =
+                (vb.oid.split('.').next_back(), vb.value_str)
+            {
                 let cleaned = name_val.trim();
                 if !cleaned.is_empty() && cleaned != "N/A" {
                     snmp_name_map.insert(ifindex_str.to_string(), cleaned.to_string());
@@ -246,7 +258,8 @@ impl OltDriver for DatacomDriver {
             .unwrap_or_default();
 
         for vb in serial_vbs {
-            if let (Some(ifindex_str), Some(serial_val)) = (vb.oid.split('.').last(), vb.value_str)
+            if let (Some(ifindex_str), Some(serial_val)) =
+                (vb.oid.split('.').next_back(), vb.value_str)
             {
                 let cleaned = serial_val.trim();
                 if !cleaned.is_empty() && cleaned != "N/A" {

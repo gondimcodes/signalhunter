@@ -1,6 +1,6 @@
 [package]
 name = "signalhunter"
-version = "1.1.2"
+version = "1.2.0"
 edition = "2021"
 authors = ["Marcelo Gondim da Cunha <gondim@ispfocus.net.br>"]
 license = "GPL-3.0-only"
@@ -10,16 +10,13 @@ description = "Sistema Inteligente de Telemetria Óptica, Diagnóstico de Degrad
 # Async Runtime & Utilities
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["io"] }
-futures = "0.3"
 async-trait = "0.1"
 
 # Web Framework & HTTP Server
 axum = { version = "0.7", features = ["macros", "multipart"] }
 # Atualizado axum-server para 0.8 com rustls 0.23 nativo (elimina rustls-pemfile unmaintained)
 axum-server = { version = "0.8", features = ["tls-rustls"] }
-axum-extra = { version = "0.9", features = ["cookie"] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
-tower-http = { version = "0.5", features = ["cors", "trace", "compression-full"] }
 
 # Serialization & Configuration
 serde = { version = "1.0", features = ["derive"] }
@@ -29,7 +26,8 @@ chrono = { version = "0.4", features = ["serde"] }
 flate2 = "1.0"
 
 # Database (MySQL / MariaDB via SQLx com rustls 100% estático em Rust, eliminando dependência de libssl externa)
-sqlx = { version = "0.8", default-features = false, features = ["mysql", "macros", "runtime-tokio-rustls", "chrono"] }
+sqlx = { version = "0.8", default-features = false, features = ["mysql", "derive", "runtime-tokio-rustls"] }
+sqlx-mysql = { version = "0.8", features = ["chrono"] }
 
 # Security & Cryptography
 aes-gcm = "0.10"
@@ -49,9 +47,6 @@ anyhow = "1"
 log = "0.4"
 env_logger = "0.11"
 regex = "1.10"
-
-# Networking & Protocols (quick-xml 0.41 sem DoS)
-quick-xml = { version = "0.41", features = ["serialize"] }
 
 [patch.crates-io]
 sqlx-mysql = { path = "vendor/sqlx-mysql" }

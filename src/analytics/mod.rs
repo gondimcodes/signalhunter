@@ -64,6 +64,54 @@ pub struct DiagnosticSummary {
     pub incidents: Vec<DiagnosticIncident>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpstreamIssueItem {
+    pub onu_id: u64,
+    pub olt_id: u64,
+    pub olt_name: String,
+    pub slot: i32,
+    pub pon_port: i32,
+    pub onu_id_num: i32,
+    pub serial_number: String,
+    pub customer_identifier: Option<String>,
+    pub rx_power_dbm: Option<f64>,
+    pub tx_power_dbm: Option<f64>,
+    pub olt_rx_power_dbm: Option<f64>,
+    pub olt_tx_power_dbm: Option<f64>,
+    pub downstream_attenuation_db: Option<f64>,
+    pub upstream_attenuation_db: Option<f64>,
+    pub asymmetry_db: Option<f64>,
+    pub issue_type: String, // "critical_upstream", "warning_upstream", "asymmetry", "both"
+    pub root_cause: String,
+    pub recommended_action: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PonUpstreamHealth {
+    pub olt_name: String,
+    pub slot: i32,
+    pub pon_port: i32,
+    pub total_onus: usize,
+    pub saturated_upstream_count: usize,
+    pub critical_upstream_count: usize,
+    pub warning_upstream_count: usize,
+    pub avg_olt_rx_dbm: Option<f64>,
+    pub pon_status: String, // "saturated", "critical", "warning"
+    pub is_sfp_receiver_suspect: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct UpstreamDiagnosticsSummary {
+    pub total_audited_onus: usize,
+    pub saturated_upstream_count: usize,
+    pub critical_upstream_count: usize,
+    pub warning_upstream_count: usize,
+    pub asymmetric_count: usize,
+    pub suspect_pons_count: usize,
+    pub items: Vec<UpstreamIssueItem>,
+    pub suspect_pons: Vec<PonUpstreamHealth>,
+}
+
 pub struct OpticalEvaluator;
 
 impl OpticalEvaluator {
@@ -82,11 +130,11 @@ impl OpticalEvaluator {
             None => return SignalClassification::Offline,
         };
 
-        if rx >= -18.0 && rx <= -14.0 {
+        if (-18.0..=-14.0).contains(&rx) {
             SignalClassification::Excellent
-        } else if rx >= -23.0 && rx < -18.0 {
+        } else if (-23.0..-18.0).contains(&rx) {
             SignalClassification::Good
-        } else if rx >= -26.99 && rx < -23.0 {
+        } else if (-26.99..-23.0).contains(&rx) {
             SignalClassification::Warning
         } else {
             SignalClassification::Critical
@@ -104,10 +152,18 @@ impl OpticalEvaluator {
     ) -> (Option<f64>, bool) {
         match (current_rx_dbm, previous_rx_dbm) {
             (Some(curr), Some(prev)) => {
+                // Descarta deltas caso alguma das leituras esteja fora do envelope físico operacional de GPON (-45 dBm a -8 dBm)
+                if !(-45.0..=-8.0).contains(&prev) || !(-45.0..=-8.0).contains(&curr) {
+                    return (None, false);
+                }
                 let delta = curr - prev;
+                // Variações bruscas superiores a 15 dB decorrem de desconexão (LOS), troca de porta ou calibração
+                if delta < -15.0 || delta > 15.0 {
+                    return (Some((delta * 100.0).round() / 100.0), false);
+                }
                 // is_degraded quando a perda de potência óptica for maior ou igual ao threshold configurado (ex: delta <= -3.0 dB)
                 let is_degraded = delta <= -cfg.degradation_alert_delta_db.abs();
-                (Some(delta), is_degraded)
+                (Some((delta * 100.0).round() / 100.0), is_degraded)
             }
             _ => (None, false),
         }
@@ -598,5 +654,680 @@ impl OpticalEvaluator {
         summary.incidents = incidents;
 
         summary
+    }
+
+    /// Executa avaliação de saúde de Upstream (Rx OLT na porta PON) e detecta assimetrias ópticas
+    pub fn evaluate_upstream_diagnostics(onus: &[OnuRecord]) -> UpstreamDiagnosticsSummary {
+        let mut summary = UpstreamDiagnosticsSummary::default();
+        let mut items = Vec::new();
+        let mut pon_map: HashMap<(String, i32, i32), Vec<&OnuRecord>> = HashMap::new();
+
+        let mut audited_count = 0;
+
+        for onu in onus {
+            // Apenas ONUs ativas/online transmitem sinal óptico de Upstream para a OLT.
+            // ONUs em LOS, Offline ou Dying Gasp não transmitem e devem ser descartadas da auditoria de Upstream.
+            if onu.status != "online" {
+                continue;
+            }
+
+            let olt_name = onu
+                .olt_name
+                .clone()
+                .unwrap_or_else(|| "OLT Principal".to_string());
+            let pon_key = (olt_name.clone(), onu.slot, onu.pon_port);
+            pon_map.entry(pon_key).or_default().push(onu);
+
+            // Considera para auditoria ONUs que possuem leitura de Rx na OLT dentro do envelope físico operacional
+            if let Some(olt_rx) = onu.latest_olt_rx_power_dbm {
+                if !(-45.0..=0.0).contains(&olt_rx) {
+                    continue;
+                }
+                audited_count += 1;
+
+                let rx_onu = onu.latest_rx_power_dbm;
+                let tx_onu = onu.latest_tx_power_dbm;
+                let olt_tx = onu.latest_olt_tx_power_dbm.unwrap_or(4.50);
+
+                let down_att = rx_onu.map(|rx| olt_tx - rx);
+                let up_att = tx_onu.map(|tx| tx - olt_rx);
+                let asymmetry = match (down_att, up_att) {
+                    (Some(d), Some(u)) => Some((d - u).abs()),
+                    _ => None,
+                };
+
+                let is_sat_up = olt_rx > -12.0;
+                let is_crit_up = olt_rx <= -27.0;
+                let is_warn_up = olt_rx <= -25.0 && olt_rx > -27.0;
+                let is_asymmetric = asymmetry.map(|a| a >= 3.0).unwrap_or(false);
+
+                if is_sat_up || is_crit_up || is_warn_up || is_asymmetric {
+                    let issue_type = if (is_crit_up || is_warn_up || is_sat_up) && is_asymmetric {
+                        "both".to_string()
+                    } else if is_sat_up {
+                        "saturated_upstream".to_string()
+                    } else if is_crit_up {
+                        "critical_upstream".to_string()
+                    } else if is_warn_up {
+                        "warning_upstream".to_string()
+                    } else {
+                        "asymmetry".to_string()
+                    };
+
+                    let root_cause = if is_sat_up {
+                        format!(
+                            "Potência de recepção na OLT com risco de saturação ({:.2} dBm > -12.0 dBm). Causa provável: Drop óptico muito curto sem atenuador, provocando sobrecarga no fotodiodo APD da OLT e distorção de quadro.",
+                            olt_rx
+                        )
+                    } else if is_asymmetric && is_crit_up {
+                        if olt_rx <= -29.0 {
+                            format!(
+                                "Assimetria óptica severa ({:.2} dB) com Rx OLT crítico fora de especificação ({:.2} dBm < -29.0 dBm). Causa provável: Conector sujo/polimento imperfeito dispersando laser 1310nm, microcurvatura severa no drop ou laser da ONU esgotado.",
+                                asymmetry.unwrap_or(0.0),
+                                olt_rx
+                            )
+                        } else {
+                            format!(
+                                "Assimetria óptica severa ({:.2} dB) com Rx OLT marginal ({:.2} dBm entre -27 e -29 dBm). Causa provável: Refração seletiva em 1310nm ou conector SC-APC atenuado.",
+                                asymmetry.unwrap_or(0.0),
+                                olt_rx
+                            )
+                        }
+                    } else if is_crit_up {
+                        if olt_rx <= -29.0 {
+                            format!(
+                                "Potência de recepção na OLT crítica/fora de especificação ({:.2} dBm < -29.0 dBm). No limiar de sensibilidade do receptor APD (Classes B+/C+), com descarte de ACKs e risco iminente de perda de sincronismo (LOSi).",
+                                olt_rx
+                            )
+                        } else {
+                            format!(
+                                "Potência de recepção na OLT marginal ({:.2} dBm entre -27 e -29 dBm). Margem de segurança exígua contra variações térmicas diárias e atenuação na fibra.",
+                                olt_rx
+                            )
+                        }
+                    } else if is_asymmetric {
+                        format!(
+                            "Diferença de atenuação de {:.2} dB entre Downstream e Upstream (Normal < 1.0 dB). Causa provável: Conector óptico com sujeira oleosa ou refração seletiva em 1310nm.",
+                            asymmetry.unwrap_or(0.0)
+                        )
+                    } else {
+                        format!(
+                            "Potência de recepção na OLT em atenção ({:.2} dBm entre -25 e -27 dBm). Margem de segurança preventiva reduzida.",
+                            olt_rx
+                        )
+                    };
+
+                    let recommended_action = if is_sat_up {
+                        "Instalar atenuador óptico (ex: 3 a 5 dB) no DIO ou PTO do assinante para reduzir a potência de recepção e proteger o APD da OLT.".to_string()
+                    } else if is_crit_up || is_asymmetric {
+                        "Inspecionar conectorização SC-APC da ONU na CTO/PTO, verificar potência de emissão Tx da ONU com Power Meter e medir atenuação da fibra.".to_string()
+                    } else {
+                        "Acompanhar telemetria preventiva de Upstream e inspecionar conectorização caso ocorram oscilações de upload.".to_string()
+                    };
+
+                    items.push(UpstreamIssueItem {
+                        onu_id: onu.id,
+                        olt_id: onu.olt_id,
+                        olt_name,
+                        slot: onu.slot,
+                        pon_port: onu.pon_port,
+                        onu_id_num: onu.onu_id,
+                        serial_number: onu.serial_number.clone(),
+                        customer_identifier: onu
+                            .customer_identifier
+                            .clone()
+                            .or_else(|| onu.custom_name.clone()),
+                        rx_power_dbm: rx_onu,
+                        tx_power_dbm: tx_onu,
+                        olt_rx_power_dbm: Some(olt_rx),
+                        olt_tx_power_dbm: Some(olt_tx),
+                        downstream_attenuation_db: down_att,
+                        upstream_attenuation_db: up_att,
+                        asymmetry_db: asymmetry,
+                        issue_type,
+                        root_cause,
+                        recommended_action,
+                    });
+                }
+            }
+        }
+
+        // Análise de Portas PON com anomalia de Upstream (Saturação, Crítica ou Atenção Coletiva)
+        let mut suspect_pons = Vec::new();
+        for ((olt_name, slot, pon_port), pon_onus) in pon_map {
+            let mut pon_olt_rxs = Vec::new();
+            let mut pon_sat_up = 0;
+            let mut pon_crit_up = 0;
+            let mut pon_warn_up = 0;
+
+            for o in &pon_onus {
+                if o.status != "online" {
+                    continue;
+                }
+                if let Some(r) = o.latest_olt_rx_power_dbm {
+                    if !(-45.0..=0.0).contains(&r) {
+                        continue;
+                    }
+                    pon_olt_rxs.push(r);
+                    if r > -12.0 {
+                        pon_sat_up += 1;
+                    } else if r <= -27.0 {
+                        pon_crit_up += 1;
+                    } else if r <= -25.0 {
+                        pon_warn_up += 1;
+                    }
+                }
+            }
+
+            let total_with_rx = pon_olt_rxs.len();
+            if total_with_rx > 0 {
+                let avg_rx = pon_olt_rxs.iter().sum::<f64>() / (total_with_rx as f64);
+
+                // A classificação da porta PON é estritamente determinada pela potência média de recepção óptica na porta (Rx na PON):
+                // 1. Saturação na PON: Média > -12.0 dBm
+                // 2. Crítica na PON: Média <= -27.0 dBm
+                // 3. Atenção na PON: Média <= -25.0 dBm
+                // Portas com média nominal/saudável (-12.0 a -25.0 dBm) não entram no painel de anomalias coletivas
+                let (pon_status, is_suspect) = if avg_rx > -12.0 {
+                    ("saturated".to_string(), true)
+                } else if avg_rx <= -27.0 {
+                    ("critical".to_string(), true)
+                } else if avg_rx <= -25.0 {
+                    ("warning".to_string(), false)
+                } else {
+                    ("healthy".to_string(), false)
+                };
+
+                if pon_status != "healthy" {
+                    suspect_pons.push(PonUpstreamHealth {
+                        olt_name,
+                        slot,
+                        pon_port,
+                        total_onus: total_with_rx,
+                        saturated_upstream_count: pon_sat_up,
+                        critical_upstream_count: pon_crit_up,
+                        warning_upstream_count: pon_warn_up,
+                        avg_olt_rx_dbm: Some(avg_rx),
+                        pon_status,
+                        is_sfp_receiver_suspect: is_suspect,
+                    });
+                }
+            }
+        }
+
+        // Ordena itens: "both" e "critical_upstream" primeiro, depois saturados, depois por assimetria decrescente
+        items.sort_by(|a, b| {
+            let rank = |it: &str| match it {
+                "both" => 1,
+                "critical_upstream" => 2,
+                "saturated_upstream" => 3,
+                "warning_upstream" => 4,
+                "asymmetry" => 5,
+                _ => 6,
+            };
+            let r_a = rank(&a.issue_type);
+            let r_b = rank(&b.issue_type);
+            if r_a != r_b {
+                r_a.cmp(&r_b)
+            } else {
+                b.asymmetry_db
+                    .unwrap_or(0.0)
+                    .partial_cmp(&a.asymmetry_db.unwrap_or(0.0))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            }
+        });
+
+        // Ordena suspect_pons por severidade ("saturated" -> "critical" -> "warning"), depois por quantidade de críticas decrescente
+        suspect_pons.sort_by(|a, b| {
+            let rank = |st: &str| match st {
+                "saturated" => 1,
+                "critical" => 2,
+                "warning" => 3,
+                _ => 4,
+            };
+            let r_a = rank(&a.pon_status);
+            let r_b = rank(&b.pon_status);
+            if r_a != r_b {
+                r_a.cmp(&r_b)
+            } else {
+                b.critical_upstream_count
+                    .cmp(&a.critical_upstream_count)
+                    .then_with(|| b.warning_upstream_count.cmp(&a.warning_upstream_count))
+            }
+        });
+
+        summary.total_audited_onus = audited_count;
+        summary.saturated_upstream_count = items
+            .iter()
+            .filter(|i| {
+                i.issue_type == "saturated_upstream"
+                    || (i.issue_type == "both"
+                        && i.olt_rx_power_dbm.map(|r| r > -12.0).unwrap_or(false))
+            })
+            .count();
+        summary.critical_upstream_count = items
+            .iter()
+            .filter(|i| {
+                i.issue_type == "critical_upstream"
+                    || (i.issue_type == "both"
+                        && i.olt_rx_power_dbm.map(|r| r <= -27.0).unwrap_or(false))
+            })
+            .count();
+        summary.warning_upstream_count = items
+            .iter()
+            .filter(|i| {
+                i.issue_type == "warning_upstream"
+                    || (i.issue_type == "both"
+                        && i.olt_rx_power_dbm
+                            .map(|r| r <= -25.0 && r > -27.0)
+                            .unwrap_or(false))
+            })
+            .count();
+        summary.asymmetric_count = items
+            .iter()
+            .filter(|i| i.issue_type == "asymmetry" || i.issue_type == "both")
+            .count();
+        summary.suspect_pons_count = suspect_pons
+            .iter()
+            .filter(|p| p.is_sfp_receiver_suspect)
+            .count();
+        summary.items = items;
+        summary.suspect_pons = suspect_pons;
+
+        summary
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    #[test]
+    fn test_evaluate_upstream_diagnostics_detects_critical_and_asymmetry() {
+        let now = Utc::now().naive_utc();
+        let onus = vec![
+            OnuRecord {
+                id: 1,
+                olt_id: 10,
+                olt_name: Some("OLT-CENTRAL".to_string()),
+                slot: 1,
+                pon_port: 1,
+                onu_id: 1,
+                serial_number: "ZTEGC1111111".to_string(),
+                mac_address: None,
+                model: Some("F670L".to_string()),
+                custom_name: None,
+                customer_identifier: Some("CLIENTE_CRITICO".to_string()),
+                distance_meters: Some(2500),
+                status: "online".to_string(),
+                first_seen_at: now,
+                last_seen_at: now,
+                latest_rx_power_dbm: Some(-20.0), // Downstream normal
+                latest_tx_power_dbm: Some(2.5),
+                latest_olt_rx_power_dbm: Some(-28.5), // Upstream crítico!
+                latest_olt_tx_power_dbm: Some(4.5),
+                latest_attenuation_db: Some(24.5),
+                latest_temperature_c: Some(42.0),
+                latest_signal_quality: Some("good".to_string()),
+                latest_delta_prev_rx_db: Some(0.0),
+                is_degraded: Some(false),
+            },
+            OnuRecord {
+                id: 2,
+                olt_id: 10,
+                olt_name: Some("OLT-CENTRAL".to_string()),
+                slot: 1,
+                pon_port: 1,
+                onu_id: 2,
+                serial_number: "ZTEGC2222222".to_string(),
+                mac_address: None,
+                model: Some("F670L".to_string()),
+                custom_name: None,
+                customer_identifier: Some("CLIENTE_NORMAL".to_string()),
+                distance_meters: Some(1500),
+                status: "online".to_string(),
+                first_seen_at: now,
+                last_seen_at: now,
+                latest_rx_power_dbm: Some(-19.0),
+                latest_tx_power_dbm: Some(2.5),
+                latest_olt_rx_power_dbm: Some(-20.5), // Upstream excelente
+                latest_olt_tx_power_dbm: Some(4.5),
+                latest_attenuation_db: Some(23.5),
+                latest_temperature_c: Some(40.0),
+                latest_signal_quality: Some("good".to_string()),
+                latest_delta_prev_rx_db: Some(0.0),
+                is_degraded: Some(false),
+            },
+        ];
+
+        let summary = OpticalEvaluator::evaluate_upstream_diagnostics(&onus);
+        assert_eq!(summary.total_audited_onus, 2);
+        assert_eq!(summary.critical_upstream_count, 1);
+        assert_eq!(summary.items.len(), 1);
+        assert_eq!(summary.items[0].serial_number, "ZTEGC1111111");
+        assert!(
+            summary.items[0].issue_type == "both"
+                || summary.items[0].issue_type == "critical_upstream"
+        );
+    }
+
+    #[test]
+    fn test_evaluate_upstream_diagnostics_saturation_and_warning() {
+        let now = Utc::now().naive_utc();
+        let onus = vec![
+            OnuRecord {
+                id: 10,
+                olt_id: 1,
+                olt_name: Some("OLT-CENTRAL".to_string()),
+                slot: 1,
+                pon_port: 1,
+                onu_id: 1,
+                serial_number: "ZTEGCSAT1111".to_string(),
+                mac_address: None,
+                model: Some("F670L".to_string()),
+                custom_name: None,
+                customer_identifier: Some("CLIENTE_SATURADO".to_string()),
+                distance_meters: Some(100),
+                status: "online".to_string(),
+                first_seen_at: now,
+                last_seen_at: now,
+                latest_rx_power_dbm: Some(-10.0),
+                latest_tx_power_dbm: Some(2.5),
+                latest_olt_rx_power_dbm: Some(-11.5), // Saturado (> -12.0)
+                latest_olt_tx_power_dbm: Some(5.0),
+                latest_attenuation_db: Some(15.0),
+                latest_temperature_c: Some(40.0),
+                latest_signal_quality: Some("excellent".to_string()),
+                latest_delta_prev_rx_db: Some(0.0),
+                is_degraded: Some(false),
+            },
+            OnuRecord {
+                id: 11,
+                olt_id: 1,
+                olt_name: Some("OLT-CENTRAL".to_string()),
+                slot: 1,
+                pon_port: 1,
+                onu_id: 2,
+                serial_number: "ZTEGCWARN222".to_string(),
+                mac_address: None,
+                model: Some("F670L".to_string()),
+                custom_name: None,
+                customer_identifier: Some("CLIENTE_AVISO".to_string()),
+                distance_meters: Some(3000),
+                status: "online".to_string(),
+                first_seen_at: now,
+                last_seen_at: now,
+                latest_rx_power_dbm: Some(-22.0),
+                latest_tx_power_dbm: Some(2.5),
+                latest_olt_rx_power_dbm: Some(-26.2), // Atenção (-25 a -27)
+                latest_olt_tx_power_dbm: Some(5.0),
+                latest_attenuation_db: Some(27.0),
+                latest_temperature_c: Some(40.0),
+                latest_signal_quality: Some("good".to_string()),
+                latest_delta_prev_rx_db: Some(0.0),
+                is_degraded: Some(false),
+            },
+        ];
+
+        let summary = OpticalEvaluator::evaluate_upstream_diagnostics(&onus);
+        assert_eq!(summary.total_audited_onus, 2);
+        assert_eq!(summary.saturated_upstream_count, 1);
+        assert_eq!(summary.warning_upstream_count, 1);
+        assert_eq!(summary.critical_upstream_count, 0);
+    }
+
+    #[test]
+    fn test_pon_saturation_only_when_pon_rx_exceeds_threshold() {
+        let now = Utc::now().naive_utc();
+        let mut onus = Vec::new();
+
+        // PON 1 (Slot 1 / Port 1): 2 ONUs saturadas (-11.0 dBm), mas média geral -21.40 dBm (Saudável)
+        // Não deve ser classificada como saturada nem entrar na lista de anomalias da PON
+        for i in 1..=2 {
+            onus.push(OnuRecord {
+                id: i,
+                olt_id: 1,
+                olt_name: Some("OLT-CENTRAL".to_string()),
+                slot: 1,
+                pon_port: 1,
+                onu_id: i as i32,
+                serial_number: format!("ZTEGPON1SAT{}", i),
+                mac_address: None,
+                model: Some("F670L".to_string()),
+                custom_name: None,
+                customer_identifier: Some("CLIENTE_PROXIMO".to_string()),
+                distance_meters: Some(50),
+                status: "online".to_string(),
+                first_seen_at: now,
+                last_seen_at: now,
+                latest_rx_power_dbm: Some(-10.0),
+                latest_tx_power_dbm: Some(2.5),
+                latest_olt_rx_power_dbm: Some(-11.0), // Saturada individual
+                latest_olt_tx_power_dbm: Some(5.0),
+                latest_attenuation_db: Some(15.0),
+                latest_temperature_c: Some(40.0),
+                latest_signal_quality: Some("excellent".to_string()),
+                latest_delta_prev_rx_db: Some(0.0),
+                is_degraded: Some(false),
+            });
+        }
+        for i in 3..=10 {
+            onus.push(OnuRecord {
+                id: i,
+                olt_id: 1,
+                olt_name: Some("OLT-CENTRAL".to_string()),
+                slot: 1,
+                pon_port: 1,
+                onu_id: i as i32,
+                serial_number: format!("ZTEGPON1NORM{}", i),
+                mac_address: None,
+                model: Some("F670L".to_string()),
+                custom_name: None,
+                customer_identifier: Some("CLIENTE_NORMAL".to_string()),
+                distance_meters: Some(1500),
+                status: "online".to_string(),
+                first_seen_at: now,
+                last_seen_at: now,
+                latest_rx_power_dbm: Some(-20.0),
+                latest_tx_power_dbm: Some(2.5),
+                latest_olt_rx_power_dbm: Some(-24.0), // Normal
+                latest_olt_tx_power_dbm: Some(5.0),
+                latest_attenuation_db: Some(25.0),
+                latest_temperature_c: Some(40.0),
+                latest_signal_quality: Some("good".to_string()),
+                latest_delta_prev_rx_db: Some(0.0),
+                is_degraded: Some(false),
+            });
+        }
+
+        // PON 2 (Slot 1 / Port 2): Porta verdadeiramente Saturada (Média > -12.0 dBm)
+        for i in 11..=14 {
+            onus.push(OnuRecord {
+                id: i,
+                olt_id: 1,
+                olt_name: Some("OLT-CENTRAL".to_string()),
+                slot: 1,
+                pon_port: 2,
+                onu_id: (i - 10) as i32,
+                serial_number: format!("ZTEGPON2SAT{}", i),
+                mac_address: None,
+                model: Some("F670L".to_string()),
+                custom_name: None,
+                customer_identifier: Some("CLIENTE_COLETIVO_SATURADO".to_string()),
+                distance_meters: Some(40),
+                status: "online".to_string(),
+                first_seen_at: now,
+                last_seen_at: now,
+                latest_rx_power_dbm: Some(-9.0),
+                latest_tx_power_dbm: Some(2.5),
+                latest_olt_rx_power_dbm: Some(-10.5), // Média > -12.0 dBm
+                latest_olt_tx_power_dbm: Some(5.0),
+                latest_attenuation_db: Some(14.0),
+                latest_temperature_c: Some(40.0),
+                latest_signal_quality: Some("excellent".to_string()),
+                latest_delta_prev_rx_db: Some(0.0),
+                is_degraded: Some(false),
+            });
+        }
+
+        // PON 3 (Slot 1 / Port 3): Porta Crítica (Média <= -27.0 dBm)
+        for i in 15..=17 {
+            onus.push(OnuRecord {
+                id: i,
+                olt_id: 1,
+                olt_name: Some("OLT-CENTRAL".to_string()),
+                slot: 1,
+                pon_port: 3,
+                onu_id: (i - 14) as i32,
+                serial_number: format!("ZTEGPON3CRIT{}", i),
+                mac_address: None,
+                model: Some("F670L".to_string()),
+                custom_name: None,
+                customer_identifier: Some("CLIENTE_CRITICO".to_string()),
+                distance_meters: Some(4000),
+                status: "online".to_string(),
+                first_seen_at: now,
+                last_seen_at: now,
+                latest_rx_power_dbm: Some(-27.0),
+                latest_tx_power_dbm: Some(2.5),
+                latest_olt_rx_power_dbm: Some(-28.0), // Média <= -27.0 dBm
+                latest_olt_tx_power_dbm: Some(5.0),
+                latest_attenuation_db: Some(32.0),
+                latest_temperature_c: Some(40.0),
+                latest_signal_quality: Some("critical".to_string()),
+                latest_delta_prev_rx_db: Some(0.0),
+                is_degraded: Some(false),
+            });
+        }
+
+        let summary = OpticalEvaluator::evaluate_upstream_diagnostics(&onus);
+
+        // A PON 1 (Slot 1 / Port 1) tem média -21.4 dBm (Saudável). NÃO deve estar em suspect_pons!
+        assert!(!summary
+            .suspect_pons
+            .iter()
+            .any(|p| p.slot == 1 && p.pon_port == 1));
+
+        // A PON 2 (Slot 1 / Port 2) tem média -10.5 dBm (> -12.0 dBm). DEVE estar em suspect_pons como "saturated"!
+        let pon2 = summary
+            .suspect_pons
+            .iter()
+            .find(|p| p.slot == 1 && p.pon_port == 2);
+        assert!(pon2.is_some());
+        assert_eq!(pon2.unwrap().pon_status, "saturated");
+        assert!(pon2.unwrap().is_sfp_receiver_suspect);
+
+        // A PON 3 (Slot 1 / Port 3) tem média -28.0 dBm (<= -27.0 dBm). DEVE estar em suspect_pons como "critical"!
+        let pon3 = summary
+            .suspect_pons
+            .iter()
+            .find(|p| p.slot == 1 && p.pon_port == 3);
+        assert!(pon3.is_some());
+        assert_eq!(pon3.unwrap().pon_status, "critical");
+        assert!(pon3.unwrap().is_sfp_receiver_suspect);
+
+        // Apenas PON 2 e PON 3 devem constar na lista de suspect_pons
+        assert_eq!(summary.suspect_pons.len(), 2);
+    }
+
+    #[test]
+    fn test_evaluate_upstream_diagnostics_ignores_los_and_offline_onus() {
+        let now = Utc::now().naive_utc();
+        let onus = vec![
+            // ONU 1: Em LOS com resíduo de -3.91 dBm (caso real reportado)
+            OnuRecord {
+                id: 101,
+                olt_id: 1,
+                olt_name: Some("AMA-LOJA-OLT01".to_string()),
+                slot: 15,
+                pon_port: 16,
+                onu_id: 39,
+                serial_number: "ZTEGDA60070D".to_string(),
+                mac_address: None,
+                model: Some("F670L".to_string()),
+                custom_name: None,
+                customer_identifier: Some("60070d".to_string()),
+                distance_meters: Some(1200),
+                status: "los".to_string(), // Em LOS!
+                first_seen_at: now,
+                last_seen_at: now,
+                latest_rx_power_dbm: Some(-24.09),
+                latest_tx_power_dbm: Some(1.65),
+                latest_olt_rx_power_dbm: Some(-3.91), // Leitura residual / apócrifa enquanto offline
+                latest_olt_tx_power_dbm: Some(5.0),
+                latest_attenuation_db: Some(29.0),
+                latest_temperature_c: Some(40.0),
+                latest_signal_quality: Some("offline".to_string()),
+                latest_delta_prev_rx_db: Some(0.0),
+                is_degraded: Some(false),
+            },
+            // ONU 2: Em Dying Gasp com resíduo de -3.56 dBm
+            OnuRecord {
+                id: 102,
+                olt_id: 1,
+                olt_name: Some("AMA-LOJA-OLT01".to_string()),
+                slot: 15,
+                pon_port: 16,
+                onu_id: 33,
+                serial_number: "ZTEGDA6060A2".to_string(),
+                mac_address: None,
+                model: Some("F670L".to_string()),
+                custom_name: None,
+                customer_identifier: Some("onuztegda6060a2".to_string()),
+                distance_meters: Some(800),
+                status: "dying_gasp".to_string(), // Desligada
+                first_seen_at: now,
+                last_seen_at: now,
+                latest_rx_power_dbm: Some(-23.87),
+                latest_tx_power_dbm: Some(3.05),
+                latest_olt_rx_power_dbm: Some(-3.56),
+                latest_olt_tx_power_dbm: Some(5.0),
+                latest_attenuation_db: Some(28.0),
+                latest_temperature_c: Some(38.0),
+                latest_signal_quality: Some("offline".to_string()),
+                latest_delta_prev_rx_db: Some(0.0),
+                is_degraded: Some(false),
+            },
+            // ONU 3: Online com sinal perfeitamente saudável (-22.50 dBm)
+            OnuRecord {
+                id: 103,
+                olt_id: 1,
+                olt_name: Some("AMA-LOJA-OLT01".to_string()),
+                slot: 15,
+                pon_port: 16,
+                onu_id: 1,
+                serial_number: "ZTEGDA111111".to_string(),
+                mac_address: None,
+                model: Some("F670L".to_string()),
+                custom_name: None,
+                customer_identifier: Some("CLIENTE_ONLINE".to_string()),
+                distance_meters: Some(1500),
+                status: "online".to_string(), // Online!
+                first_seen_at: now,
+                last_seen_at: now,
+                latest_rx_power_dbm: Some(-20.0),
+                latest_tx_power_dbm: Some(2.5),
+                latest_olt_rx_power_dbm: Some(-22.50), // Normal / Saudável
+                latest_olt_tx_power_dbm: Some(5.0),
+                latest_attenuation_db: Some(25.0),
+                latest_temperature_c: Some(40.0),
+                latest_signal_quality: Some("good".to_string()),
+                latest_delta_prev_rx_db: Some(0.0),
+                is_degraded: Some(false),
+            },
+        ];
+
+        let summary = OpticalEvaluator::evaluate_upstream_diagnostics(&onus);
+
+        // Apenas a ONU 3 (online) deve ser auditada
+        assert_eq!(summary.total_audited_onus, 1);
+        // Nenhuma ONU em LOS/Dying Gasp pode ser computada como saturada ou crítica
+        assert_eq!(summary.saturated_upstream_count, 0);
+        assert_eq!(summary.critical_upstream_count, 0);
+        assert_eq!(summary.warning_upstream_count, 0);
+        assert_eq!(summary.items.len(), 0);
+        // A porta tem apenas 1 ONU online com -22.50 dBm (Saudável), portanto não deve ser suspeita
+        assert_eq!(summary.suspect_pons.len(), 0);
     }
 }

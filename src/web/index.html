@@ -704,6 +704,59 @@
             gap: 0.8rem;
         }
 
+        .modal-card-audit {
+            width: 820px !important;
+            max-width: 95vw !important;
+        }
+
+        .modal-card-pon {
+            width: 960px !important;
+            max-width: 96vw !important;
+            max-height: 90vh !important;
+            display: flex;
+            flex-direction: column;
+            padding: 1.2rem;
+            gap: 0;
+            overflow: hidden;
+        }
+
+        .suspect-pon-card-item {
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+        }
+        .suspect-pon-card-item:hover {
+            transform: translateY(-2px);
+            background: rgba(30, 41, 59, 0.95) !important;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+            filter: brightness(1.1);
+        }
+
+        .suspect-pons-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+            grid-auto-rows: max-content;
+            gap: 8px;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding-right: 6px;
+        }
+
+        .suspect-pons-grid::-webkit-scrollbar {
+            width: 6px;
+        }
+        .suspect-pons-grid::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 4px;
+        }
+        .suspect-pons-grid::-webkit-scrollbar-thumb {
+            background: rgba(244, 63, 94, 0.45);
+            border-radius: 4px;
+        }
+        .suspect-pons-grid::-webkit-scrollbar-thumb:hover {
+            background: rgba(244, 63, 94, 0.75);
+        }
+
         .form-group {
             display: flex;
             flex-direction: column;
@@ -883,6 +936,7 @@
             <button id="tab-btn-onus" class="tab-btn" onclick="switchTab('onus')">ONUs &amp; Sinais</button>
             <button id="tab-btn-degradation" class="tab-btn" onclick="switchTab('degradation')">Piora de Sinal (ΔdB)</button>
             <button id="tab-btn-diagnostics" class="tab-btn" onclick="switchTab('diagnostics')">Diagnóstico Óptico</button>
+            <button id="tab-btn-upstream" class="tab-btn" onclick="switchTab('upstream')">Auditoria Upstream &amp; PONs</button>
             <button id="tab-btn-users" class="tab-btn" onclick="switchTab('users')">Usuários</button>
             <div class="tab-dropdown">
                 <button id="tab-btn-reports" class="tab-btn" style="display: flex; align-items: center; gap: 4px;">
@@ -905,6 +959,10 @@
                     <button class="tab-dropdown-item" onclick="downloadDiagnosticsReport()">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                         Laudo de Diagnóstico & RCA (PDF)
+                    </button>
+                    <button class="tab-dropdown-item" onclick="downloadUpstreamReport()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/><polyline points="16 16 12 12 8 16"/></svg>
+                        Auditoria de Upstream &amp; PONs (PDF)
                     </button>
                 </div>
             </div>
@@ -1357,6 +1415,60 @@
                 </div>
             </div>
 
+            <!-- ABA 6: Auditoria de Upstream (Rx OLT) e Saúde das PONs -->
+            <div class="tab-content-panel" id="content-upstream" style="display: none; flex-direction: column; gap: 0.6rem;">
+                
+                <!-- KPI Upstream Top Row -->
+                <div class="kpi-row" style="margin-bottom: 0;">
+                    <div class="kpi-box" style="border-left: 4px solid #00F0FF;">
+                        <span class="kpi-title">Saturação Upstream (&gt; -12 dBm)</span>
+                        <span class="kpi-value" style="color: #00F0FF;" id="upSatCount">0</span>
+                        <span class="kpi-sub">Risco de sobrecarga no APD</span>
+                    </div>
+                    <div class="kpi-box" style="border-left: 4px solid #F59E0B;">
+                        <span class="kpi-title">Atenção Upstream (-25 a -27 dBm)</span>
+                        <span class="kpi-value" style="color: #F59E0B;" id="upWarnCount">0</span>
+                        <span class="kpi-sub">Margem de segurança reduzida</span>
+                    </div>
+                    <div class="kpi-box" style="border-left: 4px solid #F43F5E;">
+                        <span class="kpi-title">Rx OLT Crítico (&lt; -27 dBm)</span>
+                        <span class="kpi-value" style="color: #F43F5E;" id="upCritCount">0</span>
+                        <span class="kpi-sub">Marginal ou fora de sensibilidade</span>
+                    </div>
+                    <div class="kpi-box" style="border-left: 4px solid #C471ED;">
+                        <span class="kpi-title">Assimetria Óptica (≥ 3 dB)</span>
+                        <span class="kpi-value" style="color: #C471ED;" id="upAsymCount">0</span>
+                        <span class="kpi-sub">Conector sujo / Laser ONU fraco</span>
+                    </div>
+                    <div class="kpi-box" style="border-left: 4px solid #10B981;">
+                        <span class="kpi-title">Portas PON com Suspeita APD</span>
+                        <span class="kpi-value" style="color: #10B981;" id="upPonCount">0</span>
+                        <span class="kpi-sub">Degradação coletiva SFP/DIO</span>
+                    </div>
+                </div>
+
+                <!-- Search & Actions Top Bar para Portas PON -->
+                <div class="search-add-bar" style="margin-bottom: 0;">
+                    <div class="search-input-wrap">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <input type="text" class="search-input" id="searchSuspectPonInput" placeholder="Filtrar Portas PON por OLT, Slot ou Porta (ex: AMA-LOJA, S13/P6)..." oninput="applySuspectPonFilter()">
+                    </div>
+                    <button class="btn-cyan" onclick="loadUpstreamData()">Atualizar</button>
+                    <button class="btn-cyan" onclick="downloadUpstreamReport()">Exportar PDF</button>
+                </div>
+
+                <!-- Painel Expandido de Alerta Coletivo de Portas PON (Até embaixo) -->
+                <div id="upstreamSuspectPonsContainer" style="display: flex; flex-direction: column; gap: 8px; background: rgba(244, 63, 94, 0.08); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: 8px; padding: 12px 14px; flex: 1; min-height: 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                        <div style="font-size: 0.85rem; font-weight: 700; color: #F43F5E; display: flex; align-items: center; gap: 8px;">
+                            <span>⚠️ Portas PON com Anomalia Coletiva de Upstream (Saturação, Atenção ou Degradação Crítica)</span>
+                        </div>
+                        <span id="upstreamSuspectPonsBadge" style="background: rgba(244,63,94,0.25); color: #F43F5E; border: 1px solid rgba(244,63,94,0.45); font-size: 0.72rem; padding: 3px 10px; border-radius: 12px; font-weight: 700; white-space: nowrap;"></span>
+                    </div>
+                    <div id="upstreamSuspectPonsList" class="suspect-pons-grid"></div>
+                </div>
+            </div>
+
             <!-- ABA 7: Usuários do Sistema (RBAC) -->
             <div class="tab-content-panel" id="content-users" style="display: none; flex-direction: column; gap: 0.6rem; align-items: flex-start;">
                 <div style="max-width: 1080px; width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0;">
@@ -1519,9 +1631,74 @@
         </div>
     </div>
 
+    <!-- Modal Detalhes das ONUs Problemáticas da Porta PON -->
+    <div class="modal-overlay" id="ponAuditModal">
+        <div class="modal-card modal-card-pon">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 10px; margin-bottom: 12px; flex-shrink: 0;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="pulse-dot" style="background: #F43F5E; box-shadow: 0 0 10px #F43F5E;" id="ponModalPulseDot"></span>
+                    <div>
+                        <h3 style="font-size: 1.05rem; color: #FFF; margin: 0; display: flex; align-items: center; gap: 8px;">
+                            <span>Auditoria da Porta PON</span>
+                            <span id="ponModalStatusTag" style="font-size: 0.75rem;"></span>
+                            <span id="ponModalIfaceTag" style="color: var(--accent-cyan); font-family: monospace; font-size: 0.9rem;"></span>
+                        </h3>
+                        <div style="font-size: 0.72rem; color: #94A3B8; margin-top: 2px;" id="ponModalSubtitle">
+                            OLT Principal | Média Rx OLT: --
+                        </div>
+                    </div>
+                </div>
+                <span style="cursor: pointer; color: var(--text-dim); font-size: 1.4rem; line-height: 1;" onclick="closePonAuditModal()">&times;</span>
+            </div>
+
+            <!-- Mini KPIs da Porta PON -->
+            <div id="ponModalKpiBar" style="display: flex; gap: 8px; margin-bottom: 12px; flex-shrink: 0;">
+                <!-- Preenchido via JS -->
+            </div>
+
+            <!-- Filtro de busca de ONUs dentro do modal -->
+            <div style="margin-bottom: 10px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                <div class="search-input-wrap" style="flex: 1; margin: 0;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" class="search-input" id="searchPonOnusInput" placeholder="Filtrar por Serial, Cliente ou ONU ID..." oninput="filterPonModalOnus()">
+                </div>
+                <span id="ponModalCountBadge" style="font-size: 0.75rem; color: #94A3B8; white-space: nowrap;"></span>
+            </div>
+
+            <!-- Tabela com scroll das ONUs problemáticas -->
+            <div style="flex: 1; min-height: 0; overflow-y: auto; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; table-layout: fixed;">
+                    <thead>
+                        <tr style="background: rgba(15, 23, 42, 0.95); position: sticky; top: 0; z-index: 10; border-bottom: 1px solid rgba(255,255,255,0.1); color: #94A3B8; text-align: left;">
+                            <th style="padding: 8px 10px; width: 14%;">Serial ONU</th>
+                            <th style="padding: 8px 10px; width: 16%;">Cliente</th>
+                            <th style="padding: 8px 10px; width: 8%;">ID</th>
+                            <th style="padding: 8px 10px; width: 11%;">Rx ONU (Down)</th>
+                            <th style="padding: 8px 10px; width: 10%;">Tx ONU</th>
+                            <th style="padding: 8px 10px; width: 12%;">Rx OLT (Up)</th>
+                            <th style="padding: 8px 10px; width: 10%;">Assimetria</th>
+                            <th style="padding: 8px 10px; width: 11%;">Problema</th>
+                            <th style="padding: 8px 10px; width: 8%; text-align: center;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ponModalTbody">
+                        <!-- Preenchido via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; flex-shrink: 0;">
+                <div style="font-size: 0.72rem; color: #94A3B8;">
+                    * Exibindo as ONUs desta porta com anomalia óptica de Upstream (Saturação, Crítica, Atenção ou Assimetria &ge; 3 dB).
+                </div>
+                <button type="button" class="btn-primary" onclick="closePonAuditModal()" style="padding: 0.4rem 1.2rem;">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Detalhes & Auditoria da ONU -->
-    <div class="modal-overlay" id="onuAuditModal">
-        <div class="modal-card" style="max-width: 580px;">
+    <div class="modal-overlay" id="onuAuditModal" style="z-index: 90050;">
+        <div class="modal-card modal-card-audit">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 10px; margin-bottom: 14px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <span class="pulse-dot" style="background:#00F0FF; box-shadow:0 0 10px #00F0FF;"></span>
@@ -2566,6 +2743,26 @@
 
         function showOnuAuditModal(onuId) {
             var onu = globalAllOnus.find(o => o.id === onuId);
+            if (!onu && globalUpstreamData && globalUpstreamData.items) {
+                var it = globalUpstreamData.items.find(i => i.onu_id === onuId);
+                if (it) {
+                    onu = {
+                        id: it.onu_id,
+                        serial_number: it.serial_number,
+                        customer_identifier: it.customer_identifier,
+                        olt_name: it.olt_name,
+                        slot: it.slot,
+                        pon_port: it.pon_port,
+                        onu_id: it.onu_id_num,
+                        latest_rx_power_dbm: it.rx_power_dbm,
+                        latest_tx_power_dbm: it.tx_power_dbm,
+                        latest_olt_rx_power_dbm: it.olt_rx_power_dbm,
+                        latest_olt_tx_power_dbm: it.olt_tx_power_dbm,
+                        status: 'online',
+                        last_seen_at: new Date().toISOString()
+                    };
+                }
+            }
             if (!onu) return;
 
             var rxVal = onu.latest_rx_power_dbm;
@@ -2573,7 +2770,27 @@
 
             var rx = rxVal != null ? rxVal.toFixed(2) + ' dBm' : 'Sem leitura';
             var tx = (onu.latest_tx_power_dbm != null && !isOffline) ? onu.latest_tx_power_dbm.toFixed(2) + ' dBm' : '--';
-            var oltRx = (onu.latest_olt_rx_power_dbm != null && !isOffline) ? onu.latest_olt_rx_power_dbm.toFixed(2) + ' dBm' : '--';
+            var oltRxVal = onu.latest_olt_rx_power_dbm;
+            var oltRx = (oltRxVal != null && !isOffline) ? oltRxVal.toFixed(2) + ' dBm' : '--';
+            var oltTxVal = onu.latest_olt_tx_power_dbm;
+            var oltTx = (oltTxVal != null && !isOffline) ? oltTxVal.toFixed(2) + ' dBm' : (oltTxVal != null ? oltTxVal.toFixed(2) + ' dBm' : '--');
+            
+            var oltRxColor = (oltRxVal != null && !isOffline)
+                ? (oltRxVal > -12.0 ? '#00F0FF' : (oltRxVal <= -29.0 ? '#F43F5E' : (oltRxVal <= -27.0 ? '#F97316' : (oltRxVal <= -25.0 ? '#F59E0B' : '#10B981'))))
+                : '#94A3B8';
+
+            var asymStr = '--';
+            var asymColor = '#38BDF8';
+            if (!isOffline && rxVal != null && onu.latest_tx_power_dbm != null && oltRxVal != null) {
+                var dTx = oltTxVal != null ? oltTxVal : 4.50;
+                var dLoss = dTx - rxVal;
+                var uLoss = onu.latest_tx_power_dbm - oltRxVal;
+                var diff = Math.abs(dLoss - uLoss);
+                asymStr = diff.toFixed(2) + ' dB';
+                if (diff >= 3.0) asymColor = '#F43F5E';
+                else if (diff >= 2.0) asymColor = '#F59E0B';
+            }
+
             var att = (onu.latest_attenuation_db != null && !isOffline) ? onu.latest_attenuation_db.toFixed(2) + ' dB' : '--';
             var temp = (onu.latest_temperature_c != null && !isOffline) ? onu.latest_temperature_c.toFixed(1) + ' °C' : '--';
             var delta = (onu.latest_delta_prev_rx_db != null && !isOffline) ? onu.latest_delta_prev_rx_db.toFixed(2) + ' dB' : '--';
@@ -2622,22 +2839,30 @@
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px;">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px;">
                     <div style="background: rgba(30, 41, 59, 0.5); padding: 10px 12px; border-radius: 6px; border-left: 3px solid ${statusColor};">
-                        <div style="font-size: 0.72rem; color: #94A3B8;">Potência Óptica Rx ONU</div>
-                        <div style="font-size: 1.1rem; font-weight: 700; color: ${statusColor};">${rx}</div>
+                        <div style="font-size: 0.72rem; color: #94A3B8;">Rx ONU (Downstream)</div>
+                        <div style="font-size: 1.05rem; font-weight: 700; color: ${statusColor};">${rx}</div>
                     </div>
                     <div style="background: rgba(30, 41, 59, 0.5); padding: 10px 12px; border-radius: 6px; border-left: 3px solid #10B981;">
-                        <div style="font-size: 0.72rem; color: #94A3B8;">Potência Óptica Tx ONU</div>
-                        <div style="font-size: 1.1rem; font-weight: 700; color: #10B981;">${tx}</div>
+                        <div style="font-size: 0.72rem; color: #94A3B8;">Tx ONU (Upstream)</div>
+                        <div style="font-size: 1.05rem; font-weight: 700; color: #10B981;">${tx}</div>
+                    </div>
+                    <div style="background: rgba(30, 41, 59, 0.5); padding: 10px 12px; border-radius: 6px; border-left: 3px solid ${oltRxColor};">
+                        <div style="font-size: 0.72rem; color: #94A3B8;">Rx OLT (Recepção PON)</div>
+                        <div style="font-size: 1.05rem; font-weight: 700; color: ${oltRxColor};">${oltRx}</div>
+                    </div>
+                    <div style="background: rgba(30, 41, 59, 0.5); padding: 10px 12px; border-radius: 6px; border-left: 3px solid #C471ED;">
+                        <div style="font-size: 0.72rem; color: #94A3B8;">Tx OLT (Saída SFP PON)</div>
+                        <div style="font-size: 1.05rem; font-weight: 700; color: #C471ED;">${oltTx}</div>
+                    </div>
+                    <div style="background: rgba(30, 41, 59, 0.5); padding: 10px 12px; border-radius: 6px; border-left: 3px solid ${asymColor};">
+                        <div style="font-size: 0.72rem; color: #94A3B8;">Assimetria Óptica (Δ)</div>
+                        <div style="font-size: 1.05rem; font-weight: 700; color: ${asymColor};">${asymStr}</div>
                     </div>
                     <div style="background: rgba(30, 41, 59, 0.5); padding: 10px 12px; border-radius: 6px; border-left: 3px solid #64748B;">
-                        <div style="font-size: 0.72rem; color: #94A3B8;">Temperatura do Transceiver</div>
-                        <div style="font-size: 1.1rem; font-weight: 700; color: #FFF;">${temp}</div>
-                    </div>
-                    <div style="background: rgba(30, 41, 59, 0.5); padding: 10px 12px; border-radius: 6px; border-left: 3px solid #A855F7;">
-                        <div style="font-size: 0.72rem; color: #94A3B8;">Variação Recente (ΔdB)</div>
-                        <div style="font-size: 1.1rem; font-weight: 700; color: ${onu.is_degraded ? '#f43f5e' : '#A855F7'};">${delta}</div>
+                        <div style="font-size: 0.72rem; color: #94A3B8;">Temp. Transceiver</div>
+                        <div style="font-size: 1.05rem; font-weight: 700; color: #FFF;">${temp}</div>
                     </div>
                 </div>
 
@@ -2645,23 +2870,25 @@
                 <div style="background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
                     <div style="font-size: 0.8rem; font-weight: 700; color: #E2E8F0; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
                         <span>📋 Histórico de Telemetria & Eventos OMCI (Últimas 5 Coletas)</span>
-                        <span style="font-size: 0.7rem; color: #94A3B8; font-weight: normal;">Auditoria de Sinal & Status</span>
+                        <span style="font-size: 0.7rem; color: #94A3B8; font-weight: normal;">Auditoria Bidirecional (ONU ⇄ OLT)</span>
                     </div>
                     
-                    <div style="overflow-x: auto;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: left;">
+                    <div style="overflow-x: hidden;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: left; table-layout: fixed;">
                             <thead>
                                 <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); color: #94A3B8;">
-                                    <th style="padding: 4px 6px;">Data / Hora</th>
-                                    <th style="padding: 4px 6px;">Rx ONU</th>
-                                    <th style="padding: 4px 6px;">Tx ONU</th>
-                                    <th style="padding: 4px 6px;">Variação (ΔdB)</th>
-                                    <th style="padding: 4px 6px;">Status / Causa</th>
+                                    <th style="padding: 6px 8px; width: 22%;">Data / Hora</th>
+                                    <th style="padding: 6px 8px; width: 14%;">Rx ONU (Down)</th>
+                                    <th style="padding: 6px 8px; width: 11%;">Tx ONU</th>
+                                    <th style="padding: 6px 8px; width: 14%;">Rx OLT (Up)</th>
+                                    <th style="padding: 6px 8px; width: 11%;">Tx OLT</th>
+                                    <th style="padding: 6px 8px; width: 14%;">Variação (ΔdB)</th>
+                                    <th style="padding: 6px 8px; width: 14%;">Status / Causa</th>
                                 </tr>
                             </thead>
                             <tbody id="onuModalHistoryTbody">
                                 <tr>
-                                    <td colspan="5" style="padding: 10px; text-align: center; color: #94A3B8;">Carregando histórico das 5 últimas coletas...</td>
+                                    <td colspan="7" style="padding: 12px; text-align: center; color: #94A3B8;">Carregando histórico das 5 últimas coletas...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -2688,6 +2915,11 @@
                             var isOff = h.rx_power_dbm == null || h.rx_power_dbm < -45.0;
                             var rxStr = isOff ? 'Offline' : h.rx_power_dbm.toFixed(2) + ' dBm';
                             var txStr = (h.tx_power_dbm != null && !isOff) ? h.tx_power_dbm.toFixed(2) + ' dBm' : '--';
+                            var rxOltStr = (h.olt_rx_power_dbm != null && !isOff) ? h.olt_rx_power_dbm.toFixed(2) + ' dBm' : '--';
+                            var oltTxStr = (h.olt_tx_power_dbm != null && !isOff) ? h.olt_tx_power_dbm.toFixed(2) + ' dBm' : '--';
+                            var rxOltRowColor = (h.olt_rx_power_dbm != null && !isOff)
+                                ? (h.olt_rx_power_dbm > -12.0 ? '#00F0FF' : (h.olt_rx_power_dbm <= -29.0 ? '#F43F5E' : (h.olt_rx_power_dbm <= -27.0 ? '#F97316' : (h.olt_rx_power_dbm <= -25.0 ? '#F59E0B' : '#10B981'))))
+                                : '#94A3B8';
                             var deltaStr = (h.delta_prev_rx_db != null && !isOff) ? (h.delta_prev_rx_db > 0 ? '+' : '') + h.delta_prev_rx_db.toFixed(2) + ' dB' : '--';
                             var badge = isOff 
                                 ? '<span class="badge" style="background: rgba(244, 63, 94, 0.2); color: #F43F5E; border: 1px solid rgba(244, 63, 94, 0.4); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;">LOS</span>'
@@ -2695,18 +2927,20 @@
 
                             return `
                             <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
-                                <td style="padding: 6px; color: #FFF; font-family: monospace;">${formatDateLocal(h.collected_at)}</td>
-                                <td style="padding: 6px; color: ${isOff ? '#F43F5E' : '#38BDF8'}; font-weight: 600;">${rxStr}</td>
-                                <td style="padding: 6px; color: #10B981;">${txStr}</td>
-                                <td style="padding: 6px; color: ${h.is_degraded ? '#F43F5E' : '#A855F7'};">${deltaStr}</td>
-                                <td style="padding: 6px;">${badge}</td>
+                                <td style="padding: 6px 8px; color: #FFF; font-family: monospace; white-space: nowrap;">${formatDateLocal(h.collected_at)}</td>
+                                <td style="padding: 6px 8px; color: ${isOff ? '#F43F5E' : '#38BDF8'}; font-weight: 600; white-space: nowrap;">${rxStr}</td>
+                                <td style="padding: 6px 8px; color: #10B981; white-space: nowrap;">${txStr}</td>
+                                <td style="padding: 6px 8px; color: ${rxOltRowColor}; font-weight: 600; white-space: nowrap;">${rxOltStr}</td>
+                                <td style="padding: 6px 8px; color: #C471ED; white-space: nowrap;">${oltTxStr}</td>
+                                <td style="padding: 6px 8px; color: ${h.is_degraded ? '#F43F5E' : '#A855F7'}; font-weight: 600; white-space: nowrap;">${deltaStr}</td>
+                                <td style="padding: 6px 8px; white-space: nowrap;">${badge}</td>
                             </tr>
                             `;
                         }).join('');
                     } else {
                         tbody.innerHTML = `
                         <tr>
-                            <td colspan="5" style="padding: 8px; text-align: center; color: #94A3B8;">1ª telemetria registrada para esta ONU.</td>
+                            <td colspan="7" style="padding: 8px; text-align: center; color: #94A3B8;">1ª telemetria registrada para esta ONU.</td>
                         </tr>
                         `;
                     }
@@ -4286,6 +4520,324 @@
             }
         }
 
+        var globalUpstreamData = null;
+        var currentUpstreamPage = 1;
+        var upstreamPageSize = 15;
+
+        var globalUpstreamData = null;
+
+        async function loadUpstreamData() {
+            var suspList = document.getElementById('upstreamSuspectPonsList');
+            if (suspList) {
+                suspList.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: var(--text-dim); padding: 40px;">Carregando análise e auditoria de portas PON...</div>';
+            }
+            try {
+                var res = await fetch('/api/diagnostics/upstream');
+                if (res.ok) {
+                    var json = await res.json();
+                    if (json.success && json.data) {
+                        globalUpstreamData = json.data;
+
+                        // Atualiza KPIs
+                        var satEl = document.getElementById('upSatCount');
+                        var critEl = document.getElementById('upCritCount');
+                        var warnEl = document.getElementById('upWarnCount');
+                        var asymEl = document.getElementById('upAsymCount');
+                        var ponEl = document.getElementById('upPonCount');
+                        if (satEl) satEl.textContent = json.data.saturated_upstream_count || 0;
+                        if (critEl) critEl.textContent = json.data.critical_upstream_count || 0;
+                        if (warnEl) warnEl.textContent = json.data.warning_upstream_count || 0;
+                        if (asymEl) asymEl.textContent = json.data.asymmetric_count || 0;
+                        if (ponEl) ponEl.textContent = json.data.suspect_pons_count || 0;
+
+                        applySuspectPonFilter();
+                    }
+                }
+            } catch (e) {
+                console.error("Erro ao carregar dados de upstream:", e);
+                if (suspList) {
+                    suspList.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #F43F5E; padding: 40px;">Falha ao obter auditoria de upstream da API.</div>';
+                }
+            }
+        }
+
+        function renderSuspectPons(pons) {
+            var suspList = document.getElementById('upstreamSuspectPonsList');
+            var suspBadge = document.getElementById('upstreamSuspectPonsBadge');
+            if (!suspList) return;
+
+            if (pons && pons.length > 0) {
+                if (suspBadge) suspBadge.textContent = pons.length + ' PON(s) detectada(s)';
+                suspList.innerHTML = pons.map(function(p) {
+                    var avgN = p.avg_olt_rx_dbm;
+                    var avgStr = avgN != null ? avgN.toFixed(2) + ' dBm' : '--';
+                    var oltSafe = escapeHtml(p.olt_name);
+
+                    // Cor rigorosa da média óptica conforme tabela de faixas
+                    var avgColor = '#10B981'; // Saudável (-12 a -25 dBm)
+                    if (avgN != null) {
+                        if (avgN > -12.0) avgColor = '#00F0FF'; // Saturação
+                        else if (avgN <= -27.0) avgColor = '#F43F5E'; // Crítico
+                        else if (avgN <= -25.0) avgColor = '#F59E0B'; // Atenção
+                    }
+
+                    // Borda do card e tag de severidade
+                    var cardBorder = 'rgba(244,63,94,0.45)';
+                    var statusTag = '<span style="color:#F43F5E; font-size:0.68rem; font-weight:700;">[CRÍTICA]</span>';
+                    if (p.pon_status === 'saturated') {
+                        cardBorder = 'rgba(0,240,255,0.45)';
+                        statusTag = '<span style="color:#00F0FF; font-size:0.68rem; font-weight:700;">[SATURAÇÃO]</span>';
+                    } else if (p.pon_status === 'warning') {
+                        cardBorder = 'rgba(245,158,11,0.45)';
+                        statusTag = '<span style="color:#F59E0B; font-size:0.68rem; font-weight:700;">[ATENÇÃO]</span>';
+                    }
+
+                    // Detalhamento das ONUs por faixa
+                    var countsHtml = [];
+                    if (p.saturated_upstream_count > 0) {
+                        countsHtml.push(`<span style="color:#00F0FF; font-weight:700;">${p.saturated_upstream_count} Sat</span>`);
+                    }
+                    if (p.critical_upstream_count > 0) {
+                        countsHtml.push(`<span style="color:#F43F5E; font-weight:700;">${p.critical_upstream_count} Crít</span>`);
+                    }
+                    if (p.warning_upstream_count > 0) {
+                        countsHtml.push(`<span style="color:#F59E0B; font-weight:600;">${p.warning_upstream_count} Atenção</span>`);
+                    }
+                    var countsStr = countsHtml.length > 0 ? countsHtml.join(' | ') + ` / ${p.total_onus} ONUs` : `${p.total_onus} ONUs`;
+                    var oltEsc = encodeURIComponent(p.olt_name);
+
+                    return `
+                    <div class="suspect-pon-card-item" onclick="openPonAuditModal('${oltEsc}', ${p.slot}, ${p.pon_port})" style="background: rgba(30, 41, 59, 0.75); border: 1px solid ${cardBorder}; border-radius: 6px; padding: 8px 12px; font-size: 0.75rem; display: flex; flex-direction: column; justify-content: center; min-width: 0;" title="Clique para ver a relação de ONUs problemáticas desta porta PON">
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                            <strong style="color: #FFF; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${oltSafe}">${oltSafe}</strong>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                ${statusTag}
+                                <span style="color: var(--accent-cyan); font-family: monospace; font-weight: 700; white-space: nowrap;">S${p.slot}/P${p.pon_port}</span>
+                            </div>
+                        </div>
+                        <div style="color: #94A3B8; font-size: 0.70rem; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
+                            <span>${countsStr}</span>
+                            <span>Média: <strong style="color: ${avgColor}; font-family: monospace;">${avgStr}</strong></span>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            } else {
+                if (suspBadge) suspBadge.textContent = '0 PONs';
+                suspList.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #10B981; padding: 40px; font-size: 0.85rem;">✅ Nenhuma porta PON com anomalia de Upstream (Saturação, Atenção ou Crítica) detectada.</div>';
+            }
+        }
+
+        var currentPonModalItems = [];
+
+        function openPonAuditModal(oltEsc, slot, ponPort) {
+            var oltName = decodeURIComponent(oltEsc);
+            var pon = (globalUpstreamData && globalUpstreamData.suspect_pons) 
+                ? globalUpstreamData.suspect_pons.find(p => p.olt_name === oltName && p.slot === slot && p.pon_port === ponPort)
+                : null;
+            
+            // Filtra as ONUs problemáticas pertencentes a esta porta PON
+            currentPonModalItems = (globalUpstreamData && globalUpstreamData.items)
+                ? globalUpstreamData.items.filter(i => i.olt_name === oltName && i.slot === slot && i.pon_port === ponPort)
+                : [];
+
+            var modal = document.getElementById('ponAuditModal');
+            if (!modal) return;
+
+            // Define elementos de cabeçalho
+            var statusColor = '#F43F5E';
+            var statusTagText = '[CRÍTICA]';
+            if (pon) {
+                if (pon.pon_status === 'saturated') {
+                    statusColor = '#00F0FF';
+                    statusTagText = '[SATURAÇÃO]';
+                } else if (pon.pon_status === 'warning') {
+                    statusColor = '#F59E0B';
+                    statusTagText = '[ATENÇÃO]';
+                }
+            }
+
+            var pulseDot = document.getElementById('ponModalPulseDot');
+            if (pulseDot) {
+                pulseDot.style.background = statusColor;
+                pulseDot.style.boxShadow = '0 0 10px ' + statusColor;
+            }
+
+            var statusTagEl = document.getElementById('ponModalStatusTag');
+            if (statusTagEl) {
+                statusTagEl.innerHTML = `<span style="color: ${statusColor}; font-weight: 700;">${statusTagText}</span>`;
+            }
+
+            var ifaceTagEl = document.getElementById('ponModalIfaceTag');
+            if (ifaceTagEl) {
+                ifaceTagEl.textContent = `S${slot}/P${ponPort}`;
+            }
+
+            var subtitleEl = document.getElementById('ponModalSubtitle');
+            if (subtitleEl) {
+                var avgRxStr = (pon && pon.avg_olt_rx_dbm != null) ? pon.avg_olt_rx_dbm.toFixed(2) + ' dBm' : '--';
+                var totalOnusStr = pon ? pon.total_onus : currentPonModalItems.length;
+                subtitleEl.innerHTML = `OLT: <strong style="color: #FFF;">${escapeHtml(oltName)}</strong> | Total na Porta: <strong style="color: #FFF;">${totalOnusStr} ONUs</strong> | Média Rx OLT: <strong style="color: ${statusColor}; font-family: monospace;">${avgRxStr}</strong>`;
+            }
+
+            // Mini KPI Bar
+            var satCount = currentPonModalItems.filter(i => (i.olt_rx_power_dbm != null ? i.olt_rx_power_dbm : -99) > -12.0).length;
+            var critCount = currentPonModalItems.filter(i => (i.olt_rx_power_dbm != null ? i.olt_rx_power_dbm : -99) <= -27.0).length;
+            var warnCount = currentPonModalItems.filter(i => {
+                var r = i.olt_rx_power_dbm != null ? i.olt_rx_power_dbm : -99;
+                return r <= -25.0 && r > -27.0;
+            }).length;
+            var asymCount = currentPonModalItems.filter(i => (i.asymmetry_db || 0) >= 3.0).length;
+
+            var kpiBar = document.getElementById('ponModalKpiBar');
+            if (kpiBar) {
+                kpiBar.innerHTML = `
+                    <div style="flex: 1; background: rgba(30, 41, 59, 0.6); padding: 6px 10px; border-radius: 6px; border-left: 3px solid #00F0FF;">
+                        <div style="font-size: 0.68rem; color: #94A3B8;">Saturação (> -12 dBm)</div>
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #00F0FF;">${satCount}</div>
+                    </div>
+                    <div style="flex: 1; background: rgba(30, 41, 59, 0.6); padding: 6px 10px; border-radius: 6px; border-left: 3px solid #F43F5E;">
+                        <div style="font-size: 0.68rem; color: #94A3B8;">Críticas (≤ -27 dBm)</div>
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #F43F5E;">${critCount}</div>
+                    </div>
+                    <div style="flex: 1; background: rgba(30, 41, 59, 0.6); padding: 6px 10px; border-radius: 6px; border-left: 3px solid #F59E0B;">
+                        <div style="font-size: 0.68rem; color: #94A3B8;">Atenção (-25..-27 dBm)</div>
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #F59E0B;">${warnCount}</div>
+                    </div>
+                    <div style="flex: 1; background: rgba(30, 41, 59, 0.6); padding: 6px 10px; border-radius: 6px; border-left: 3px solid #C471ED;">
+                        <div style="font-size: 0.68rem; color: #94A3B8;">Assimetria (≥ 3 dB)</div>
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #C471ED;">${asymCount}</div>
+                    </div>
+                `;
+            }
+
+            var searchInput = document.getElementById('searchPonOnusInput');
+            if (searchInput) searchInput.value = '';
+
+            renderPonModalOnusTable(currentPonModalItems);
+            modal.style.display = 'flex';
+        }
+
+        function filterPonModalOnus() {
+            var q = (document.getElementById('searchPonOnusInput')?.value || '').toLowerCase().trim();
+            if (!q) {
+                renderPonModalOnusTable(currentPonModalItems);
+                return;
+            }
+            var filtered = currentPonModalItems.filter(function(i) {
+                var s = (i.serial_number || '').toLowerCase();
+                var c = (i.customer_identifier || '').toLowerCase();
+                var num = String(i.onu_id_num || '');
+                return s.includes(q) || c.includes(q) || num.includes(q);
+            });
+            renderPonModalOnusTable(filtered);
+        }
+
+        function renderPonModalOnusTable(items) {
+            var tbody = document.getElementById('ponModalTbody');
+            var badge = document.getElementById('ponModalCountBadge');
+            if (!tbody) return;
+
+            if (badge) badge.textContent = `${items.length} ONU(s) listada(s)`;
+
+            if (!items || items.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" style="padding: 30px; text-align: center; color: #94A3B8;">
+                            Nenhuma ONU problemática encontrada nesta porta com os critérios atuais.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = items.map(function(item) {
+                var rxOltVal = item.olt_rx_power_dbm;
+                var rxOltStr = rxOltVal != null ? rxOltVal.toFixed(2) + ' dBm' : '--';
+                var rxOltColor = '#10B981';
+                if (rxOltVal != null) {
+                    if (rxOltVal > -12.0) rxOltColor = '#00F0FF';
+                    else if (rxOltVal <= -29.0) rxOltColor = '#F43F5E';
+                    else if (rxOltVal <= -27.0) rxOltColor = '#F97316';
+                    else if (rxOltVal <= -25.0) rxOltColor = '#F59E0B';
+                }
+
+                var rxOnuStr = item.rx_power_dbm != null ? item.rx_power_dbm.toFixed(2) + ' dBm' : '--';
+                var txOnuStr = item.tx_power_dbm != null ? item.tx_power_dbm.toFixed(2) + ' dBm' : '--';
+                var asymVal = item.asymmetry_db;
+                var asymStr = asymVal != null ? asymVal.toFixed(2) + ' dB' : '--';
+                var asymColor = (asymVal != null && asymVal >= 3.0) ? '#C471ED' : '#94A3B8';
+
+                // Problema tag
+                var probBadge = '';
+                if (item.issue_type === 'saturated_upstream' || (rxOltVal != null && rxOltVal > -12.0)) {
+                    probBadge = '<span style="color:#00F0FF; font-weight:700; background:rgba(0,240,255,0.15); padding:2px 6px; border-radius:4px; border:1px solid rgba(0,240,255,0.3);">Saturação</span>';
+                } else if (item.issue_type === 'both') {
+                    probBadge = '<span style="color:#F43F5E; font-weight:700; background:rgba(244,63,94,0.15); padding:2px 6px; border-radius:4px; border:1px solid rgba(244,63,94,0.3);">Crítico+Assim.</span>';
+                } else if (item.issue_type === 'critical_upstream' || (rxOltVal != null && rxOltVal <= -27.0)) {
+                    probBadge = '<span style="color:#F43F5E; font-weight:700; background:rgba(244,63,94,0.15); padding:2px 6px; border-radius:4px; border:1px solid rgba(244,63,94,0.3);">Crítico</span>';
+                } else if (item.issue_type === 'warning_upstream' || (rxOltVal != null && rxOltVal <= -25.0)) {
+                    probBadge = '<span style="color:#F59E0B; font-weight:600; background:rgba(245,158,11,0.15); padding:2px 6px; border-radius:4px; border:1px solid rgba(245,158,11,0.3);">Atenção</span>';
+                } else if (item.issue_type === 'asymmetry') {
+                    probBadge = '<span style="color:#C471ED; font-weight:600; background:rgba(196,113,237,0.15); padding:2px 6px; border-radius:4px; border:1px solid rgba(196,113,237,0.3);">Assimetria</span>';
+                } else {
+                    probBadge = '<span style="color:#94A3B8;">Degradado</span>';
+                }
+
+                var clientSafe = escapeHtml(item.customer_identifier || '--');
+                var serialSafe = escapeHtml(item.serial_number);
+
+                return `
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.15s ease;" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
+                    <td style="padding: 7px 10px; font-family: monospace; font-weight: 700; color: #FFF; white-space: nowrap;">${serialSafe}</td>
+                    <td style="padding: 7px 10px; color: #94A3B8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${clientSafe}">${clientSafe}</td>
+                    <td style="padding: 7px 10px; font-family: monospace; color: var(--accent-cyan);">#${item.onu_id_num}</td>
+                    <td style="padding: 7px 10px; color: #FFF; font-family: monospace;">${rxOnuStr}</td>
+                    <td style="padding: 7px 10px; color: #94A3B8; font-family: monospace;">${txOnuStr}</td>
+                    <td style="padding: 7px 10px; color: ${rxOltColor}; font-weight: 700; font-family: monospace;">${rxOltStr}</td>
+                    <td style="padding: 7px 10px; color: ${asymColor}; font-weight: 600; font-family: monospace;">${asymStr}</td>
+                    <td style="padding: 7px 10px; white-space: nowrap;">${probBadge}</td>
+                    <td style="padding: 7px 10px; text-align: center;">
+                        <button class="btn-action-small" onclick="showOnuAuditModal(${item.onu_id})" title="Auditar diagnóstico e histórico da ONU">Auditar</button>
+                    </td>
+                </tr>
+                `;
+            }).join('');
+        }
+
+        function closePonAuditModal() {
+            var modal = document.getElementById('ponAuditModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function applySuspectPonFilter() {
+            if (!globalUpstreamData || !globalUpstreamData.suspect_pons) return;
+            var q = (document.getElementById('searchSuspectPonInput')?.value || '').toLowerCase().trim();
+            if (!q) {
+                renderSuspectPons(globalUpstreamData.suspect_pons);
+                return;
+            }
+            var filtered = globalUpstreamData.suspect_pons.filter(function(p) {
+                var olt = (p.olt_name || '').toLowerCase();
+                var iface = `s${p.slot}/p${p.pon_port}`.toLowerCase();
+                var ifaceAlt = `${p.slot}/${p.pon_port}`.toLowerCase();
+                return olt.indexOf(q) !== -1 || iface.indexOf(q) !== -1 || ifaceAlt.indexOf(q) !== -1;
+            });
+            renderSuspectPons(filtered);
+        }
+
+        function applyUpstreamFilter() {
+            applySuspectPonFilter();
+        }
+
+        function prevUpstreamPage() {}
+        function nextUpstreamPage() {}
+
+        function downloadUpstreamReport() {
+            var url = '/api/reports/pdf?type=upstream';
+            window.open(url, '_blank');
+        }
+
         function switchTab(tab) {
             // Atualiza botões
             document.querySelectorAll('.tab-btn').forEach(item => item.classList.remove('active'));
@@ -4312,6 +4864,8 @@
                 applyDegradationFilter();
             } else if (tab === 'diagnostics') {
                 loadDiagnosticsData();
+            } else if (tab === 'upstream') {
+                loadUpstreamData();
             } else if (tab === 'users') {
                 loadUsers();
             } else if (tab === 'audit') {
@@ -4496,7 +5050,38 @@
                 if (degradationTab && degradationTab.style.display !== 'none') {
                     applyDegradationFilter();
                 }
+
+                var upstreamTab = document.getElementById('content-upstream');
+                if (upstreamTab && upstreamTab.style.display !== 'none') {
+                    applyUpstreamFilter();
+                }
             }, 150);
+        });
+
+        // Fechamento de modais com clique fora (backdrop) e tecla Escape
+        window.addEventListener('click', function(e) {
+            var ponModal = document.getElementById('ponAuditModal');
+            if (ponModal && e.target === ponModal) {
+                closePonAuditModal();
+            }
+            var onuModal = document.getElementById('onuAuditModal');
+            if (onuModal && e.target === onuModal) {
+                closeOnuAuditModal();
+            }
+        });
+
+        window.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                var onuModal = document.getElementById('onuAuditModal');
+                if (onuModal && onuModal.style.display === 'flex') {
+                    closeOnuAuditModal();
+                    return;
+                }
+                var ponModal = document.getElementById('ponAuditModal');
+                if (ponModal && ponModal.style.display === 'flex') {
+                    closePonAuditModal();
+                }
+            }
         });
     </script>
 </body>

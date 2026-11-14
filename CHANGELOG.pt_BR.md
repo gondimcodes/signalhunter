@@ -7,6 +7,38 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [1.2.0] — 2026-11-14
+
+### 🚀 Auditoria de Upstream (Rx OLT), Diagnóstico Bidirecional & Detecção de APD
+- **Visualização Bidirecional no Modal de Diagnóstico da ONU**:
+  - Reestruturação completa de `showOnuAuditModal` com grid analítico de 6 cards:
+    - `Rx ONU (Downstream)` e `Tx ONU (Upstream)`
+    - `Rx OLT (Recepção PON)` e `Tx OLT (Saída SFP PON)`
+    - `Assimetria Óptica (Δ)` e `Temperatura do Transceiver`
+  - Expansão da tabela histórica temporal para 7 colunas, com leitura bidirecional completa (`Rx ONU`, `Tx ONU`, `Rx OLT`, `Tx OLT`, `ΔdB`, `Status/Causa`).
+  - Inclusão de `latest_olt_tx_power_dbm` no struct `OnuRecord` e em todas as consultas SQL do sistema.
+- **Painel Dedicado de Auditoria de Upstream & Modal Interativo de Portas PON**:
+  - Nova aba de primeiro nível `Auditoria Upstream & PONs` (`#content-upstream`) com KPIs em tempo real:
+    - Saturação Upstream ($> -12.0\text{ dBm}$)
+    - Atenção Upstream ($-25.0$ a $-27.0\text{ dBm}$)
+    - Rx OLT Crítico ($\le -27.0\text{ dBm}$)
+    - Assimetria Óptica ($\ge 3.0\text{ dB}$)
+    - Portas PON com Suspeita no Receptor APD / DIO Central (degradação coletiva)
+  - Modal Interativo de Auditoria da PON: clique em qualquer card de porta PON abre modal dedicado com a relação de todas as ONUs problemáticas da interface, busca em tempo real, badges de criticidade e atalho para o diagnóstico da ONU.
+  - Refinamento do critério de saturação upstream: disparado estritamente pela média da porta PON na OLT (`avg_rx > -12.00 dBm`), eliminando falsos positivos em ONUs isoladas.
+  - Exclusão rigorosa de ONUs offline ou em LOS do cálculo de upstream, zerando leituras residuais de cache SNMP (`-3.91 dBm`, `-3.56 dBm`).
+- **Relatório Executivo em PDF ("Auditoria de Upstream & Saúde das Portas PON")**:
+  - Novo endpoint `/api/reports/pdf?type=upstream` para geração de relatórios técnicos em PDF com cabeçalho NOC confidencial.
+  - Seção 1: Tabela executiva de portas PON com suspeita de falha em APD/DIO.
+  - Seção 2: Relação detalhada de ONUs com anomalia agrupadas por OLT e ordenadas estritamente do pior para o melhor Rx OLT (Saturação $> -12\text{ dBm}$ $\rightarrow$ Crítico $\le -27\text{ dBm}$ $\rightarrow$ Atenção $-25\text{ a }-27\text{ dBm}$ $\rightarrow$ Assimetria Óptica).
+  - Diagramação calibrada de colunas prevenindo sobreposição de texto em múltiplas páginas.
+- **Arquitetura Limpa, Zero Warnings & Otimização de Dependências**:
+  - Expurgo de dependências não utilizadas (`axum-extra`, `futures`, `quick-xml`, `tower-http`) do `Cargo.toml`, reduzindo de 346 para 328 crates.
+  - Cobertura de testes unitários para avaliação de upstream, saturação e exclusão de LOS.
+  - Conformidade estrita: 0 warnings no `cargo clippy`, formatação padronizada via `cargo fmt` e 12/12 testes unitários aprovados.
+
+---
+
 ## [1.1.2] — 2026-11-02
 
 ### 🛡️ Segurança & Hardening de Cadeia de Suprimentos

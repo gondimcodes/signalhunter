@@ -64,3 +64,9 @@ impl CollectorRegistry {
         }
     }
 }
+
+impl Default for CollectorRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -30,7 +30,7 @@ impl ParksDriver {
 
     /// Decodifica o serial codificado em hexadecimal da Parks (ex: "50524B5300D6F760" -> "PRKS00D6F760")
     fn decode_parks_serial(raw: &str) -> String {
-        let clean = raw.trim().replace('"', "").replace(' ', "");
+        let clean = raw.trim().replace(['"', ' '], "");
         if clean.len() >= 8 {
             // Tenta decodificar os 4 primeiros bytes como ASCII (Vendor ID, ex: 50524B53 -> PRKS)
             if let Ok(bytes) = hex::decode(&clean[..8]) {
@@ -47,7 +47,7 @@ impl ParksDriver {
 
     /// Decodifica modelo em hexadecimal da Parks (ex: "46696265726C696E6B313031..." -> "Fiberlink101(Rev2)")
     fn decode_parks_model(raw: &str) -> Option<String> {
-        let clean = raw.trim().replace('"', "").replace(' ', "");
+        let clean = raw.trim().replace(['"', ' '], "");
         if clean.is_empty() || clean.chars().all(|c| c == '0') {
             return None;
         }
@@ -61,6 +61,12 @@ impl ParksDriver {
             }
         }
         None
+    }
+}
+
+impl Default for ParksDriver {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -268,7 +274,7 @@ impl OltDriver for ParksDriver {
                 let attenuation = match (olt_tx, rx_dbm) {
                     (Some(tx), Some(rx)) => {
                         let att = tx - rx;
-                        if att >= 0.0 && att <= 45.0 {
+                        if (0.0..=45.0).contains(&att) {
                             Some(att)
                         } else {
                             None

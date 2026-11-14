@@ -138,6 +138,83 @@ pub async fn generate_report_pdf_handler(
         return Ok((headers, pdf_bytes));
     }
 
+    let is_upstream = params.report_type.as_deref() == Some("upstream")
+        || params.report_type.as_deref() == Some("upstream_issues");
+
+    if is_upstream {
+        let onus = sqlx::query_as::<_, OnuRecord>(
+            "SELECT o.id, o.olt_id, ol.name AS olt_name, o.slot, o.pon_port, o.onu_id,
+                    o.serial_number, o.mac_address, o.model, o.custom_name, o.customer_identifier,
+                    o.distance_meters, o.status, o.first_seen_at, o.last_seen_at,
+                    CAST(h.rx_power_dbm AS DOUBLE) AS latest_rx_power_dbm,
+                    CAST(h.tx_power_dbm AS DOUBLE) AS latest_tx_power_dbm,
+                    CAST(h.olt_rx_power_dbm AS DOUBLE) AS latest_olt_rx_power_dbm,
+                    CAST(h.olt_tx_power_dbm AS DOUBLE) AS latest_olt_tx_power_dbm,
+                    CAST(h.attenuation_db AS DOUBLE) AS latest_attenuation_db,
+                    CAST(h.temperature_c AS DOUBLE) AS latest_temperature_c,
+                    h.signal_quality AS latest_signal_quality,
+                    CAST(h.delta_prev_rx_db AS DOUBLE) AS latest_delta_prev_rx_db,
+                    h.is_degraded AS is_degraded
+             FROM onus o
+             JOIN olts ol ON o.olt_id = ol.id
+             LEFT JOIN onu_signal_history h ON h.id = o.latest_signal_history_id
+             WHERE ol.is_active = TRUE AND o.status = 'online'
+             ORDER BY ol.name ASC, o.slot ASC, o.pon_port ASC",
+        )
+        .fetch_all(pool)
+        .await
+        .unwrap_or_default();
+
+        let summary = crate::analytics::OpticalEvaluator::evaluate_upstream_diagnostics(&onus);
+
+        let tmp_path = format!(
+            "/tmp/signalhunter_upstream_{}.pdf",
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+        );
+        PdfReportGenerator::generate_upstream_report(&tmp_path, "Engenharia NOC", &summary)
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ApiResponse {
+                        success: false,
+                        message: format!(
+                            "Falha ao gerar Relatório de Auditoria de Upstream em PDF: {}",
+                            e
+                        ),
+                        data: None,
+                    }),
+                )
+            })?;
+
+        let pdf_bytes = std::fs::read(&tmp_path).unwrap_or_default();
+        let _ = std::fs::remove_file(&tmp_path);
+
+        crate::db::queries::log_audit_event(
+            pool,
+            session_user_id,
+            "EXPORT_PDF",
+            "UPSTREAM_REPORT",
+            None,
+            Some(&format!(
+                "Exportação do Relatório de Auditoria de Upstream & PONs ({} alertas)",
+                summary.items.len()
+            )),
+            Some(&client_ip),
+        )
+        .await;
+
+        let mut headers = HeaderMap::new();
+        headers.insert(header::CONTENT_TYPE, "application/pdf".parse().unwrap());
+        headers.insert(
+            header::CONTENT_DISPOSITION,
+            "attachment; filename=\"relatorio_auditoria_upstream_pons.pdf\""
+                .parse()
+                .unwrap(),
+        );
+
+        return Ok((headers, pdf_bytes));
+    }
+
     let search_term = params
         .q
         .as_deref()
@@ -154,6 +231,7 @@ pub async fn generate_report_pdf_handler(
                     CAST(h.rx_power_dbm AS DOUBLE) AS latest_rx_power_dbm,
                     CAST(h.tx_power_dbm AS DOUBLE) AS latest_tx_power_dbm,
                     CAST(h.olt_rx_power_dbm AS DOUBLE) AS latest_olt_rx_power_dbm,
+                    CAST(h.olt_tx_power_dbm AS DOUBLE) AS latest_olt_tx_power_dbm,
                     CAST(h.attenuation_db AS DOUBLE) AS latest_attenuation_db,
                     CAST(h.temperature_c AS DOUBLE) AS latest_temperature_c,
                     h.signal_quality AS latest_signal_quality,
@@ -161,11 +239,7 @@ pub async fn generate_report_pdf_handler(
                     h.is_degraded AS is_degraded
              FROM onus o
              JOIN olts ol ON o.olt_id = ol.id
-             LEFT JOIN onu_signal_history h ON h.id = (
-                 SELECT id FROM onu_signal_history 
-                 WHERE onu_id = o.id 
-                 ORDER BY id DESC LIMIT 1
-             )
+             LEFT JOIN onu_signal_history h ON h.id = o.latest_signal_history_id
              ORDER BY ol.name ASC, o.slot ASC, o.pon_port ASC",
         )
         .fetch_all(pool)
@@ -176,7 +250,7 @@ pub async fn generate_report_pdf_handler(
             crate::analytics::OpticalEvaluator::run_intelligent_diagnostics(&onus);
 
         // Se houver busca ativa, filtra os incidentes correspondentes
-        if let Some(ref q) = search_term {
+        if let Some(q) = search_term {
             let q_lower = q.to_lowercase();
             diag_summary.incidents.retain(|inc| {
                 inc.title.to_lowercase().contains(&q_lower)
@@ -252,6 +326,7 @@ pub async fn generate_report_pdf_handler(
                     CAST(h.rx_power_dbm AS DOUBLE) AS latest_rx_power_dbm,
                     CAST(h.tx_power_dbm AS DOUBLE) AS latest_tx_power_dbm,
                     CAST(h.olt_rx_power_dbm AS DOUBLE) AS latest_olt_rx_power_dbm,
+                    CAST(h.olt_tx_power_dbm AS DOUBLE) AS latest_olt_tx_power_dbm,
                     CAST(h.attenuation_db AS DOUBLE) AS latest_attenuation_db,
                     CAST(h.temperature_c AS DOUBLE) AS latest_temperature_c,
                     h.signal_quality AS latest_signal_quality,
@@ -259,11 +334,7 @@ pub async fn generate_report_pdf_handler(
                     h.is_degraded AS is_degraded
              FROM onus o
              JOIN olts ol ON o.olt_id = ol.id
-             JOIN onu_signal_history h ON h.id = (
-                 SELECT id FROM onu_signal_history 
-                 WHERE onu_id = o.id 
-                 ORDER BY id DESC LIMIT 1
-             )
+             JOIN onu_signal_history h ON h.id = o.latest_signal_history_id
              WHERE ol.is_active = TRUE
                AND (h.is_degraded = TRUE OR (h.delta_prev_rx_db IS NOT NULL AND h.delta_prev_rx_db < -0.50))
                AND h.collected_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 30 DAY)
@@ -292,6 +363,7 @@ pub async fn generate_report_pdf_handler(
                     CAST(h.rx_power_dbm AS DOUBLE) AS latest_rx_power_dbm,
                     CAST(h.tx_power_dbm AS DOUBLE) AS latest_tx_power_dbm,
                     CAST(h.olt_rx_power_dbm AS DOUBLE) AS latest_olt_rx_power_dbm,
+                    CAST(h.olt_tx_power_dbm AS DOUBLE) AS latest_olt_tx_power_dbm,
                     CAST(h.attenuation_db AS DOUBLE) AS latest_attenuation_db,
                     CAST(h.temperature_c AS DOUBLE) AS latest_temperature_c,
                     h.signal_quality AS latest_signal_quality,
@@ -299,12 +371,8 @@ pub async fn generate_report_pdf_handler(
                     h.is_degraded AS is_degraded
              FROM onus o
              JOIN olts ol ON o.olt_id = ol.id
-             LEFT JOIN onu_signal_history h ON h.id = (
-                 SELECT id FROM onu_signal_history 
-                 WHERE onu_id = o.id 
-                 ORDER BY id DESC LIMIT 1
-             )
-             WHERE ol.is_active = TRUE 
+             LEFT JOIN onu_signal_history h ON h.id = o.latest_signal_history_id
+             WHERE ol.is_active = TRUE
                AND (o.last_seen_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 24 HOUR) OR o.status != 'offline')
              {}
              ORDER BY 
@@ -331,6 +399,7 @@ pub async fn generate_report_pdf_handler(
                     CAST(h.rx_power_dbm AS DOUBLE) AS latest_rx_power_dbm,
                     CAST(h.tx_power_dbm AS DOUBLE) AS latest_tx_power_dbm,
                     CAST(h.olt_rx_power_dbm AS DOUBLE) AS latest_olt_rx_power_dbm,
+                    CAST(h.olt_tx_power_dbm AS DOUBLE) AS latest_olt_tx_power_dbm,
                     CAST(h.attenuation_db AS DOUBLE) AS latest_attenuation_db,
                     CAST(h.temperature_c AS DOUBLE) AS latest_temperature_c,
                     h.signal_quality AS latest_signal_quality,
@@ -338,12 +407,8 @@ pub async fn generate_report_pdf_handler(
                     h.is_degraded AS is_degraded
              FROM onus o
              JOIN olts ol ON o.olt_id = ol.id
-             LEFT JOIN onu_signal_history h ON h.id = (
-                 SELECT id FROM onu_signal_history 
-                 WHERE onu_id = o.id 
-                 ORDER BY id DESC LIMIT 1
-             )
-             WHERE ol.is_active = TRUE 
+             LEFT JOIN onu_signal_history h ON h.id = o.latest_signal_history_id
+             WHERE ol.is_active = TRUE
               AND (o.status IN ('los', 'offline')
                OR (o.status = 'online' AND (
                     h.rx_power_dbm IS NULL 
@@ -387,11 +452,7 @@ pub async fn generate_report_pdf_handler(
                                 ))) THEN 1 END) AS total_alerts
          FROM olts ol 
          LEFT JOIN onus o ON o.olt_id = ol.id 
-         LEFT JOIN onu_signal_history h ON h.id = (
-             SELECT id FROM onu_signal_history 
-             WHERE onu_id = o.id 
-             ORDER BY id DESC LIMIT 1
-         )
+         LEFT JOIN onu_signal_history h ON h.id = o.latest_signal_history_id
          WHERE ol.is_active = TRUE
          GROUP BY ol.id, ol.name, ol.vendor, ol.model, ol.last_collected_at"
     )

@@ -88,6 +88,7 @@ pub async fn list_onus_handler(
                 CAST(h.rx_power_dbm AS DOUBLE) AS latest_rx_power_dbm,
                 CAST(h.tx_power_dbm AS DOUBLE) AS latest_tx_power_dbm,
                 CAST(h.olt_rx_power_dbm AS DOUBLE) AS latest_olt_rx_power_dbm,
+                CAST(h.olt_tx_power_dbm AS DOUBLE) AS latest_olt_tx_power_dbm,
                 CAST(h.attenuation_db AS DOUBLE) AS latest_attenuation_db,
                 CAST(h.temperature_c AS DOUBLE) AS latest_temperature_c,
                 h.signal_quality AS latest_signal_quality,
@@ -95,11 +96,7 @@ pub async fn list_onus_handler(
                 h.is_degraded AS is_degraded
          FROM onus o
          JOIN olts ol ON o.olt_id = ol.id
-         LEFT JOIN onu_signal_history h ON h.id = (
-             SELECT id FROM onu_signal_history 
-             WHERE onu_id = o.id 
-             ORDER BY id DESC LIMIT 1
-         )
+         LEFT JOIN onu_signal_history h ON h.id = o.latest_signal_history_id
          WHERE ol.is_active = TRUE
          ORDER BY 
             CASE 

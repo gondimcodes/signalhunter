@@ -46,6 +46,12 @@ impl HuaweiDriver {
     }
 }
 
+impl Default for HuaweiDriver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl OltDriver for HuaweiDriver {
     fn vendor_name(&self) -> &'static str {
@@ -443,7 +449,7 @@ impl OltDriver for HuaweiDriver {
             let attenuation_db = match (olt_tx_dbm, rx_dbm) {
                 (Some(tx_olt), Some(rx_onu)) if rx_onu > -45.0 => {
                     let att = tx_olt - rx_onu;
-                    if att >= 0.0 && att <= 45.0 {
+                    if (0.0..=45.0).contains(&att) {
                         Some(att)
                     } else {
                         None
@@ -452,7 +458,7 @@ impl OltDriver for HuaweiDriver {
                 _ => match (tx_dbm, olt_rx_dbm) {
                     (Some(tx_onu), Some(rx_olt)) if rx_olt > -45.0 => {
                         let att = tx_onu - rx_olt;
-                        if att >= 0.0 && att <= 45.0 {
+                        if (0.0..=45.0).contains(&att) {
                             Some(att)
                         } else {
                             None
@@ -468,13 +474,13 @@ impl OltDriver for HuaweiDriver {
                 onu_id,
                 serial_number: serial,
                 customer_identifier: customer_name,
-                rx_power_dbm: rx_dbm,
-                tx_power_dbm: tx_dbm,
-                olt_rx_power_dbm: olt_rx_dbm,
+                rx_power_dbm: if is_online { rx_dbm } else { None },
+                tx_power_dbm: if is_online { tx_dbm } else { None },
+                olt_rx_power_dbm: if is_online { olt_rx_dbm } else { None },
                 olt_tx_power_dbm: olt_tx_dbm,
-                attenuation_db,
-                temperature_c: temp_c,
-                voltage_v: volt_v,
+                attenuation_db: if is_online { attenuation_db } else { None },
+                temperature_c: if is_online { temp_c } else { None },
+                voltage_v: if is_online { volt_v } else { None },
                 bias_current_ma: None,
                 distance_meters: dist_m,
                 is_online,

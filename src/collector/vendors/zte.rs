@@ -34,11 +34,7 @@ impl ZteDriver {
                 .unwrap_or(0);
 
             if pon_raw > 0 {
-                let (slot, port) = if pon_raw >= 0x10000000 {
-                    let s = ((pon_raw >> 8) & 0xFF) as i32;
-                    let p = (pon_raw & 0xFF) as i32;
-                    (if s > 0 { s } else { 1 }, if p > 0 { p } else { 1 })
-                } else if pon_raw > 256 {
+                let (slot, port) = if pon_raw > 256 {
                     let s = ((pon_raw >> 8) & 0xFF) as i32;
                     let p = (pon_raw & 0xFF) as i32;
                     (if s > 0 { s } else { 1 }, if p > 0 { p } else { 1 })
@@ -70,9 +66,67 @@ impl ZteDriver {
             9 | 12 | 13 | 14 | 15 => "dying_gasp",
             1 if is_legacy_1012 => "dying_gasp",
             4 if is_legacy_1012 => "dying_gasp",
-            2 | 3 | 4 | 5 => "los",
+            2..=5 => "los",
             _ => "los",
         }
+    }
+
+    /// Decodifica a potência óptica de recepção na OLT (Upstream Rx medido no chassi):
+    /// MIB oficial ZTE: zxAnOLTRxOpticalPower (.1.3.6.1.4.1.3902.1015.1010.11.2.1.2)
+    /// Retorna em 0.001 dBm (ex: -24317 -> -24.317 dBm)
+    pub fn decode_zte_olt_rx_power(raw_val: i64) -> Option<f64> {
+        if raw_val == 0
+            || raw_val == 65535
+            || raw_val == 65535000
+            || raw_val == -80000
+            || raw_val == 2147483647
+            || raw_val <= -50000
+        {
+            return None;
+        }
+
+        let dbm = if raw_val.abs() >= 1000 {
+            (raw_val as f64) / 1000.0
+        } else if raw_val.abs() >= 100 {
+            (raw_val as f64) / 100.0
+        } else {
+            raw_val as f64
+        };
+
+        if (-45.0..=0.0).contains(&dbm) {
+            Some((dbm * 1000.0).round() / 1000.0)
+        } else {
+            None
+        }
+    }
+
+    /// Decodifica a potência óptica de transmissão da OLT (Saída do SFP PON):
+    /// MIB oficial ZTE: zxAnTxOpticalPower em zxAnOLTOpticalDiagTable (.1.3.6.1.4.1.3902.1015.1010.11.1.1.5)
+    /// Retorna em 0.001 dBm (ex: 5511 -> +5.511 dBm)
+    pub fn decode_zte_olt_tx_power(raw_val: i64) -> Option<f64> {
+        if raw_val <= 0 || raw_val == 65535 || raw_val == 65535000 || raw_val == 2147483647 {
+            return None;
+        }
+
+        let dbm = if raw_val >= 1000 {
+            (raw_val as f64) / 1000.0
+        } else if raw_val >= 100 {
+            (raw_val as f64) / 100.0
+        } else {
+            raw_val as f64
+        };
+
+        if (0.5..=15.0).contains(&dbm) {
+            Some((dbm * 1000.0).round() / 1000.0)
+        } else {
+            None
+        }
+    }
+}
+
+impl Default for ZteDriver {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -281,39 +335,34 @@ impl OltDriver for ZteDriver {
         );
 
         // 2.1 Potência Óptica Rx da ONU (Downstream):
-        let rx_walk_c600 = snmp
+        // MIB oficial ZTE: zxAnGponRmAniRxOptLevel (.1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.10)
+        // Fallback legado C300: zxGponPonRxOpticalLevel (.1.3.6.1.4.1.3902.1012.3.50.12.1.1.10)
+        // Fórmula: dbm = (raw * 0.002) - 30.0 (ex: 4515 -> -20.97 dBm)
+        let mut rx_walk = snmp
             .bulk_walk(".1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.10", 65535)
             .await
             .unwrap_or_default();
-        let mut rx_walk_c300 = snmp
-            .bulk_walk(".1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.2", 65535)
-            .await
-            .unwrap_or_default();
-        if rx_walk_c300.is_empty() {
-            rx_walk_c300 = snmp
+        if rx_walk.is_empty() {
+            rx_walk = snmp
                 .bulk_walk(".1.3.6.1.4.1.3902.1012.3.50.12.1.1.10", 65535)
                 .await
                 .unwrap_or_default();
         }
 
-        // 1) Fallback C300/C320
-        for vb in &rx_walk_c300 {
+        for vb in &rx_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
                 let key = format!("{}.{}", parts[parts.len() - 2], parts[parts.len() - 1]);
                 let raw_val = vb.value_int.unwrap_or(0);
                 if raw_val != 0
+                    && raw_val != 15000
                     && raw_val != 65535000
                     && raw_val != -80000
                     && raw_val != 2147483647
                     && raw_val != 65535
                 {
-                    let dbm = if raw_val.abs() > 1000 {
-                        (raw_val as f64) / 1000.0
-                    } else {
-                        (raw_val as f64) * 0.002 - 30.0
-                    };
-                    if dbm < 10.0 && dbm > -60.0 {
+                    let dbm = (raw_val as f64) * 0.002 - 30.0;
+                    if dbm < 5.0 && dbm > -50.0 {
                         rx_map.insert(key.clone(), dbm);
                         if parts.len() >= 3 {
                             rx_map.insert(
@@ -326,50 +375,36 @@ impl OltDriver for ZteDriver {
             }
         }
 
-        // 2) Sobrescreve com C600 Titan
-        for vb in &rx_walk_c600 {
-            let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
-            if parts.len() >= 2 {
-                let key2 = format!("{}.{}", parts[parts.len() - 2], parts[parts.len() - 1]);
-                let raw_val = vb.value_int.unwrap_or(0);
-                // raw_val == 15000 resulta exatamente em (15000 * 0.002 - 30.0) = 0.00 dBm (código de ONU offline/sem leitura na ZTE)
-                if raw_val > 0 && raw_val != 15000 && raw_val != 65535 && raw_val != 2147483647 {
-                    let dbm = (raw_val as f64) * 0.002 - 30.0;
-                    if dbm < 5.0 && dbm > -50.0 {
-                        rx_map.insert(key2, dbm);
-                        if parts.len() >= 3 {
-                            let key3 =
-                                format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]);
-                            rx_map.insert(key3, dbm);
-                        }
-                    }
-                }
-            }
-        }
-
         // 2.2 Potência Óptica Tx da ONU (Upstream):
-        // Na C600 Titan (zxAnGponRmAniTxOptLevel): .1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.18
-        // Verificado empiricamente: raw=6000 → 2.850 dBm real (OLT CLI)
-        // Fórmula: dbm = (raw * 0.002) - 9.15
-        let tx_walk_c600 = snmp
+        // MIB oficial ZTE C600 Titan: zxAnGponRmAniTxOptLevel (.1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.18)
+        // Verificado empiricamente: raw=6000 -> 2.850 dBm real (OLT CLI)
+        // Fórmula oficial: dbm = (raw * 0.002) - 9.15
+        // Fallback: .1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.14 ou .1.3.6.1.4.1.3902.1012.3.50.12.1.1.11
+        let mut tx_walk = snmp
             .bulk_walk(".1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.18", 65535)
             .await
             .unwrap_or_default();
+        if tx_walk.is_empty() {
+            tx_walk = snmp
+                .bulk_walk(".1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.14", 65535)
+                .await
+                .unwrap_or_default();
+        }
+        if tx_walk.is_empty() {
+            tx_walk = snmp
+                .bulk_walk(".1.3.6.1.4.1.3902.1012.3.50.12.1.1.11", 65535)
+                .await
+                .unwrap_or_default();
+        }
 
-        for vb in &tx_walk_c600 {
+        for vb in &tx_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
                 let key2 = format!("{}.{}", parts[parts.len() - 2], parts[parts.len() - 1]);
                 let raw_val = vb.value_int.unwrap_or(0);
                 if raw_val > 0 && raw_val != 65535 && raw_val != 2147483647 {
-                    let dbm = if raw_val > 1000 {
-                        (raw_val as f64) * 0.002 - 9.15
-                    } else if raw_val <= 1000 {
-                        (raw_val as f64) / 100.0
-                    } else {
-                        (raw_val as f64) * 0.002 - 10.0
-                    };
-                    if dbm > -20.0 && dbm < 10.0 {
+                    let dbm = (raw_val as f64) * 0.002 - 9.15;
+                    if dbm > -20.0 && dbm < 15.0 {
                         tx_map.insert(key2, dbm);
                         if parts.len() >= 3 {
                             let key3 =
@@ -382,59 +417,90 @@ impl OltDriver for ZteDriver {
         }
 
         // 2.3 Sinal Rx recebido na OLT (Upstream medido no chassi):
-        // Na C600 Titan/C610/C650 (zxAnGponRmAniOltRxOptLevel): .1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.19
-        // Fórmula oficial ZTE: dbm = (raw * 0.002) - 30.0
-        let olt_rx_walk_c600 = snmp
-            .bulk_walk(".1.3.6.1.4.1.3902.1082.500.20.2.2.2.1.19", 65535)
+        // MIB oficial ZTE: zxAnPonRxOpticalPower em zxAnPonRxOpticalPowerTable
+        // OID: .1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.2 (unidade: 0.001 dBm)
+        // Exemplo real OLT CLI: raw_val = -24317 -> -24.317 dBm
+        // Fallback 1: zxAnOLTRxOpticalPower (.1.3.6.1.4.1.3902.1015.1010.11.2.1.2)
+        // Fallback 2: zxAnGponOntOltRxOptPower (.1.3.6.1.4.1.3902.1012.3.50.12.1.1.19)
+        let mut olt_rx_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.3902.1082.500.1.2.4.2.1.2", 65535)
             .await
             .unwrap_or_default();
-        for vb in &olt_rx_walk_c600 {
+        if olt_rx_walk.is_empty() {
+            olt_rx_walk = snmp
+                .bulk_walk(".1.3.6.1.4.1.3902.1015.1010.11.2.1.2", 65535)
+                .await
+                .unwrap_or_default();
+        }
+        if olt_rx_walk.is_empty() {
+            olt_rx_walk = snmp
+                .bulk_walk(".1.3.6.1.4.1.3902.1012.3.50.12.1.1.19", 65535)
+                .await
+                .unwrap_or_default();
+        }
+
+        for vb in &olt_rx_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
             if parts.len() >= 2 {
-                let key2 = format!("{}.{}", parts[parts.len() - 2], parts[parts.len() - 1]);
+                let onu_idx_str = parts[parts.len() - 1];
+                let pon_raw_str = parts[parts.len() - 2];
                 let raw_val = vb.value_int.unwrap_or(0);
-                if raw_val > 0 && raw_val != 15000 && raw_val != 65535 && raw_val != 2147483647 {
-                    let dbm = (raw_val as f64) * 0.002 - 30.0;
-                    if dbm < 5.0 && dbm > -50.0 {
+
+                if let Some(dbm) = Self::decode_zte_olt_rx_power(raw_val) {
+                    let key1 = format!("{}.{}", pon_raw_str, onu_idx_str);
+                    olt_rx_map.insert(key1, dbm);
+
+                    if let (Ok(pon_raw), Ok(onu_id)) =
+                        (pon_raw_str.parse::<u32>(), onu_idx_str.parse::<i32>())
+                    {
+                        let (slot, port) = if pon_raw > 256 {
+                            let s = ((pon_raw >> 8) & 0xFF) as i32;
+                            let p = (pon_raw & 0xFF) as i32;
+                            (if s > 0 { s } else { 1 }, if p > 0 { p } else { 1 })
+                        } else {
+                            (1, pon_raw as i32)
+                        };
+                        let key2 = format!("{}.{}.{}", slot, port, onu_id);
+                        let key3 = format!("{}.{}", port, onu_id);
                         olt_rx_map.insert(key2, dbm);
-                        if parts.len() >= 3 {
-                            let key3 =
-                                format!("{}.{}", parts[parts.len() - 3], parts[parts.len() - 2]);
-                            olt_rx_map.insert(key3, dbm);
-                        }
+                        olt_rx_map.insert(key3, dbm);
                     }
                 }
             }
         }
 
-        // Fallback C300/C320 para OLT Rx
-        for vb in &rx_walk_c300 {
+        // 2.4 Potência Óptica Tx da OLT (Saída do SFP PON):
+        // MIB oficial ZTE: zxAnOpticalIfTxPwrCurrValue (.1.3.6.1.4.1.3902.1082.30.40.2.4.1.3)
+        // Fallback: zxAnTxOpticalPower (.1.3.6.1.4.1.3902.1015.1010.11.1.1.5)
+        // Unidade: 0.001 dBm (ex: raw_val = 5511 -> +5.511 dBm)
+        let mut olt_tx_map = std::collections::HashMap::new();
+        let mut olt_tx_walk = snmp
+            .bulk_walk(".1.3.6.1.4.1.3902.1082.30.40.2.4.1.3", 65535)
+            .await
+            .unwrap_or_default();
+        if olt_tx_walk.is_empty() {
+            olt_tx_walk = snmp
+                .bulk_walk(".1.3.6.1.4.1.3902.1015.1010.11.1.1.5", 65535)
+                .await
+                .unwrap_or_default();
+        }
+
+        for vb in &olt_tx_walk {
             let parts: Vec<&str> = vb.oid.trim_start_matches('.').split('.').collect();
-            if parts.len() >= 2 {
-                let key = format!("{}.{}", parts[parts.len() - 2], parts[parts.len() - 1]);
+            if let Some(pon_raw_str) = parts.last() {
                 let raw_val = vb.value_int.unwrap_or(0);
-                if raw_val != 0
-                    && raw_val != 65535000
-                    && raw_val != -80000
-                    && raw_val != 2147483647
-                    && raw_val != 65535
-                {
-                    let dbm = if raw_val.abs() > 1000 {
-                        (raw_val as f64) / 1000.0
-                    } else {
-                        (raw_val as f64) * 0.002 - 30.0
-                    };
-                    if dbm < 10.0 && dbm > -60.0 {
-                        olt_rx_map.entry(key.clone()).or_insert(dbm);
-                        if parts.len() >= 3 {
-                            olt_rx_map
-                                .entry(format!(
-                                    "{}.{}",
-                                    parts[parts.len() - 3],
-                                    parts[parts.len() - 2]
-                                ))
-                                .or_insert(dbm);
-                        }
+                if let Some(dbm) = Self::decode_zte_olt_tx_power(raw_val) {
+                    olt_tx_map.insert(pon_raw_str.to_string(), dbm);
+                    if let Ok(pon_raw) = pon_raw_str.parse::<u32>() {
+                        let (slot, port) = if pon_raw > 256 {
+                            let s = ((pon_raw >> 8) & 0xFF) as i32;
+                            let p = (pon_raw & 0xFF) as i32;
+                            (if s > 0 { s } else { 1 }, if p > 0 { p } else { 1 })
+                        } else {
+                            (1, pon_raw as i32)
+                        };
+                        olt_tx_map.insert(format!("{}.{}", slot, port), dbm);
+                        olt_tx_map.insert(format!("{}", port), dbm);
                     }
                 }
             }
@@ -453,7 +519,7 @@ impl OltDriver for ZteDriver {
                 if raw_val > 0 && raw_val != 65535000 && raw_val != 2147483647 && raw_val != 65535 {
                     let temp_c = if raw_val > 1000 {
                         (raw_val as f64) / 100.0
-                    } else if raw_val >= 100 && raw_val <= 300 {
+                    } else if (100..=300).contains(&raw_val) {
                         (raw_val as f64) / 4.0
                     } else {
                         raw_val as f64
@@ -642,6 +708,13 @@ impl OltDriver for ZteDriver {
                     .or_else(|| olt_rx_map.get(&suffix3))
                     .copied();
 
+                let olt_tx_dbm = olt_tx_map
+                    .get(*parts.get(parts.len().saturating_sub(2)).unwrap_or(&""))
+                    .or_else(|| olt_tx_map.get(&format!("{}.{}", slot, pon_port)))
+                    .or_else(|| olt_tx_map.get(&format!("{}", pon_port)))
+                    .copied()
+                    .or(Some(4.5)); // Fallback padrão Class C+ caso não haja telemetria DDM da porta PON
+
                 let temp_c = temp_map
                     .get(&suffix1)
                     .or_else(|| temp_map.get(&suffix2))
@@ -683,22 +756,22 @@ impl OltDriver for ZteDriver {
                 let attenuation_db = if is_online {
                     if let (Some(tx), Some(olt_rx)) = (tx_dbm, olt_rx_dbm) {
                         let att = tx - olt_rx;
-                        if att >= 0.0 && att <= 45.0 {
-                            Some(att)
-                        } else if let Some(rx) = rx_dbm {
-                            let att_down = 4.5 - rx;
-                            if att_down >= 0.0 && att_down <= 45.0 {
-                                Some(att_down)
+                        if (0.0..=45.0).contains(&att) {
+                            Some((att * 100.0).round() / 100.0)
+                        } else if let (Some(olt_tx), Some(rx)) = (olt_tx_dbm, rx_dbm) {
+                            let att_down = olt_tx - rx;
+                            if (0.0..=45.0).contains(&att_down) {
+                                Some((att_down * 100.0).round() / 100.0)
                             } else {
                                 None
                             }
                         } else {
                             None
                         }
-                    } else if let Some(rx) = rx_dbm {
-                        let att_down = 4.5 - rx;
-                        if att_down >= 0.0 && att_down <= 45.0 {
-                            Some(att_down)
+                    } else if let (Some(olt_tx), Some(rx)) = (olt_tx_dbm, rx_dbm) {
+                        let att_down = olt_tx - rx;
+                        if (0.0..=45.0).contains(&att_down) {
+                            Some((att_down * 100.0).round() / 100.0)
                         } else {
                             None
                         }
@@ -715,13 +788,13 @@ impl OltDriver for ZteDriver {
                     onu_id,
                     serial_number: serial,
                     customer_identifier: customer_name,
-                    rx_power_dbm: rx_dbm,
-                    tx_power_dbm: tx_dbm,
-                    olt_rx_power_dbm: olt_rx_dbm,
-                    olt_tx_power_dbm: Some(4.5),
-                    attenuation_db,
-                    temperature_c: temp_c,
-                    voltage_v: volt_v,
+                    rx_power_dbm: if is_online { rx_dbm } else { None },
+                    tx_power_dbm: if is_online { tx_dbm } else { None },
+                    olt_rx_power_dbm: if is_online { olt_rx_dbm } else { None },
+                    olt_tx_power_dbm: olt_tx_dbm,
+                    attenuation_db: if is_online { attenuation_db } else { None },
+                    temperature_c: if is_online { temp_c } else { None },
+                    voltage_v: if is_online { volt_v } else { None },
                     bias_current_ma: None,
                     distance_meters: distance_m,
                     is_online,
@@ -809,5 +882,41 @@ mod tests {
         assert_eq!(ZteDriver::decode_zte_offline_reason(2, true), "los");
         assert_eq!(ZteDriver::decode_zte_offline_reason(3, true), "los");
         assert_eq!(ZteDriver::decode_zte_offline_reason(5, true), "los");
+    }
+
+    #[test]
+    fn test_decode_zte_olt_rx_power_precision_and_sentinels() {
+        // Caso real extraído da console ZTE C300: up Rx : -24.317(dbm)
+        let rx = ZteDriver::decode_zte_olt_rx_power(-24317);
+        assert_eq!(rx, Some(-24.317));
+
+        // Outros casos comuns de atenuação saudável
+        assert_eq!(ZteDriver::decode_zte_olt_rx_power(-19153), Some(-19.153));
+        assert_eq!(ZteDriver::decode_zte_olt_rx_power(-20850), Some(-20.850));
+
+        // Valores sentinela ZTE de ONU offline / sem sinal
+        assert_eq!(ZteDriver::decode_zte_olt_rx_power(0), None);
+        assert_eq!(ZteDriver::decode_zte_olt_rx_power(65535), None);
+        assert_eq!(ZteDriver::decode_zte_olt_rx_power(65535000), None);
+        assert_eq!(ZteDriver::decode_zte_olt_rx_power(2147483647), None);
+        assert_eq!(ZteDriver::decode_zte_olt_rx_power(-80000), None);
+        assert_eq!(ZteDriver::decode_zte_olt_rx_power(-60000), None);
+    }
+
+    #[test]
+    fn test_decode_zte_olt_tx_power_precision_and_sentinels() {
+        // Caso real extraído da console ZTE C300: down Tx : 5.511(dbm)
+        let tx = ZteDriver::decode_zte_olt_tx_power(5511);
+        assert_eq!(tx, Some(5.511));
+
+        // Outros módulos GPON Class B+ e C+
+        assert_eq!(ZteDriver::decode_zte_olt_tx_power(4230), Some(4.230));
+        assert_eq!(ZteDriver::decode_zte_olt_tx_power(3769), Some(3.769));
+
+        // Valores sentinela ou fora da faixa
+        assert_eq!(ZteDriver::decode_zte_olt_tx_power(0), None);
+        assert_eq!(ZteDriver::decode_zte_olt_tx_power(65535), None);
+        assert_eq!(ZteDriver::decode_zte_olt_tx_power(65535000), None);
+        assert_eq!(ZteDriver::decode_zte_olt_tx_power(2147483647), None);
     }
 }

@@ -2,6 +2,7 @@ use crate::db::queries::OnuRecord;
 use anyhow::{Context, Result};
 use chrono::Local;
 use printpdf::*;
+use std::collections::BTreeMap;
 use std::path::Path;
 
 const PAGE_W: f32 = 210.0;
@@ -716,6 +717,347 @@ impl PdfReportGenerator {
         w.save(output_path.as_ref().to_str().unwrap_or("report.pdf"))?;
         Ok(())
     }
+
+    /// Gera o relatório técnico executivo de Auditoria de Upstream e Saúde das Portas PON
+    pub fn generate_upstream_report<P: AsRef<Path>>(
+        output_path: P,
+        operator_name: &str,
+        summary: &crate::analytics::UpstreamDiagnosticsSummary,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let mut w = PdfWriter::new("SignalHunter - Auditoria de Upstream e Saude das Portas PON")?;
+        let now_str = Local::now().format("%d/%m/%Y %H:%M:%S").to_string();
+
+        w.draw_header_bar(
+            &now_str,
+            operator_name,
+            "Auditoria de Upstream (Rx OLT) e Saude das Portas PON",
+        );
+
+        // Subtítulo descritivo
+        w.ensure_space(ROW_H * 3.5);
+        let summary_text = format!(
+            "Total: {} ONUs | Saturacao (> -12 dBm): {} | Critico (< -27 dBm): {} | Atencao (-25 a -27 dBm): {} | Assimetria (>= 3 dB): {}",
+            summary.total_audited_onus,
+            summary.saturated_upstream_count,
+            summary.critical_upstream_count,
+            summary.warning_upstream_count,
+            summary.asymmetric_count
+        );
+        w.text_at(&summary_text, SECTION_SIZE, MARGIN + 1.0, true);
+        w.y -= 4.0;
+
+        let suspect_text = format!(
+            "Portas PON com Suspeita no Receptor APD da OLT: {} porta(s)",
+            summary.suspect_pons_count
+        );
+        w.text_at(
+            &suspect_text,
+            SUBTITLE_SIZE,
+            MARGIN + 1.0,
+            summary.suspect_pons_count > 0,
+        );
+        w.y -= 3.5;
+        w.hline(w.y, MARGIN, PAGE_W - MARGIN);
+        w.y -= 4.0;
+
+        // Tabela Executiva de Saúde das Portas PON e Upstream (Espaçamento calibrado para evitar sobreposição)
+        let col_pos = MARGIN + 1.0;
+        let col_olt = MARGIN + 8.0;
+        let col_pon = MARGIN + 44.0;
+        let col_total = MARGIN + 74.0;
+        let col_crit = MARGIN + 98.0;
+        let col_warn = MARGIN + 128.0;
+        let col_avg = MARGIN + 158.0;
+
+        let draw_pon_table_header = |writer: &mut PdfWriter| {
+            writer.ensure_space(ROW_H * 2.0);
+            writer.text_at("#", 7.2, col_pos, true);
+            writer.text_at("OLT", 7.2, col_olt, true);
+            writer.text_at("Interface PON", 7.2, col_pon, true);
+            writer.text_at("Total ONUs", 7.2, col_total, true);
+            writer.text_at("Criticas (< -27)", 7.2, col_crit, true);
+            writer.text_at("Atencao (-25..-27)", 7.2, col_warn, true);
+            writer.text_at("Media Rx OLT", 7.2, col_avg, true);
+            writer.y -= 1.8;
+            writer.hline(writer.y, MARGIN, PAGE_W - MARGIN);
+            writer.y -= 3.8;
+        };
+
+        if summary.suspect_pons.is_empty() {
+            w.ensure_space(ROW_H * 2.0);
+            w.text_at(
+                "Nenhuma porta PON com alerta coletivo ou suspeita de falha no receptor APD/DIO encontrada.",
+                8.5,
+                MARGIN + 1.0,
+                false,
+            );
+            w.y -= ROW_H;
+        } else {
+            draw_pon_table_header(&mut w);
+
+            for (idx, pon) in summary.suspect_pons.iter().enumerate() {
+                if w.y < MARGIN + 18.0 {
+                    w.new_page();
+                    w.draw_header_bar(
+                        &now_str,
+                        operator_name,
+                        "Auditoria de Upstream (Rx OLT) e Saude das Portas PON (Cont.)",
+                    );
+                    draw_pon_table_header(&mut w);
+                }
+
+                let olt_clean = sanitize(&pon.olt_name);
+                let olt_trunc = if olt_clean.len() > 20 {
+                    format!("{}...", &olt_clean[..17])
+                } else {
+                    olt_clean
+                };
+
+                let iface_str = format!("Slot {} / PON {}", pon.slot, pon.pon_port);
+                let total_str = format!("{} ONUs", pon.total_onus);
+                let crit_str = format!("{}", pon.critical_upstream_count);
+                let warn_str = format!("{}", pon.warning_upstream_count);
+                let avg_str = pon
+                    .avg_olt_rx_dbm
+                    .map(|v| format!("{:.2} dBm", v))
+                    .unwrap_or_else(|| "--".to_string());
+
+                let is_severe = pon.is_sfp_receiver_suspect;
+
+                w.text_at(&(idx + 1).to_string(), TD_SIZE, col_pos, false);
+                w.text_at(&olt_trunc, TD_SIZE, col_olt, false);
+                w.text_at(&iface_str, TD_SIZE, col_pon, true);
+                w.text_at(&total_str, TD_SIZE, col_total, false);
+                w.text_at(
+                    &crit_str,
+                    TD_SIZE,
+                    col_crit,
+                    pon.critical_upstream_count > 0,
+                );
+                w.text_at(&warn_str, TD_SIZE, col_warn, pon.warning_upstream_count > 0);
+                w.text_at(&avg_str, TD_SIZE, col_avg, is_severe);
+
+                w.y -= ROW_H;
+            }
+        }
+
+        // 2. Relação Detalhada de ONUs com Anomalia de Upstream (Agrupadas por OLT e Ordenadas do Pior para o Melhor Rx na PON)
+        if !summary.items.is_empty() {
+            w.ensure_space(ROW_H * 4.0);
+            w.y -= 4.0;
+            w.text_at(
+                "Relacao Detalhada de ONUs com Anomalia de Upstream (Rx na PON)",
+                SECTION_SIZE,
+                MARGIN + 1.0,
+                true,
+            );
+            w.y -= 3.5;
+            w.hline(w.y, MARGIN, PAGE_W - MARGIN);
+            w.y -= 4.0;
+
+            // Agrupa as ONUs problemáticas por OLT
+            let mut olts_map: BTreeMap<String, Vec<&crate::analytics::UpstreamIssueItem>> =
+                BTreeMap::new();
+            for item in &summary.items {
+                olts_map
+                    .entry(item.olt_name.clone())
+                    .or_default()
+                    .push(item);
+            }
+
+            // Ordena dentro de cada OLT do pior para o melhor valor de Rx da PON (Rx OLT):
+            // 1. Saturação (> -12 dBm): maior para o menor (ex: -9 pior que -11.5)
+            // 2. Críticas (<= -27 dBm): menor/mais atenuada primeiro (ex: -35 pior que -27.1)
+            // 3. Atenção (-25 a -27 dBm): menor primeiro (ex: -26.9 pior que -25.1)
+            // 4. Assimetria
+            for items_list in olts_map.values_mut() {
+                items_list.sort_by(|a, b| {
+                    let rx_a = a.olt_rx_power_dbm.unwrap_or(-99.0);
+                    let rx_b = b.olt_rx_power_dbm.unwrap_or(-99.0);
+
+                    let rank_a = if rx_a > -12.0 {
+                        1
+                    } else if rx_a <= -27.0 {
+                        2
+                    } else if rx_a <= -25.0 {
+                        3
+                    } else {
+                        4
+                    };
+                    let rank_b = if rx_b > -12.0 {
+                        1
+                    } else if rx_b <= -27.0 {
+                        2
+                    } else if rx_b <= -25.0 {
+                        3
+                    } else {
+                        4
+                    };
+
+                    if rank_a != rank_b {
+                        rank_a.cmp(&rank_b)
+                    } else if rank_a == 1 {
+                        // Saturação: maior primeiro
+                        rx_b.partial_cmp(&rx_a).unwrap_or(std::cmp::Ordering::Equal)
+                    } else if rank_a == 2 || rank_a == 3 {
+                        // Crítico / Atenção: menor (mais atenuado/pior) primeiro
+                        rx_a.partial_cmp(&rx_b).unwrap_or(std::cmp::Ordering::Equal)
+                    } else {
+                        // Assimetria: maior assimetria primeiro
+                        b.asymmetry_db
+                            .unwrap_or(0.0)
+                            .partial_cmp(&a.asymmetry_db.unwrap_or(0.0))
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    }
+                });
+            }
+
+            let col_onu_pos = MARGIN + 1.0;
+            let col_onu_iface = MARGIN + 7.0;
+            let col_onu_serial = MARGIN + 28.0;
+            let col_onu_cli = MARGIN + 54.0;
+            let col_onu_rx_olt = MARGIN + 90.0;
+            let col_onu_rx_down = MARGIN + 114.0;
+            let col_onu_tx = MARGIN + 132.0;
+            let col_onu_asym = MARGIN + 148.0;
+            let col_onu_diag = MARGIN + 165.0;
+
+            let draw_onu_table_header = |writer: &mut PdfWriter| {
+                writer.ensure_space(ROW_H * 2.0);
+                writer.text_at("#", 7.0, col_onu_pos, true);
+                writer.text_at("Interface", 7.0, col_onu_iface, true);
+                writer.text_at("Serial ONU", 7.0, col_onu_serial, true);
+                writer.text_at("Cliente", 7.0, col_onu_cli, true);
+                writer.text_at("Rx OLT (PON)", 7.0, col_onu_rx_olt, true);
+                writer.text_at("Rx ONU", 7.0, col_onu_rx_down, true);
+                writer.text_at("Tx ONU", 7.0, col_onu_tx, true);
+                writer.text_at("Assimetria", 7.0, col_onu_asym, true);
+                writer.text_at("Diagnostico", 7.0, col_onu_diag, true);
+                writer.y -= 1.8;
+                writer.hline(writer.y, MARGIN, PAGE_W - MARGIN);
+                writer.y -= 3.8;
+            };
+
+            for (olt_name, onus_list) in &olts_map {
+                w.ensure_space(ROW_H * 4.0);
+                let olt_clean = sanitize(olt_name);
+                let olt_banner = format!(
+                    "OLT: {}  ({} ONUs com anomalia de Upstream)",
+                    olt_clean,
+                    onus_list.len()
+                );
+                w.text_at(&olt_banner, SUBTITLE_SIZE, MARGIN + 1.0, true);
+                w.y -= 2.5;
+                w.hline(w.y, MARGIN, PAGE_W - MARGIN);
+                w.y -= 3.5;
+
+                draw_onu_table_header(&mut w);
+
+                for (idx, onu) in onus_list.iter().enumerate() {
+                    if w.y < MARGIN + 18.0 {
+                        w.new_page();
+                        w.draw_header_bar(
+                            &now_str,
+                            operator_name,
+                            "Auditoria de Upstream (Rx OLT) e Saude das Portas PON (Cont.)",
+                        );
+                        w.text_at(
+                            &format!("OLT: {} (Cont.)", olt_clean),
+                            SUBTITLE_SIZE,
+                            MARGIN + 1.0,
+                            true,
+                        );
+                        w.y -= 2.5;
+                        w.hline(w.y, MARGIN, PAGE_W - MARGIN);
+                        w.y -= 3.5;
+                        draw_onu_table_header(&mut w);
+                    }
+
+                    let iface_str = format!("S{}/P{}:{}", onu.slot, onu.pon_port, onu.onu_id_num);
+                    let serial_str = sanitize(&onu.serial_number);
+                    let cli_clean = sanitize(onu.customer_identifier.as_deref().unwrap_or("--"));
+                    let cli_trunc = if cli_clean.len() > 18 {
+                        format!("{}...", &cli_clean[..15])
+                    } else {
+                        cli_clean
+                    };
+
+                    let rx_olt_str = onu
+                        .olt_rx_power_dbm
+                        .map(|v| format!("{:.2} dBm", v))
+                        .unwrap_or_else(|| "--".to_string());
+                    let rx_down_str = onu
+                        .rx_power_dbm
+                        .map(|v| format!("{:.2} dBm", v))
+                        .unwrap_or_else(|| "--".to_string());
+                    let tx_str = onu
+                        .tx_power_dbm
+                        .map(|v| format!("{:.2} dBm", v))
+                        .unwrap_or_else(|| "--".to_string());
+                    let asym_str = onu
+                        .asymmetry_db
+                        .map(|v| format!("{:.2} dB", v))
+                        .unwrap_or_else(|| "--".to_string());
+
+                    let diag_str = match onu.issue_type.as_str() {
+                        "saturated_upstream" => "Saturacao",
+                        "both" => "Critico+Assim.",
+                        "critical_upstream" => "Critico Up",
+                        "warning_upstream" => "Atencao Up",
+                        "asymmetry" => "Assimetria",
+                        _ => "Degradado",
+                    };
+
+                    let is_crit_row = onu
+                        .olt_rx_power_dbm
+                        .map(|r| r > -12.0 || r <= -27.0)
+                        .unwrap_or(false);
+
+                    w.text_at(&(idx + 1).to_string(), 6.8, col_onu_pos, false);
+                    w.text_at(&iface_str, 6.8, col_onu_iface, true);
+                    w.text_at(&serial_str, 6.8, col_onu_serial, false);
+                    w.text_at(&cli_trunc, 6.8, col_onu_cli, false);
+                    w.text_at(&rx_olt_str, 6.8, col_onu_rx_olt, is_crit_row);
+                    w.text_at(&rx_down_str, 6.8, col_onu_rx_down, false);
+                    w.text_at(&tx_str, 6.8, col_onu_tx, false);
+                    w.text_at(
+                        &asym_str,
+                        6.8,
+                        col_onu_asym,
+                        onu.asymmetry_db.map(|a| a >= 3.0).unwrap_or(false),
+                    );
+                    w.text_at(diag_str, 6.8, col_onu_diag, is_crit_row);
+
+                    w.y -= ROW_H;
+                }
+                w.y -= 3.0;
+            }
+        }
+
+        // Rodapé
+        let total_p = w.doc.pages.len();
+        for (i, page) in w.doc.pages.iter_mut().enumerate() {
+            page.ops.push(Op::StartTextSection);
+            page.ops.push(Op::SetTextCursor {
+                pos: Point::new(Mm(MARGIN), Mm(8.0)),
+            });
+            page.ops.push(Op::SetFont {
+                font: PdfFontHandle::Builtin(BuiltinFont::Helvetica),
+                size: Pt(FOOTER_SIZE),
+            });
+            page.ops.push(Op::ShowText {
+                items: vec![TextItem::Text(format!(
+                    "SignalHunter PON Upstream & Optical Asymmetry Audit  -  Documento Confidencial NOC  |  Pagina {} de {}",
+                    i + 1,
+                    total_p
+                ))],
+            });
+            page.ops.push(Op::EndTextSection);
+        }
+
+        w.save(output_path.as_ref().to_str().unwrap_or("report.pdf"))?;
+        Ok(())
+    }
 }
 
 fn self_y(w: &PdfWriter) -> f32 {
@@ -728,11 +1070,9 @@ fn wrap_text(text: &str, max_chars: usize) -> Vec<String> {
     let mut current_line = String::new();
 
     for word in words {
-        if current_line.len() + word.len() + 1 > max_chars {
-            if !current_line.is_empty() {
-                lines.push(current_line.clone());
-                current_line.clear();
-            }
+        if current_line.len() + word.len() + 1 > max_chars && !current_line.is_empty() {
+            lines.push(current_line.clone());
+            current_line.clear();
         }
         if !current_line.is_empty() {
             current_line.push(' ');

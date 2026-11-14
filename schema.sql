@@ -65,12 +65,14 @@ CREATE TABLE IF NOT EXISTS onus (
     
     first_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    latest_signal_history_id BIGINT UNSIGNED NULL,
     
     FOREIGN KEY (olt_id) REFERENCES olts(id) ON DELETE CASCADE,
     UNIQUE KEY uk_olt_serial (olt_id, serial_number),
     INDEX idx_olt_slot_port (olt_id, slot, pon_port, onu_id),
     INDEX idx_onu_customer (customer_identifier),
-    INDEX idx_onu_status (status)
+    INDEX idx_onu_status (status),
+    INDEX idx_onu_latest_sig (latest_signal_history_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 4. Histórico de Leituras de Sinais (Série Temporal)
@@ -101,6 +103,7 @@ CREATE TABLE IF NOT EXISTS onu_signal_history (
     response_time_ms INT UNSIGNED NULL,
     
     FOREIGN KEY (onu_id) REFERENCES onus(id) ON DELETE CASCADE,
+    INDEX idx_history_onu_id (onu_id, id),
     INDEX idx_history_onu_time (onu_id, collected_at),
     INDEX idx_history_quality_time (signal_quality, collected_at),
     INDEX idx_history_degraded (is_degraded, collected_at)

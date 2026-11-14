@@ -67,6 +67,12 @@ impl FiberHomeDriver {
     }
 }
 
+impl Default for FiberHomeDriver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl OltDriver for FiberHomeDriver {
     fn vendor_name(&self) -> &'static str {
@@ -336,7 +342,7 @@ impl OltDriver for FiberHomeDriver {
                 let attenuation_db = if is_online {
                     if let Some(rx) = rx_dbm {
                         let att = olt_tx - rx;
-                        if att >= 0.0 && att <= 45.0 {
+                        if (0.0..=45.0).contains(&att) {
                             Some(att)
                         } else {
                             None

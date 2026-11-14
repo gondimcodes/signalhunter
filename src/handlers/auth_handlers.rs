@@ -68,7 +68,7 @@ pub async fn get_captcha_handler(
         "{}:{}:{}",
         code.to_uppercase(),
         timestamp,
-        &state.config.security.jwt_secret
+        state.config.security.jwt_secret
     );
     let signature = hex::encode(crypto_hash_sha256(raw_payload.as_bytes()));
     let captcha_id = format!(
@@ -316,6 +316,7 @@ fn verify_captcha(expected_token: &str, user_code: &str, secret: &str) -> bool {
     user_code.trim().eq_ignore_ascii_case(real_code.trim())
 }
 
+#[allow(clippy::result_large_err)]
 pub async fn login_handler(
     State(state): State<Arc<AppState>>,
     ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
@@ -515,6 +516,7 @@ pub async fn login_handler(
     ))
 }
 
+#[allow(clippy::result_large_err)]
 pub async fn me_handler(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,

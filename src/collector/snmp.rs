@@ -45,9 +45,6 @@ impl SnmpClient {
         })
     }
 
-    /// Cria um socket UDP vinculado a uma porta local para comunicação com a OLT
-    /// (drain_socket removido — descartar respostas pendentes quebra OLTs lentas)
-
     /// Envia uma requisição SNMP Get direta
     pub async fn get(
         &self,
@@ -656,7 +653,7 @@ impl SnmpClient {
                                 });
                             }
                             // noSuchObject (0x80), noSuchInstance (0x81), endOfMibView (0x82) - para o walk
-                            0x80 | 0x81 | 0x82 => {
+                            0x80..=0x82 => {
                                 // Sinaliza fim do walk inserindo OID marcado como "endOfMib"
                                 results.push(SnmpVariableBinding {
                                     oid: format!("endOfMib:{}", parsed_oid),

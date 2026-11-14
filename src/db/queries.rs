@@ -64,6 +64,7 @@ pub struct OnuRecord {
     pub latest_rx_power_dbm: Option<f64>,
     pub latest_tx_power_dbm: Option<f64>,
     pub latest_olt_rx_power_dbm: Option<f64>,
+    pub latest_olt_tx_power_dbm: Option<f64>,
     pub latest_attenuation_db: Option<f64>,
     pub latest_temperature_c: Option<f64>,
     pub latest_signal_quality: Option<String>,
@@ -207,12 +208,7 @@ pub async fn get_dashboard_metrics(pool: &MySqlPool) -> Result<DashboardMetrics,
             COALESCE(SUM(CASE WHEN h.is_degraded = TRUE THEN 1 ELSE 0 END), 0) AS degraded_count
         FROM onus o
         JOIN olts ol ON o.olt_id = ol.id
-        LEFT JOIN onu_signal_history h ON h.id = (
-            SELECT id FROM onu_signal_history 
-            WHERE onu_id = o.id 
-            ORDER BY id DESC 
-            LIMIT 1
-        )
+        LEFT JOIN onu_signal_history h ON h.id = o.latest_signal_history_id
         WHERE ol.is_active = TRUE"
     )
     .fetch_one(pool)

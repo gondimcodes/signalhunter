@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] — 2026-11-14
+
+### 🚀 PON Upstream Health, Bidirectional Optical Diagnostics & APD Detection
+- **Bidirectional Telemetry Breakdown in ONU Diagnostics Modal**:
+  - Expanded `showOnuAuditModal` to display a 6-card analytical grid:
+    - `Rx ONU (Downstream)` and `Tx ONU (Upstream)`
+    - `Rx OLT (PON Reception)` and `Tx OLT (PON SFP Output)`
+    - `Optical Asymmetry (Δ)` and `Transceiver Temperature`
+  - Upgraded temporal audit history to 7 columns with native bidirectional telemetry (`Rx ONU`, `Tx ONU`, `Rx OLT`, `Tx OLT`, `ΔdB`, `Status/Cause`).
+  - Added `latest_olt_tx_power_dbm` across `OnuRecord` and all underlying SQL queries.
+- **Dedicated PON Upstream Audit Panel & Interactive Port Modal**:
+  - Added new top-level tab `Auditoria Upstream & PONs` (`#content-upstream`) with real-time KPI metrics:
+    - Saturação Upstream ($> -12.0\text{ dBm}$)
+    - Atenção Upstream ($-25.0$ to $-27.0\text{ dBm}$)
+    - Rx OLT Crítico ($\le -27.0\text{ dBm}$)
+    - Assimetria Óptica ($\ge 3.0\text{ dB}$)
+    - Portas PON com Suspeita APD (collective optical loss at SFP/DIO)
+  - Interactive PON Audit Modal: clicking any PON card opens a dedicated modal displaying all problematic ONUs on that specific interface with quick search, severity badges, and direct links to ONU diagnostics.
+  - Saturação Upstream rule refinement: strictly triggered by PON port average reception (`avg_rx > -12.00 dBm`), eliminating false positives from isolated ONUs.
+  - Strict exclusion of offline / LOS ONUs from upstream calculations, clearing residual SNMP cache readings (`-3.91 dBm`, `-3.56 dBm`).
+- **Executive PDF Report ("Auditoria de Upstream & Saúde das Portas PON")**:
+  - Implemented high-density PDF report generation endpoint `/api/reports/pdf?type=upstream`.
+  - Section 1: Executive table of suspect PON ports with APD/DIO failure risk.
+  - Section 2: Problematic ONUs grouped by OLT and ordered strictly from worst to best Rx OLT (Saturation $> -12\text{ dBm}$ $\rightarrow$ Critical $\le -27\text{ dBm}$ $\rightarrow$ Attention $-25\text{ to }-27\text{ dBm}$ $\rightarrow$ Optical Asymmetry).
+  - Clean column formatting avoiding text collisions and supporting multi-page flows.
+- **Clean Architecture, Zero Warnings & Dependency Pruning**:
+  - Pruned unused dependencies (`axum-extra`, `futures`, `quick-xml`, `tower-http`) from `Cargo.toml`, reducing dependencies from 346 to 328.
+  - Added comprehensive unit tests for upstream evaluation, PON saturation thresholds, and LOS exclusion.
+  - 100% compliant with `cargo fmt`, `cargo clippy -- -D warnings`, and 12/12 unit tests passing.
+
+---
+
 ## [1.1.2] — 2026-11-02
 
 ### 🛡️ Security & Supply-Chain Hardening

@@ -52,8 +52,8 @@ fn extract_admin_session(
     let mut auth_token = "";
     for part in cookie_hdr.split(';') {
         let trimmed = part.trim();
-        if trimmed.starts_with("sh_auth=") {
-            auth_token = &trimmed["sh_auth=".len()..];
+        if let Some(token) = trimmed.strip_prefix("sh_auth=") {
+            auth_token = token;
             break;
         }
     }
@@ -107,8 +107,8 @@ fn extract_authenticated_session(
     let mut auth_token = "";
     for part in cookie_hdr.split(';') {
         let trimmed = part.trim();
-        if trimmed.starts_with("sh_auth=") {
-            auth_token = &trimmed["sh_auth=".len()..];
+        if let Some(token) = trimmed.strip_prefix("sh_auth=") {
+            auth_token = token;
             break;
         }
     }
@@ -369,8 +369,8 @@ pub async fn update_user_handler(
     let mut auth_token = "";
     for part in cookie_hdr.split(';') {
         let trimmed = part.trim();
-        if trimmed.starts_with("sh_auth=") {
-            auth_token = &trimmed["sh_auth=".len()..];
+        if let Some(token) = trimmed.strip_prefix("sh_auth=") {
+            auth_token = token;
             break;
         }
     }

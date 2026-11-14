@@ -37,6 +37,12 @@ impl NokiaDriver {
     }
 }
 
+impl Default for NokiaDriver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl OltDriver for NokiaDriver {
     fn vendor_name(&self) -> &'static str {
@@ -131,7 +137,7 @@ impl OltDriver for NokiaDriver {
             .await
             .unwrap_or_default();
         for vb in status_walk {
-            if let Some(idx_str) = vb.oid.split('.').last() {
+            if let Some(idx_str) = vb.oid.split('.').next_back() {
                 let state_val = vb.value_int.unwrap_or(0);
                 let is_online = state_val == 12 || state_val == 1 || state_val == 2;
                 status_map.insert(idx_str.to_string(), is_online);
@@ -147,7 +153,7 @@ impl OltDriver for NokiaDriver {
             .await
             .unwrap_or_default();
         for vb in rx_walk {
-            if let Some(idx_str) = vb.oid.split('.').last() {
+            if let Some(idx_str) = vb.oid.split('.').next_back() {
                 if let Ok(raw_val) = vb.value_int.ok_or(()) {
                     // 32768 indica leitura inválida / offline
                     if raw_val < 0 && raw_val > -35000 {
@@ -168,7 +174,7 @@ impl OltDriver for NokiaDriver {
             .await
             .unwrap_or_default();
         for vb in tx_walk {
-            if let Some(idx_str) = vb.oid.split('.').last() {
+            if let Some(idx_str) = vb.oid.split('.').next_back() {
                 if let Ok(raw_val) = vb.value_int.ok_or(()) {
                     if raw_val > 0 && raw_val != 32768 && raw_val < 10000 {
                         let dbm = if raw_val > 500 {
@@ -192,7 +198,7 @@ impl OltDriver for NokiaDriver {
             .await
             .unwrap_or_default();
         for vb in temp_walk {
-            if let Some(idx_str) = vb.oid.split('.').last() {
+            if let Some(idx_str) = vb.oid.split('.').next_back() {
                 if let Ok(raw_val) = vb.value_int.ok_or(()) {
                     if raw_val > 0 && raw_val != 32768 && raw_val < 30000 {
                         let temp_c = (raw_val as f64) / 256.0;
@@ -212,7 +218,7 @@ impl OltDriver for NokiaDriver {
             .await
             .unwrap_or_default();
         for vb in volt_walk {
-            if let Some(idx_str) = vb.oid.split('.').last() {
+            if let Some(idx_str) = vb.oid.split('.').next_back() {
                 if let Ok(raw_val) = vb.value_int.ok_or(()) {
                     if raw_val > 0 && raw_val != 65536 && raw_val < 65000 {
                         let volt_v = (raw_val as f64) / 2000.0;
@@ -232,7 +238,7 @@ impl OltDriver for NokiaDriver {
             .await
             .unwrap_or_default();
         for vb in bias_walk {
-            if let Some(idx_str) = vb.oid.split('.').last() {
+            if let Some(idx_str) = vb.oid.split('.').next_back() {
                 if let Ok(raw_val) = vb.value_int.ok_or(()) {
                     if raw_val > 0 && raw_val != 32768 && raw_val < 10000 {
                         let bias_ma = (raw_val as f64) / 100.0;
@@ -252,7 +258,7 @@ impl OltDriver for NokiaDriver {
             .await
             .unwrap_or_default();
         for vb in dist_walk {
-            if let Some(idx_str) = vb.oid.split('.').last() {
+            if let Some(idx_str) = vb.oid.split('.').next_back() {
                 if let Some(ref s) = vb.value_str {
                     let cleaned = s.trim();
                     if let Ok(meters) = cleaned.parse::<i32>() {
@@ -273,7 +279,7 @@ impl OltDriver for NokiaDriver {
             .await
             .unwrap_or_default();
         for vb in olt_rx_walk {
-            if let Some(idx_str) = vb.oid.split('.').last() {
+            if let Some(idx_str) = vb.oid.split('.').next_back() {
                 if let Ok(raw_val) = vb.value_int.ok_or(()) {
                     if raw_val != 65534 && raw_val != 32768 && raw_val > -500 && raw_val < 50 {
                         let dbm = (raw_val as f64) / 10.0;
@@ -296,7 +302,7 @@ impl OltDriver for NokiaDriver {
             .await
             .unwrap_or_default();
         for vb in alarm_walk {
-            if let Some(idx_str) = vb.oid.split('.').last() {
+            if let Some(idx_str) = vb.oid.split('.').next_back() {
                 if let Some(raw_val) = vb.value_int {
                     let reason = match raw_val {
                         256 => "dying_gasp",
@@ -322,7 +328,7 @@ impl OltDriver for NokiaDriver {
             .await
             .unwrap_or_default();
         for vb in model_walk {
-            if let Some(idx_str) = vb.oid.split('.').last() {
+            if let Some(idx_str) = vb.oid.split('.').next_back() {
                 if let Some(s) = vb.value_str {
                     let cleaned = s.trim().to_string();
                     if !cleaned.is_empty() {
@@ -334,7 +340,7 @@ impl OltDriver for NokiaDriver {
 
         if !onu_table.is_empty() {
             for (idx, vb) in onu_table.iter().enumerate() {
-                let idx_str = vb.oid.split('.').last().unwrap_or("");
+                let idx_str = vb.oid.split('.').next_back().unwrap_or("");
                 let if_index: i64 = idx_str.parse().unwrap_or(0);
 
                 let raw_bytes = if !vb.value_raw.is_empty() {
@@ -438,17 +444,13 @@ impl OltDriver for NokiaDriver {
                 let attenuation_db = if is_online {
                     if let (Some(tx), Some(olt_rx)) = (tx_dbm, olt_rx_dbm) {
                         let att = tx - olt_rx;
-                        if att >= 0.0 && att <= 45.0 {
+                        if (0.0..=45.0).contains(&att) {
                             Some(att)
-                        } else if let Some(rx) = rx_dbm {
-                            Some(4.0 - rx)
                         } else {
-                            None
+                            rx_dbm.map(|rx| 4.0 - rx)
                         }
-                    } else if let Some(rx) = rx_dbm {
-                        Some(4.0 - rx)
                     } else {
-                        None
+                        rx_dbm.map(|rx| 4.0 - rx)
                     }
                 } else {
                     None

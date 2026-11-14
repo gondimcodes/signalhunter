@@ -267,15 +267,52 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
         ).execute(pool).await;
 
+        // Garante a coluna latest_signal_history_id na tabela onus para lookup O(1) sem subquery correlacionada
         let _ = sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_onu_latest_id ON onu_signal_history (onu_id, id DESC)",
+            "ALTER TABLE onus ADD COLUMN latest_signal_history_id BIGINT UNSIGNED NULL",
         )
         .execute(pool)
         .await;
 
-        let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_onus_olt_id ON onus (olt_id, id)")
+        let _ = sqlx::query("CREATE INDEX idx_onus_latest_sig ON onus (latest_signal_history_id)")
             .execute(pool)
             .await;
+
+        // Índices de alta performance (sintaxe padrão compatível com MySQL e MariaDB)
+        let _ = sqlx::query("CREATE INDEX idx_onu_latest_id ON onu_signal_history (onu_id, id)")
+            .execute(pool)
+            .await;
+
+        let _ = sqlx::query("CREATE INDEX idx_onus_olt_id ON onus (olt_id, id)")
+            .execute(pool)
+            .await;
+
+        // Sanitização automática: purga registros anômalos (> -8.00 dBm) gerados na janela de calibração
+        let _ = sqlx::query("DELETE FROM onu_signal_history WHERE rx_power_dbm > -8.00")
+            .execute(pool)
+            .await;
+
+        // Corrige deltas artificiais e desmarca is_degraded causados pelo salto da leitura anômala
+        let _ = sqlx::query(
+            "UPDATE onu_signal_history 
+             SET delta_prev_rx_db = 0.00, is_degraded = FALSE 
+             WHERE delta_prev_rx_db < -15.00",
+        )
+        .execute(pool)
+        .await;
+
+        // Sincroniza latest_signal_history_id para apontar estritamente para a leitura legítima mais recente
+        let _ = sqlx::query(
+            "UPDATE onus o 
+             JOIN (
+                 SELECT onu_id, MAX(id) AS max_id 
+                 FROM onu_signal_history 
+                 GROUP BY onu_id
+             ) latest ON latest.onu_id = o.id 
+             SET o.latest_signal_history_id = latest.max_id",
+        )
+        .execute(pool)
+        .await;
 
         let _ = sqlx::query(
             "CREATE TABLE IF NOT EXISTS audit_logs (
@@ -475,6 +512,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .route(
             "/api/diagnostics",
             get(crate::handlers::diagnostic_handlers::get_diagnostics_handler),
+        )
+        .route(
+            "/api/diagnostics/upstream",
+            get(crate::handlers::diagnostic_handlers::get_upstream_diagnostics_handler),
         )
         .route("/api/reports/pdf", get(generate_report_pdf_handler))
         // Rotas de Usuários (RBAC Admin)
