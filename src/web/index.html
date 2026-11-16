@@ -1642,6 +1642,7 @@
                             <span>Auditoria da Porta PON</span>
                             <span id="ponModalStatusTag" style="font-size: 0.75rem;"></span>
                             <span id="ponModalIfaceTag" style="color: var(--accent-cyan); font-family: monospace; font-size: 0.9rem;"></span>
+                            <span id="ponModalActiveOnusBadge" style="font-size: 0.72rem;"></span>
                         </h3>
                         <div style="font-size: 0.72rem; color: #94A3B8; margin-top: 2px;" id="ponModalSubtitle">
                             OLT Principal | Média Rx OLT: --
@@ -4673,11 +4674,16 @@
                 ifaceTagEl.textContent = `S${slot}/P${ponPort}`;
             }
 
+            var totalActive = pon ? pon.total_onus : currentPonModalItems.length;
+            var activeOnusBadge = document.getElementById('ponModalActiveOnusBadge');
+            if (activeOnusBadge) {
+                activeOnusBadge.innerHTML = `<span style="background: rgba(16, 185, 129, 0.12); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 0.72rem; letter-spacing: 0.3px;">${totalActive} ONUs Ativas</span>`;
+            }
+
             var subtitleEl = document.getElementById('ponModalSubtitle');
             if (subtitleEl) {
                 var avgRxStr = (pon && pon.avg_olt_rx_dbm != null) ? pon.avg_olt_rx_dbm.toFixed(2) + ' dBm' : '--';
-                var totalOnusStr = pon ? pon.total_onus : currentPonModalItems.length;
-                subtitleEl.innerHTML = `OLT: <strong style="color: #FFF;">${escapeHtml(oltName)}</strong> | Total na Porta: <strong style="color: #FFF;">${totalOnusStr} ONUs</strong> | Média Rx OLT: <strong style="color: ${statusColor}; font-family: monospace;">${avgRxStr}</strong>`;
+                subtitleEl.innerHTML = `OLT: <strong style="color: #FFF;">${escapeHtml(oltName)}</strong> | Média Rx OLT: <strong style="color: ${statusColor}; font-family: monospace;">${avgRxStr}</strong>`;
             }
 
             // Mini KPI Bar

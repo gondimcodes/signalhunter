@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.1] — 2026-11-16
+
+### ⚡ UI/UX Enhancements & Real-Time PON Active ONU Telemetry
+- **Active ONU Count Badge on PON Audit Modal**:
+  - Integrated a real-time active ONU capacity badge (`[ X ONUs Ativas ]`) directly into the `#ponAuditModal` header title, immediately adjacent to the PON interface identifier (`S{slot}/P{pon_port}`).
+  - Leverages the strict online/active ONU calculation from the Rust analytical engine (`OpticalEvaluator::evaluate_upstream_diagnostics`), displaying accurate active client density without offline/LOS noise.
+  - Refined modal subtitle layout by removing redundant text, maintaining focus on OLT identification and average upstream reception power (`avg_olt_rx_dbm`).
+
+---
+
 ## [1.2.0] — 2026-11-14
 
 ### 🚀 PON Upstream Health, Bidirectional Optical Diagnostics & APD Detection

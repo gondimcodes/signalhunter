@@ -7,6 +7,16 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [1.2.1] — 2026-11-16
+
+### ⚡ Melhorias de Interface & Telemetria de ONUs Ativas na Porta PON
+- **Badge de ONUs Ativas no Cabeçalho do Modal de Auditoria de PON**:
+  - Inclusão de badge de capacidade em tempo real (`[ X ONUs Ativas ]`) posicionado diretamente no título principal do `#ponAuditModal`, ao lado da interface PON (`S{slot}/P{pon_port}`).
+  - Consome o cálculo estrito de ONUs ativas/online processado pelo motor analítico Rust (`OpticalEvaluator::evaluate_upstream_diagnostics`), refletindo a densidade real de clientes operacionais sem distorções de ONUs offline ou em LOS.
+  - Otimização do subtítulo do modal eliminando redundâncias visuais e destacando a identificação da OLT e a potência óptica média de recepção (`avg_olt_rx_dbm`).
+
+---
+
 ## [1.2.0] — 2026-11-14
 
 ### 🚀 Auditoria de Upstream (Rx OLT), Diagnóstico Bidirecional & Detecção de APD
